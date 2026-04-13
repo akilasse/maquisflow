@@ -1,16 +1,13 @@
 // ============================================================
 // ADMIN DASHBOARD - Panneau super admin MaquisFlow
-// Gestion des établissements, utilisateurs et abonnements
 // ============================================================
 
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
-const BASE = 'http://localhost:3000/api/admin'
-
 const api = () => axios.create({
-  baseURL: BASE,
+  baseURL: '/api/admin',
   headers: { Authorization: `Bearer ${localStorage.getItem('adminToken')}` }
 })
 
@@ -34,13 +31,8 @@ const AdminDashboard = () => {
   const [message, setMessage]                     = useState(null)
   const [modal, setModal]                         = useState(null)
 
-  // Formulaire création établissement
   const [formMaquis, setFormMaquis] = useState({
-    nom:          '',
-    type:         'maquis',
-    type_acces:   'abonnement', // achat_unique | abonnement
-    periodicite:  'mensuel',    // mensuel | annuel
-    montant:      '35000',
+    nom: '', type: 'maquis', type_acces: 'abonnement', periodicite: 'mensuel', montant: '35000',
   })
 
   const admin = JSON.parse(localStorage.getItem('adminInfo') || '{}')
@@ -57,7 +49,13 @@ const AdminDashboard = () => {
         api().get('/maquis')
       ])
       setStats(s.data.data)
-      setMaquis(m.data.data)
+      const maquisData = m.data.data
+      setMaquis(maquisData)
+      // Rafraîchit le maquis sélectionné si on est sur la page détail
+      if (maquisSelectionne) {
+        const updated = maquisData.find(m => m.id === maquisSelectionne.id)
+        if (updated) setMaquisSelectionne(updated)
+      }
     } catch (error) {
       if (error.response?.status === 401) {
         localStorage.removeItem('adminToken')
@@ -106,7 +104,6 @@ const AdminDashboard = () => {
     } catch { afficherMessage('erreur', 'Erreur') }
   }
 
-  // Calcule la date d'échéance selon la périodicité
   const calculerEcheance = (periodicite) => {
     const date = new Date()
     if (periodicite === 'mensuel') date.setMonth(date.getMonth() + 1)
@@ -118,14 +115,12 @@ const AdminDashboard = () => {
     e.preventDefault()
     try {
       await api().post('/maquis', {
-        nom:         formMaquis.nom,
-        type:        formMaquis.type,
-        type_acces:  formMaquis.type_acces,
-        periodicite: formMaquis.type_acces === 'abonnement' ? formMaquis.periodicite : null,
-        montant:     parseFloat(formMaquis.montant),
-        date_echeance: formMaquis.type_acces === 'abonnement'
-          ? calculerEcheance(formMaquis.periodicite)
-          : null, // achat unique = pas d'échéance
+        nom:          formMaquis.nom,
+        type:         formMaquis.type,
+        type_acces:   formMaquis.type_acces,
+        periodicite:  formMaquis.type_acces === 'abonnement' ? formMaquis.periodicite : null,
+        montant:      parseFloat(formMaquis.montant),
+        date_echeance: formMaquis.type_acces === 'abonnement' ? calculerEcheance(formMaquis.periodicite) : null,
       })
       afficherMessage('succes', 'Établissement créé !')
       setModal(null)
@@ -147,7 +142,8 @@ const AdminDashboard = () => {
       })
       afficherMessage('succes', 'Utilisateur créé !')
       setModal(null)
-      charger()
+      // Recharge les données ET met à jour maquisSelectionne
+      await charger()
     } catch (err) { afficherMessage('erreur', err.response?.data?.message || 'Erreur') }
   }
 
@@ -155,7 +151,7 @@ const AdminDashboard = () => {
     try {
       await api().put('/utilisateurs/toggle', { utilisateur_id, maquis_id, actif: !actif })
       afficherMessage('succes', actif ? 'Utilisateur désactivé' : 'Utilisateur activé')
-      charger()
+      await charger()
     } catch { afficherMessage('erreur', 'Erreur') }
   }
 
@@ -189,9 +185,9 @@ const AdminDashboard = () => {
         </div>
         <nav style={{ flex: 1, padding: 12 }}>
           {[
-            { key: 'dashboard',    label: 'Dashboard',      icone: '📊' },
-            { key: 'maquis',       label: 'Établissements', icone: '🏪' },
-            { key: 'abonnements',  label: 'Abonnements',    icone: '💳' },
+            { key: 'dashboard',   label: 'Dashboard',      icone: '📊' },
+            { key: 'maquis',      label: 'Établissements', icone: '🏪' },
+            { key: 'abonnements', label: 'Abonnements',    icone: '💳' },
           ].map(item => (
             <button key={item.key} onClick={() => { setOnglet(item.key); setMaquisSelectionne(null) }}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', backgroundColor: onglet === item.key ? '#1e293b' : 'transparent', color: onglet === item.key ? 'white' : '#64748b', fontSize: 14, fontWeight: 500, marginBottom: 4, textAlign: 'left' }}>
@@ -220,10 +216,10 @@ const AdminDashboard = () => {
             <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 20 }}>Dashboard Admin</h1>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
               {[
-                { label: 'Établissements',    val: stats.totalMaquis,                        bg: '#eff6ff', col: '#1d4ed8' },
-                { label: 'Utilisateurs',      val: stats.totalUtilisateurs,                  bg: '#f0fdf4', col: '#15803d' },
-                { label: 'Abonnements actifs',val: stats.abonnementsActifs,                  bg: '#fefce8', col: '#a16207' },
-                { label: 'Revenus/mois',      val: `${fmtNum(stats.revenusMensuels)} F`,     bg: '#faf5ff', col: '#7e22ce' },
+                { label: 'Établissements',     val: stats.totalMaquis,                    bg: '#eff6ff', col: '#1d4ed8' },
+                { label: 'Utilisateurs',       val: stats.totalUtilisateurs,              bg: '#f0fdf4', col: '#15803d' },
+                { label: 'Abonnements actifs', val: stats.abonnementsActifs,              bg: '#fefce8', col: '#a16207' },
+                { label: 'Revenus/mois',       val: `${fmtNum(stats.revenusMensuels)} F`, bg: '#faf5ff', col: '#7e22ce' },
               ].map(c => (
                 <div key={c.label} style={{ ...S.card, backgroundColor: c.bg }}>
                   <p style={{ fontSize: 12, color: c.col, fontWeight: 600, textTransform: 'uppercase', margin: '0 0 8px' }}>{c.label}</p>
@@ -261,7 +257,6 @@ const AdminDashboard = () => {
               <button onClick={() => setModal('creerMaquis')} style={S.btn()}>+ Nouveau</button>
             </div>
 
-            {/* ── Formulaire création établissement ── */}
             {modal === 'creerMaquis' && (
               <div style={{ ...S.card, marginBottom: 20, border: '2px solid #6366f1' }}>
                 <h3 style={{ margin: '0 0 20px', fontSize: 16, color: '#0f172a' }}>Nouvel établissement</h3>
@@ -280,15 +275,13 @@ const AdminDashboard = () => {
                     </div>
                   </div>
 
-                  {/* Choix du modèle commercial */}
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Modèle commercial *</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                     {[
                       { val: 'achat_unique', label: '💰 Achat unique', desc: 'Paiement une fois, accès permanent' },
                       { val: 'abonnement',   label: '🔄 Abonnement',   desc: 'Récurrent mensuel ou annuel' },
                     ].map(opt => (
-                      <div key={opt.val}
-                        onClick={() => setFormMaquis({ ...formMaquis, type_acces: opt.val })}
+                      <div key={opt.val} onClick={() => setFormMaquis({ ...formMaquis, type_acces: opt.val })}
                         style={{ border: `2px solid ${formMaquis.type_acces === opt.val ? '#6366f1' : '#e2e8f0'}`, borderRadius: 10, padding: '12px 14px', cursor: 'pointer', backgroundColor: formMaquis.type_acces === opt.val ? '#f5f3ff' : 'white' }}>
                         <p style={{ margin: 0, fontWeight: 700, fontSize: 14, color: formMaquis.type_acces === opt.val ? '#6366f1' : '#374151' }}>{opt.label}</p>
                         <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8' }}>{opt.desc}</p>
@@ -296,7 +289,6 @@ const AdminDashboard = () => {
                     ))}
                   </div>
 
-                  {/* Si abonnement → choisir périodicité */}
                   {formMaquis.type_acces === 'abonnement' && (
                     <div style={{ backgroundColor: '#f8fafc', borderRadius: 10, padding: 14, marginBottom: 16, border: '1px solid #e2e8f0' }}>
                       <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Périodicité</label>
@@ -305,8 +297,7 @@ const AdminDashboard = () => {
                           { val: 'mensuel', label: '📅 Mensuel', montant: '35000', desc: '35 000 F / mois' },
                           { val: 'annuel',  label: '📆 Annuel',  montant: '350000', desc: '350 000 F / an' },
                         ].map(opt => (
-                          <div key={opt.val}
-                            onClick={() => setFormMaquis({ ...formMaquis, periodicite: opt.val, montant: opt.montant })}
+                          <div key={opt.val} onClick={() => setFormMaquis({ ...formMaquis, periodicite: opt.val, montant: opt.montant })}
                             style={{ border: `2px solid ${formMaquis.periodicite === opt.val ? '#6366f1' : '#e2e8f0'}`, borderRadius: 8, padding: '10px 12px', cursor: 'pointer', backgroundColor: formMaquis.periodicite === opt.val ? '#f5f3ff' : 'white' }}>
                             <p style={{ margin: 0, fontWeight: 700, fontSize: 13, color: formMaquis.periodicite === opt.val ? '#6366f1' : '#374151' }}>{opt.label}</p>
                             <p style={{ margin: '2px 0 0', fontSize: 12, color: '#94a3b8' }}>{opt.desc}</p>
@@ -323,7 +314,6 @@ const AdminDashboard = () => {
                     </div>
                   )}
 
-                  {/* Si achat unique */}
                   {formMaquis.type_acces === 'achat_unique' && (
                     <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, marginBottom: 16, border: '1px solid #bbf7d0' }}>
                       <p style={{ margin: 0, fontSize: 13, color: '#15803d', fontWeight: 500 }}>

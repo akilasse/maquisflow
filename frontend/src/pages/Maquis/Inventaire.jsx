@@ -87,6 +87,20 @@ const Inventaire = () => {
     }
   }
 
+  const annulerInventaire = async () => {
+    if (!window.confirm('Annuler l\'inventaire en cours ? Toutes les saisies seront perdues.')) return
+    setChargementAction(true)
+    try {
+      await api.delete(`/api/inventaire/${inventaireActif.id}`)
+      afficherMessage('succes', 'Inventaire annulé.')
+      chargerDonnees()
+    } catch (error) {
+      afficherMessage('erreur', error.response?.data?.message || 'Erreur lors de l\'annulation')
+    } finally {
+      setChargementAction(false)
+    }
+  }
+
   const styleOnglet = (actif) => ({
     padding: '8px 16px', borderRadius: '8px', border: 'none',
     cursor: 'pointer', fontWeight: '500', fontSize: '14px',
@@ -207,10 +221,17 @@ const Inventaire = () => {
                 </table>
               </div>
 
-              <button onClick={cloturerInventaire} disabled={chargementAction}
-                style={{ width: '100%', padding: '14px', backgroundColor: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
-                {chargementAction ? 'Clôture en cours...' : '🔒 Clôturer et ajuster les stocks'}
-              </button>
+              {/* Boutons action */}
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button onClick={annulerInventaire} disabled={chargementAction}
+                  style={{ flex: 1, padding: '14px', backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
+                  {chargementAction ? '...' : '❌ Annuler l\'inventaire'}
+                </button>
+                <button onClick={cloturerInventaire} disabled={chargementAction}
+                  style={{ flex: 2, padding: '14px', backgroundColor: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
+                  {chargementAction ? 'Clôture en cours...' : '🔒 Clôturer et ajuster les stocks'}
+                </button>
+              </div>
             </div>
           )}
         </div>
