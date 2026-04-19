@@ -1,5 +1,5 @@
 // ============================================================
-// ADMIN DASHBOARD - Panneau super admin MaquisFlow
+// ADMIN DASHBOARD - Panneau super admin Flowix
 // ============================================================
 
 import { useState, useEffect } from 'react'
@@ -21,6 +21,23 @@ const STATUT_COLORS = {
   essai:    { bg: '#eff6ff', color: '#2563eb' },
 }
 
+// Activités avec couleurs automatiques
+const ACTIVITES = [
+  { label: '🍺 Maquis / Bar',       value: 'Maquis',       couleur: '#FF6B35' },
+  { label: '🍽️ Restaurant',         value: 'Restaurant',   couleur: '#1D4ED8' },
+  { label: '🛍️ Boutique',           value: 'Boutique',     couleur: '#7C3AED' },
+  { label: '💊 Pharmacie',           value: 'Pharmacie',    couleur: '#16A34A' },
+  { label: '✂️ Salon / Coiffure',   value: 'Salon',        couleur: '#EC4899' },
+  { label: '🏪 Épicerie',            value: 'Épicerie',     couleur: '#F59E0B' },
+  { label: '🔧 Quincaillerie',       value: 'Quincaillerie',couleur: '#6B7280' },
+  { label: '🏨 Hôtel',               value: 'Hôtel',        couleur: '#0EA5E9' },
+  { label: '🎓 École / Formation',   value: 'École',        couleur: '#8B5CF6' },
+  { label: '🏥 Clinique / Médecin',  value: 'Clinique',     couleur: '#14B8A6' },
+  { label: '🍕 Fast Food',           value: 'Fast Food',    couleur: '#EF4444' },
+  { label: '🏋️ Salle de sport',     value: 'Sport',        couleur: '#F97316' },
+  { label: '🛺 Autre commerce',      value: 'Autre',        couleur: '#FF6B35' },
+]
+
 const AdminDashboard = () => {
   const navigate = useNavigate()
   const [onglet, setOnglet]                       = useState('dashboard')
@@ -30,9 +47,11 @@ const AdminDashboard = () => {
   const [chargement, setChargement]               = useState(true)
   const [message, setMessage]                     = useState(null)
   const [modal, setModal]                         = useState(null)
+  const [logoFichier, setLogoFichier]             = useState(null)
+  const [logoPreview, setLogoPreview]             = useState(null)
 
   const [formMaquis, setFormMaquis] = useState({
-    nom: '', type: 'maquis', type_acces: 'abonnement', periodicite: 'mensuel', montant: '35000',
+    nom: '', activite: '', couleur_primaire: '#FF6B35', type_acces: 'abonnement', periodicite: 'mensuel', montant: '35000',
   })
 
   const admin = JSON.parse(localStorage.getItem('adminInfo') || '{}')
@@ -51,7 +70,6 @@ const AdminDashboard = () => {
       setStats(s.data.data)
       const maquisData = m.data.data
       setMaquis(maquisData)
-      // Rafraîchit le maquis sélectionné si on est sur la page détail
       if (maquisSelectionne) {
         const updated = maquisData.find(m => m.id === maquisSelectionne.id)
         if (updated) setMaquisSelectionne(updated)
@@ -111,20 +129,52 @@ const AdminDashboard = () => {
     return date.toISOString()
   }
 
+  const selectionnerActivite = (activite) => {
+    setFormMaquis({ ...formMaquis, activite: activite.value, couleur_primaire: activite.couleur })
+  }
+
+  const handleLogoChange = (e) => {
+    const fichier = e.target.files[0]
+    if (fichier) {
+      setLogoFichier(fichier)
+      setLogoPreview(URL.createObjectURL(fichier))
+    }
+  }
+
   const creerMaquis = async (e) => {
     e.preventDefault()
     try {
-      await api().post('/maquis', {
-        nom:          formMaquis.nom,
-        type:         formMaquis.type,
-        type_acces:   formMaquis.type_acces,
-        periodicite:  formMaquis.type_acces === 'abonnement' ? formMaquis.periodicite : null,
-        montant:      parseFloat(formMaquis.montant),
+      // Détermine le type selon l'activité
+      const type = formMaquis.activite === 'Restaurant' || formMaquis.activite === 'Fast Food' ? 'restaurant' : 'maquis'
+
+      const res = await api().post('/maquis', {
+        nom:           formMaquis.nom,
+        type,
+        activite:      formMaquis.activite,
+        couleur_primaire: formMaquis.couleur_primaire,
+        type_acces:    formMaquis.type_acces,
+        periodicite:   formMaquis.type_acces === 'abonnement' ? formMaquis.periodicite : null,
+        montant:       parseFloat(formMaquis.montant),
         date_echeance: formMaquis.type_acces === 'abonnement' ? calculerEcheance(formMaquis.periodicite) : null,
       })
+
+      // Upload logo si sélectionné
+      if (logoFichier && res.data.data?.id) {
+        const formData = new FormData()
+        formData.append('logo', logoFichier)
+        await axios.post(`/api/admin/maquis/${res.data.data.id}/logo`, formData, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('adminToken')}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        })
+      }
+
       afficherMessage('succes', 'Établissement créé !')
       setModal(null)
-      setFormMaquis({ nom: '', type: 'maquis', type_acces: 'abonnement', periodicite: 'mensuel', montant: '35000' })
+      setFormMaquis({ nom: '', activite: '', couleur_primaire: '#FF6B35', type_acces: 'abonnement', periodicite: 'mensuel', montant: '35000' })
+      setLogoFichier(null)
+      setLogoPreview(null)
       charger()
     } catch (err) { afficherMessage('erreur', err.response?.data?.message || 'Erreur') }
   }
@@ -142,7 +192,6 @@ const AdminDashboard = () => {
       })
       afficherMessage('succes', 'Utilisateur créé !')
       setModal(null)
-      // Recharge les données ET met à jour maquisSelectionne
       await charger()
     } catch (err) { afficherMessage('erreur', err.response?.data?.message || 'Erreur') }
   }
@@ -178,7 +227,7 @@ const AdminDashboard = () => {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>⚡</div>
             <div>
-              <p style={{ color: 'white', fontWeight: 700, fontSize: 14, margin: 0 }}>MaquisFlow</p>
+              <p style={{ color: 'white', fontWeight: 700, fontSize: 14, margin: 0 }}>Flowix</p>
               <p style={{ color: '#64748b', fontSize: 11, margin: 0 }}>Super Admin</p>
             </div>
           </div>
@@ -231,9 +280,18 @@ const AdminDashboard = () => {
               <h2 style={{ fontSize: 16, fontWeight: 700, margin: '0 0 16px' }}>Tous les établissements</h2>
               {maquis.map(m => (
                 <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid #f1f5f9' }}>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>{m.nom}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>{m.type} · {m.nb_utilisateurs} user(s) · {m.nb_ventes} vente(s)</p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {m.logo_url ? (
+                      <img src={m.logo_url} alt={m.nom} style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: m.couleur_primaire || '#FF6B35', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 16 }}>
+                        {m.nom?.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <p style={{ margin: 0, fontWeight: 600, fontSize: 15 }}>{m.nom}</p>
+                      <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748b' }}>{m.activite || m.type} · {m.nb_utilisateurs} user(s)</p>
+                    </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     {m.abonnement && (
@@ -261,20 +319,61 @@ const AdminDashboard = () => {
               <div style={{ ...S.card, marginBottom: 20, border: '2px solid #6366f1' }}>
                 <h3 style={{ margin: '0 0 20px', fontSize: 16, color: '#0f172a' }}>Nouvel établissement</h3>
                 <form onSubmit={creerMaquis}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 4 }}>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Nom *</label>
-                      <input value={formMaquis.nom} onChange={e => setFormMaquis({ ...formMaquis, nom: e.target.value })} placeholder="Maquis Le Bonheur" required style={S.input} />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Type *</label>
-                      <select value={formMaquis.type} onChange={e => setFormMaquis({ ...formMaquis, type: e.target.value })} style={S.input}>
-                        <option value="maquis">🍺 Maquis (Bar)</option>
-                        <option value="restaurant">🍽️ Restaurant</option>
-                      </select>
+
+                  {/* Nom */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Nom de l'établissement *</label>
+                    <input value={formMaquis.nom} onChange={e => setFormMaquis({ ...formMaquis, nom: e.target.value })} placeholder="Ex: Maquis Le Bonheur" required style={S.input} />
+                  </div>
+
+                  {/* Activité */}
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Type d'activité *</label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                      {ACTIVITES.map(act => (
+                        <div key={act.value} onClick={() => selectionnerActivite(act)}
+                          style={{ border: `2px solid ${formMaquis.activite === act.value ? act.couleur : '#e2e8f0'}`, borderRadius: 10, padding: '10px 12px', cursor: 'pointer', backgroundColor: formMaquis.activite === act.value ? `${act.couleur}15` : 'white', transition: 'all 0.2s' }}>
+                          <p style={{ margin: 0, fontSize: 13, fontWeight: 600, color: formMaquis.activite === act.value ? act.couleur : '#374151' }}>{act.label}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
+                  {/* Couleur et Logo */}
+                  {formMaquis.activite && (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16, padding: 16, backgroundColor: '#f8fafc', borderRadius: 10, border: '1px solid #e2e8f0' }}>
+                      {/* Couleur */}
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Couleur principale</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <input type="color" value={formMaquis.couleur_primaire} onChange={e => setFormMaquis({ ...formMaquis, couleur_primaire: e.target.value })}
+                            style={{ width: 48, height: 40, border: 'none', borderRadius: 8, cursor: 'pointer' }} />
+                          <div style={{ width: 40, height: 40, borderRadius: 10, backgroundColor: formMaquis.couleur_primaire, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 16 }}>
+                            {formMaquis.nom?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <span style={{ fontSize: 13, color: '#64748b' }}>{formMaquis.couleur_primaire}</span>
+                        </div>
+                      </div>
+
+                      {/* Logo */}
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Logo (optionnel)</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {logoPreview ? (
+                            <img src={logoPreview} alt="Logo" style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover', border: '2px solid #e2e8f0' }} />
+                          ) : (
+                            <div style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, border: '2px dashed #e2e8f0' }}>🏪</div>
+                          )}
+                          <label style={{ padding: '8px 12px', backgroundColor: '#6366f1', color: 'white', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                            📷 Choisir
+                            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleLogoChange} />
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Modèle commercial */}
                   <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 8 }}>Modèle commercial *</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 16 }}>
                     {[
@@ -304,10 +403,7 @@ const AdminDashboard = () => {
                           </div>
                         ))}
                       </div>
-                      <div>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Montant (FCFA)</label>
-                        <input type="number" value={formMaquis.montant} onChange={e => setFormMaquis({ ...formMaquis, montant: e.target.value })} style={S.input} />
-                      </div>
+                      <input type="number" value={formMaquis.montant} onChange={e => setFormMaquis({ ...formMaquis, montant: e.target.value })} style={S.input} />
                       <p style={{ margin: 0, fontSize: 12, color: '#6366f1', fontWeight: 500 }}>
                         📅 Échéance : {formMaquis.periodicite === 'mensuel' ? '+1 mois' : '+1 an'} à partir d'aujourd'hui
                       </p>
@@ -316,19 +412,14 @@ const AdminDashboard = () => {
 
                   {formMaquis.type_acces === 'achat_unique' && (
                     <div style={{ backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, marginBottom: 16, border: '1px solid #bbf7d0' }}>
-                      <p style={{ margin: 0, fontSize: 13, color: '#15803d', fontWeight: 500 }}>
-                        ✅ Accès permanent — l'établissement restera actif jusqu'à ce que vous le désactiviez manuellement.
-                      </p>
-                      <div style={{ marginTop: 10 }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Montant facturé (FCFA)</label>
-                        <input type="number" value={formMaquis.montant} onChange={e => setFormMaquis({ ...formMaquis, montant: e.target.value })} style={S.input} />
-                      </div>
+                      <p style={{ margin: '0 0 10px', fontSize: 13, color: '#15803d', fontWeight: 500 }}>✅ Accès permanent</p>
+                      <input type="number" value={formMaquis.montant} onChange={e => setFormMaquis({ ...formMaquis, montant: e.target.value })} placeholder="Montant facturé (FCFA)" style={S.input} />
                     </div>
                   )}
 
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button type="submit" style={S.btn()}>✅ Créer l'établissement</button>
-                    <button type="button" onClick={() => setModal(null)} style={S.btn('#64748b')}>Annuler</button>
+                    <button type="button" onClick={() => { setModal(null); setLogoFichier(null); setLogoPreview(null) }} style={S.btn('#64748b')}>Annuler</button>
                   </div>
                 </form>
               </div>
@@ -337,19 +428,28 @@ const AdminDashboard = () => {
             {maquis.map(m => (
               <div key={m.id} style={{ ...S.card, marginBottom: 12 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                      <p style={{ margin: 0, fontWeight: 700, fontSize: 16 }}>{m.nom}</p>
-                      <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, backgroundColor: m.type === 'restaurant' ? '#eff6ff' : '#fff7ed', color: m.type === 'restaurant' ? '#1d4ed8' : '#c2410c', fontWeight: 600 }}>{m.type}</span>
-                      <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, backgroundColor: m.actif ? '#f0fdf4' : '#fef2f2', color: m.actif ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{m.actif ? 'Actif' : 'Inactif'}</span>
-                      {m.abonnement && (
-                        <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, backgroundColor: '#f5f3ff', color: '#6366f1', fontWeight: 600 }}>
-                          {m.abonnement.type_acces === 'achat_unique' ? '💰 Achat unique' : `🔄 ${m.abonnement.periodicite || 'Abonnement'}`}
-                        </span>
-                      )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    {m.logo_url ? (
+                      <img src={m.logo_url} alt={m.nom} style={{ width: 48, height: 48, borderRadius: 10, objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: m.couleur_primaire || '#FF6B35', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 20 }}>
+                        {m.nom?.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <p style={{ margin: 0, fontWeight: 700, fontSize: 16 }}>{m.nom}</p>
+                        <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, backgroundColor: '#f1f5f9', color: '#64748b', fontWeight: 600 }}>{m.activite || m.type}</span>
+                        <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, backgroundColor: m.actif ? '#f0fdf4' : '#fef2f2', color: m.actif ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{m.actif ? 'Actif' : 'Inactif'}</span>
+                        {m.abonnement && (
+                          <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, backgroundColor: '#f5f3ff', color: '#6366f1', fontWeight: 600 }}>
+                            {m.abonnement.type_acces === 'achat_unique' ? '💰 Achat unique' : `🔄 ${m.abonnement.periodicite || 'Abonnement'}`}
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>{m.nb_utilisateurs} utilisateur(s) · {m.nb_ventes} vente(s) · {m.nb_produits} produit(s)</p>
+                      <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8' }}>Créé le {fmtDate(m.created_at)}</p>
                     </div>
-                    <p style={{ margin: 0, fontSize: 13, color: '#64748b' }}>{m.nb_utilisateurs} utilisateur(s) · {m.nb_ventes} vente(s) · {m.nb_produits} produit(s)</p>
-                    <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8' }}>Créé le {fmtDate(m.created_at)}</p>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => { setMaquisSelectionne(m); setOnglet('detail') }} style={S.btn()}>Gérer</button>
@@ -361,12 +461,23 @@ const AdminDashboard = () => {
           </div>
         )}
 
-        {/* DETAIL ÉTABLISSEMENT */}
+        {/* DETAIL */}
         {onglet === 'detail' && maquisSelectionne && (
           <div>
             <button onClick={() => { setOnglet('maquis'); setMaquisSelectionne(null) }} style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: 14, marginBottom: 16, fontWeight: 600 }}>← Retour</button>
-            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>{maquisSelectionne.nom}</h1>
-            <p style={{ fontSize: 14, color: '#64748b', marginBottom: 20 }}>{maquisSelectionne.type} · Créé le {fmtDate(maquisSelectionne.created_at)}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
+              {maquisSelectionne.logo_url ? (
+                <img src={maquisSelectionne.logo_url} alt={maquisSelectionne.nom} style={{ width: 64, height: 64, borderRadius: 14, objectFit: 'cover' }} />
+              ) : (
+                <div style={{ width: 64, height: 64, borderRadius: 14, backgroundColor: maquisSelectionne.couleur_primaire || '#FF6B35', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 28 }}>
+                  {maquisSelectionne.nom?.charAt(0)}
+                </div>
+              )}
+              <div>
+                <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', margin: 0 }}>{maquisSelectionne.nom}</h1>
+                <p style={{ fontSize: 14, color: '#64748b', margin: '4px 0 0' }}>{maquisSelectionne.activite || maquisSelectionne.type} · Créé le {fmtDate(maquisSelectionne.created_at)}</p>
+              </div>
+            </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
               <div style={S.card}>
@@ -376,7 +487,7 @@ const AdminDashboard = () => {
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
                       <span style={{ fontSize: 13, color: '#64748b' }}>Type d'accès</span>
                       <span style={{ fontSize: 13, fontWeight: 600, color: '#6366f1' }}>
-                        {maquisSelectionne.abonnement.type_acces === 'achat_unique' ? '💰 Achat unique' : `🔄 Abonnement ${maquisSelectionne.abonnement.periodicite || ''}`}
+                        {maquisSelectionne.abonnement.type_acces === 'achat_unique' ? '💰 Achat unique' : `🔄 ${maquisSelectionne.abonnement.periodicite || 'Abonnement'}`}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -399,7 +510,7 @@ const AdminDashboard = () => {
                     )}
                     {maquisSelectionne.abonnement.type_acces === 'achat_unique' && (
                       <div style={{ backgroundColor: '#f0fdf4', borderRadius: 8, padding: '8px 12px', marginBottom: 16 }}>
-                        <p style={{ margin: 0, fontSize: 12, color: '#15803d' }}>✅ Accès permanent — pas d'échéance</p>
+                        <p style={{ margin: 0, fontSize: 12, color: '#15803d' }}>✅ Accès permanent</p>
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: 8 }}>
@@ -409,9 +520,7 @@ const AdminDashboard = () => {
                       <button onClick={() => suspendreAbonnement(maquisSelectionne.id)} style={S.btn('#dc2626')}>Suspendre</button>
                     </div>
                   </div>
-                ) : (
-                  <p style={{ color: '#94a3b8', fontSize: 14 }}>Aucun abonnement</p>
-                )}
+                ) : <p style={{ color: '#94a3b8', fontSize: 14 }}>Aucun abonnement</p>}
               </div>
 
               <div style={S.card}>
@@ -505,7 +614,7 @@ const AdminDashboard = () => {
                         ) : <span style={{ color: '#94a3b8', fontSize: 12 }}>—</span>}
                       </td>
                       <td style={{ padding: '12px', fontSize: 14, fontWeight: 600 }}>{m.abonnement ? `${fmtNum(m.abonnement.montant)} F` : '—'}</td>
-                      <td style={{ padding: '12px', fontSize: 13, color: m.abonnement?.date_echeance && new Date(m.abonnement.date_echeance) < new Date() ? '#dc2626' : '#374151' }}>
+                      <td style={{ padding: '12px', fontSize: 13 }}>
                         {m.abonnement?.type_acces === 'achat_unique' ? '∞ Permanent' : fmtDate(m.abonnement?.date_echeance)}
                       </td>
                       <td style={{ padding: '12px' }}>

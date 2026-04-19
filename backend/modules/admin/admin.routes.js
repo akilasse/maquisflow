@@ -1,14 +1,9 @@
-// ============================================================
-// ADMIN ROUTES - Panneau super admin MaquisFlow
-// Protégé par token JWT super admin
-// ============================================================
-
 const express    = require('express')
 const router     = express.Router()
 const jwt        = require('jsonwebtoken')
 const controller = require('./admin.controller')
+const { uploadLogo } = require('../../middlewares/upload')
 
-// ── Middleware vérification token super admin ──────────────
 const verifierAdmin = (req, res, next) => {
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith('Bearer ')) {
@@ -27,16 +22,14 @@ const verifierAdmin = (req, res, next) => {
   }
 }
 
-// ── Routes publiques ───────────────────────────────────────
-router.post('/login', controller.login)
-
-// ── Routes protégées (token super admin requis) ────────────
-router.get('/dashboard',              verifierAdmin, controller.getDashboard)
-router.get('/maquis',                 verifierAdmin, controller.getMaquis)
-router.post('/maquis',                verifierAdmin, controller.creerMaquis)
-router.put('/maquis/:id',             verifierAdmin, controller.modifierMaquis)
-router.put('/maquis/:id/abonnement',  verifierAdmin, controller.modifierAbonnement)
-router.post('/utilisateurs',          verifierAdmin, controller.creerUtilisateur)
-router.put('/utilisateurs/toggle',    verifierAdmin, controller.toggleUtilisateur)
+router.post('/login',                controller.login)
+router.get('/dashboard',             verifierAdmin, controller.getDashboard)
+router.get('/maquis',                verifierAdmin, controller.getMaquis)
+router.post('/maquis',               verifierAdmin, controller.creerMaquis)
+router.put('/maquis/:id',            verifierAdmin, controller.modifierMaquis)
+router.put('/maquis/:id/abonnement', verifierAdmin, controller.modifierAbonnement)
+router.post('/maquis/:id/logo',      verifierAdmin, uploadLogo, controller.uploadLogoMaquis)
+router.post('/utilisateurs',         verifierAdmin, controller.creerUtilisateur)
+router.put('/utilisateurs/toggle',   verifierAdmin, controller.toggleUtilisateur)
 
 module.exports = router

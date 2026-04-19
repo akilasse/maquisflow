@@ -3,6 +3,7 @@
 // ============================================================
 
 const service = require('./parametrage.service')
+const path    = require('path')
 
 // ====== PRODUITS ======
 const getProduits = async (req, res) => {
@@ -27,6 +28,17 @@ const modifierProduit = async (req, res) => {
   try {
     const data = await service.modifierProduit(req.prisma, parseInt(req.params.id), req.utilisateur.maquis_id, req.body)
     res.json({ success: true, message: 'Produit modifié', data })
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
+const uploadPhotoProduit = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Aucun fichier reçu' })
+    const photo_url = `/uploads/produits/${req.file.filename}`
+    const data = await service.modifierProduit(req.prisma, parseInt(req.params.id), req.utilisateur.maquis_id, { photo_url })
+    res.json({ success: true, message: 'Photo uploadée', data, photo_url })
   } catch (error) {
     res.status(400).json({ success: false, message: error.message })
   }
@@ -88,6 +100,17 @@ const modifierUtilisateur = async (req, res) => {
   }
 }
 
+const uploadPhotoUtilisateur = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Aucun fichier reçu' })
+    const photo_url = `/uploads/utilisateurs/${req.file.filename}`
+    const data = await service.modifierUtilisateur(req.prisma, parseInt(req.params.id), req.utilisateur.maquis_id, { photo_url })
+    res.json({ success: true, message: 'Photo uploadée', data, photo_url })
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
 // ====== MAQUIS ======
 const getMaquis = async (req, res) => {
   try {
@@ -107,9 +130,20 @@ const modifierMaquis = async (req, res) => {
   }
 }
 
+const uploadLogoMaquis = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Aucun fichier reçu' })
+    const logo_url = `/uploads/logos/${req.file.filename}`
+    const data = await service.modifierMaquis(req.prisma, req.utilisateur.maquis_id, { logo_url })
+    res.json({ success: true, message: 'Logo uploadé', data, logo_url })
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
 module.exports = {
-  getProduits, creerProduit, modifierProduit,
+  getProduits, creerProduit, modifierProduit, uploadPhotoProduit,
   getFournisseurs, creerFournisseur, modifierFournisseur,
-  getUtilisateurs, creerUtilisateur, modifierUtilisateur,
-  getMaquis, modifierMaquis
+  getUtilisateurs, creerUtilisateur, modifierUtilisateur, uploadPhotoUtilisateur,
+  getMaquis, modifierMaquis, uploadLogoMaquis
 }

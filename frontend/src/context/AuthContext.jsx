@@ -1,57 +1,70 @@
-// ============================================================
-// AUTH CONTEXT - Gestion globale de l'authentification
-// Fournit : utilisateur connecté, login, logout
-// Accessible dans toute l'application via useAuth()
-// ============================================================
-
 import { createContext, useContext, useState, useEffect } from 'react'
 import api from '../utils/api'
 
 const AuthContext = createContext(null)
 
 export const AuthProvider = ({ children }) => {
-  const [utilisateur, setUtilisateur] = useState(null)
-  const [chargement, setChargement]   = useState(true)
+  const [utilisateur, setUtilisateur]           = useState(null)
+  const [chargement, setChargement]             = useState(true)
+  const [selectionRequise, setSelectionRequise] = useState(false)
+  const [etablissements, setEtablissements]     = useState([])
+  const [utilisateurTemp, setUtilisateurTemp]   = useState(null)
 
-  // Au démarrage : récupère l'utilisateur depuis localStorage
   useEffect(() => {
     const userData = localStorage.getItem('utilisateur')
     const token    = localStorage.getItem('accessToken')
-
-    if (userData && token) {
-      setUtilisateur(JSON.parse(userData))
-    }
+    if (userData && token) setUtilisateur(JSON.parse(userData))
     setChargement(false)
   }, [])
 
-  // Connexion — type = 'maquis' | 'restaurant'
-  const login = async (email, mot_de_passe, type = 'maquis') => {
-    const response = await api.post('/api/auth/login', { email, mot_de_passe, type })
-    const { accessToken, utilisateur } = response.data.data
+  const login = async (email, mot_de_passe) => {
+    const response = await api.post('/api/auth/login', { email, mot_de_passe })
+    const data = response.data
 
-    // Stocke le token et les infos utilisateur
+    if (data.selection_requise) {
+      setUtilisateurTemp(data.data.utilisateur)
+      setEtablissements(data.data.etablissements)
+      setSelectionRequise(true)
+      return { selection_requise: true }
+    }
+
+    const { accessToken, utilisateur } = data.data
     localStorage.setItem('accessToken', accessToken)
     localStorage.setItem('utilisateur', JSON.stringify(utilisateur))
     setUtilisateur(utilisateur)
-
     return utilisateur
   }
 
-  // Déconnexion
+  const selectionnerEtablissement = async (maquis_id) => {
+    const response = await api.post('/api/auth/selectionner', {
+      utilisateur_id: utilisateurTemp.id,
+      maquis_id
+    })
+    const { accessToken, utilisateur } = response.data.data
+    localStorage.setItem('accessToken', accessToken)
+    localStorage.setItem('utilisateur', JSON.stringify(utilisateur))
+    setUtilisateur(utilisateur)
+    setSelectionRequise(false)
+    setUtilisateurTemp(null)
+    setEtablissements([])
+    return utilisateur
+  }
+
   const logout = async () => {
-    try {
-      await api.post('/api/auth/logout')
-    } catch (error) {
-      console.error('Erreur logout:', error)
-    } finally {
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('utilisateur')
-      setUtilisateur(null)
-    }
+    try { await api.post('/api/auth/logout') } catch {}
+    localStorage.removeItem('accessToken')
+    localStorage.removeItem('utilisateur')
+    setUtilisateur(null)
+    setSelectionRequise(false)
+    setEtablissements([])
+    setUtilisateurTemp(null)
   }
 
   return (
-    <AuthContext.Provider value={{ utilisateur, login, logout, chargement }}>
+    <AuthContext.Provider value={{
+      utilisateur, login, logout, chargement,
+      selectionRequise, etablissements, selectionnerEtablissement, utilisateurTemp
+    }}>
       {children}
     </AuthContext.Provider>
   )
@@ -59,8 +72,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error('useAuth doit être utilisé dans AuthProvider')
-  }
+  if (!context) throw new Error('useAuth doit être utilisé dans AuthProvider')
   return context
 }

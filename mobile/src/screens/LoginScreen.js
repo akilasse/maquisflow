@@ -1,29 +1,21 @@
 // ============================================================
-// LOGIN SCREEN - Écran de connexion mobile
-// Choix de l'espace (Maquis ou Restaurant) avant connexion
+// LOGIN SCREEN - Écran de connexion mobile Flowix
+// Interface universelle avec sélection établissement
 // ============================================================
 
 import { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert,
-  KeyboardAvoidingView, Platform
+  KeyboardAvoidingView, Platform, ScrollView
 } from 'react-native'
 import { useAuth } from '../context/AuthContext'
 
-const ESPACES = [
-  { type: 'maquis',      label: 'Maquis',      icone: '🍺', bg: '#FF6B35', bgInactif: '#fff7ed', texteInactif: '#FF6B35' },
-  { type: 'restaurant',  label: 'Restaurant',   icone: '🍽️', bg: '#1D4ED8', bgInactif: '#eff6ff', texteInactif: '#1D4ED8' },
-]
-
 export default function LoginScreen() {
-  const [type, setType]           = useState('maquis')
-  const [email, setEmail]         = useState('')
-  const [motDePasse, setMotDePasse] = useState('')
-  const [chargement, setChargement] = useState(false)
-  const { login } = useAuth()
-
-  const espaceActif = ESPACES.find(e => e.type === type)
+  const [email, setEmail]             = useState('')
+  const [motDePasse, setMotDePasse]   = useState('')
+  const [chargement, setChargement]   = useState(false)
+  const { login, selectionRequise, etablissements, selectionnerEtablissement, utilisateurTemp, logout } = useAuth()
 
   const handleLogin = async () => {
     if (!email || !motDePasse) {
@@ -32,14 +24,75 @@ export default function LoginScreen() {
     }
     setChargement(true)
     try {
-      await login(email, motDePasse, type)
+      const resultat = await login(email, motDePasse)
+      // Si selection_requise, le contexte affichera l'écran de sélection
     } catch (error) {
-      Alert.alert('Erreur', error.response?.data?.message || 'Erreur de connexion')
+      Alert.alert('Erreur', error.response?.data?.message || 'Email ou mot de passe incorrect')
     } finally {
       setChargement(false)
     }
   }
 
+  const handleSelection = async (maquis_id) => {
+    setChargement(true)
+    try {
+      await selectionnerEtablissement(maquis_id)
+    } catch (error) {
+      Alert.alert('Erreur', error.response?.data?.message || 'Erreur de sélection')
+    } finally {
+      setChargement(false)
+    }
+  }
+
+  // Écran sélection établissement
+  if (selectionRequise && etablissements.length > 0) {
+    return (
+      <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.card}>
+
+            <View style={styles.logo}>
+              <Text style={styles.logoIcone}>⚡</Text>
+            </View>
+            <Text style={styles.titre}>Choisir un établissement</Text>
+            <Text style={styles.sousTitre}>Bonjour {utilisateurTemp?.nom}</Text>
+
+            <View style={styles.etablissementsList}>
+              {etablissements.map(etab => (
+                <TouchableOpacity
+                  key={etab.maquis_id}
+                  onPress={() => handleSelection(etab.maquis_id)}
+                  disabled={chargement}
+                  style={[styles.etablissementBtn, { borderColor: etab.couleur_primaire || '#FF6B35' }]}
+                >
+                  <View style={[styles.etablissementIcone, { backgroundColor: etab.couleur_primaire || '#FF6B35' }]}>
+                    <Text style={styles.etablissementInitiale}>
+                      {etab.nom?.charAt(0)?.toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.etablissementInfo}>
+                    <Text style={styles.etablissementNom}>{etab.nom}</Text>
+                    <Text style={styles.etablissementType}>
+                      {etab.activite || etab.type} · <Text style={{ color: etab.couleur_primaire || '#FF6B35', textTransform: 'capitalize' }}>{etab.role}</Text>
+                    </Text>
+                  </View>
+                  <Text style={[styles.etablissementArrow, { color: etab.couleur_primaire || '#FF6B35' }]}>→</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TouchableOpacity style={styles.retourBtn} onPress={logout}>
+              <Text style={styles.retourTexte}>← Changer de compte</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.footer}>Flowix — Gestion commerciale</Text>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    )
+  }
+
+  // Écran login
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -47,41 +100,12 @@ export default function LoginScreen() {
     >
       <View style={styles.card}>
 
-        {/* Logo */}
-        <View style={[styles.logo, { backgroundColor: espaceActif.bg }]}>
-          <Text style={styles.logoIcone}>{espaceActif.icone}</Text>
+        <View style={styles.logo}>
+          <Text style={styles.logoIcone}>⚡</Text>
         </View>
-        <Text style={styles.titre}>MaquisFlow</Text>
-        <Text style={styles.sousTitre}>Gestion commerciale</Text>
+        <Text style={styles.titre}>Flowix</Text>
+        <Text style={styles.sousTitre}>Gestion commerciale intelligente</Text>
 
-        {/* Choix de l'espace */}
-        <Text style={styles.choixLabel}>Choisissez votre espace</Text>
-        <View style={styles.choixRow}>
-          {ESPACES.map(espace => {
-            const actif = type === espace.type
-            return (
-              <TouchableOpacity
-                key={espace.type}
-                onPress={() => setType(espace.type)}
-                style={[
-                  styles.choixBtn,
-                  {
-                    backgroundColor: actif ? espace.bg : espace.bgInactif,
-                    borderColor:     actif ? espace.bg : '#e5e7eb',
-                    borderWidth:     actif ? 2 : 1,
-                  }
-                ]}
-              >
-                <Text style={styles.choixIcone}>{espace.icone}</Text>
-                <Text style={[styles.choixTexte, { color: actif ? 'white' : espace.texteInactif }]}>
-                  {espace.label}
-                </Text>
-              </TouchableOpacity>
-            )
-          })}
-        </View>
-
-        {/* Formulaire */}
         <TextInput
           style={styles.input}
           placeholder="Email"
@@ -101,17 +125,17 @@ export default function LoginScreen() {
         />
 
         <TouchableOpacity
-          style={[styles.bouton, { backgroundColor: espaceActif.bg }]}
+          style={styles.bouton}
           onPress={handleLogin}
           disabled={chargement}
         >
           {chargement
             ? <ActivityIndicator color="white" />
-            : <Text style={styles.boutonTexte}>Se connecter — {espaceActif.label}</Text>
+            : <Text style={styles.boutonTexte}>Se connecter</Text>
           }
         </TouchableOpacity>
 
-        <Text style={styles.footer}>MaquisFlow v1.0</Text>
+        <Text style={styles.footer}>Flowix — Gestion commerciale</Text>
       </View>
     </KeyboardAvoidingView>
   )
@@ -120,50 +144,73 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#FF6B35',
+    justifyContent: 'center',
+    padding: 20
+  },
+  scrollContent: {
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 20
   },
   card: {
     backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: 24,
+    padding: 28,
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 6
   },
   logo: {
-    width: 72, height: 72,
-    borderRadius: 36,
+    width: 80, height: 80,
+    borderRadius: 22,
+    backgroundColor: '#FF6B35',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: 14
   },
-  logoIcone:  { fontSize: 32 },
-  titre:      { fontSize: 24, fontWeight: 'bold', color: '#111827', marginBottom: 4 },
-  sousTitre:  { fontSize: 13, color: '#9ca3af', marginBottom: 20 },
-
-  choixLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 10 },
-  choixRow:   { flexDirection: 'row', gap: 10, marginBottom: 20, width: '100%' },
-  choixBtn: {
-    flex: 1, borderRadius: 12, padding: 14,
-    alignItems: 'center', gap: 6
-  },
-  choixIcone: { fontSize: 24 },
-  choixTexte: { fontSize: 14, fontWeight: '700' },
+  logoIcone:  { fontSize: 36 },
+  titre:      { fontSize: 26, fontWeight: '800', color: '#111827', marginBottom: 4 },
+  sousTitre:  { fontSize: 14, color: '#9ca3af', marginBottom: 24 },
 
   input: {
-    width: '100%', borderWidth: 1, borderColor: '#e5e7eb',
-    borderRadius: 10, padding: 14, fontSize: 15,
-    color: '#111827', marginBottom: 12
+    width: '100%', borderWidth: 2, borderColor: '#f3f4f6',
+    borderRadius: 12, padding: 14, fontSize: 15,
+    color: '#111827', marginBottom: 12, backgroundColor: '#f9fafb'
   },
   bouton: {
-    width: '100%', borderRadius: 10,
-    padding: 16, alignItems: 'center', marginTop: 4
+    width: '100%', borderRadius: 12,
+    padding: 16, alignItems: 'center', marginTop: 4,
+    backgroundColor: '#FF6B35'
   },
-  boutonTexte: { color: 'white', fontSize: 16, fontWeight: '600' },
-  footer:      { fontSize: 12, color: '#9ca3af', marginTop: 16 }
+  boutonTexte: { color: 'white', fontSize: 16, fontWeight: '700' },
+
+  // Sélection établissement
+  etablissementsList: { width: '100%', gap: 12, marginBottom: 20 },
+  etablissementBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    padding: 16, borderRadius: 14, borderWidth: 2,
+    backgroundColor: 'white'
+  },
+  etablissementIcone: {
+    width: 48, height: 48, borderRadius: 10,
+    justifyContent: 'center', alignItems: 'center'
+  },
+  etablissementInitiale: { fontSize: 22, color: 'white', fontWeight: '700' },
+  etablissementInfo:     { flex: 1 },
+  etablissementNom:      { fontSize: 16, fontWeight: '700', color: '#111827' },
+  etablissementType:     { fontSize: 13, color: '#9ca3af', marginTop: 2 },
+  etablissementArrow:    { fontSize: 20 },
+
+  retourBtn: {
+    width: '100%', padding: 14, borderRadius: 12,
+    borderWidth: 2, borderColor: '#f3f4f6',
+    alignItems: 'center', marginBottom: 8
+  },
+  retourTexte: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
+
+  footer: { fontSize: 12, color: '#9ca3af', marginTop: 16 }
 })

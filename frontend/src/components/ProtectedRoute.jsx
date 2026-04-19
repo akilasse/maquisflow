@@ -1,40 +1,24 @@
-// ============================================================
-// PROTECTED ROUTE - Protège les pages selon le rôle et le type
-// Redirige vers /login si non connecté
-// Redirige vers le bon espace si mauvais type
-// ============================================================
-
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
-const ProtectedRoute = ({ children, roles, type }) => {
+const ProtectedRoute = ({ children, roles }) => {
   const { utilisateur, chargement } = useAuth()
 
-  // Attend que l'auth soit chargée
   if (chargement) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500"></div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{ width: 48, height: 48, border: '4px solid #f3f4f6', borderTop: '4px solid #FF6B35', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
       </div>
     )
   }
 
-  // Non connecté → redirige vers login
   if (!utilisateur) {
     return <Navigate to="/login" replace />
   }
 
-  // Mauvais type → redirige vers le bon espace
-  if (type && utilisateur.maquis?.type !== type) {
-    if (utilisateur.maquis?.type === 'restaurant') {
-      return <Navigate to="/resto/dashboard" replace />
-    }
-    return <Navigate to="/dashboard" replace />
-  }
-
-  // Mauvais rôle → redirige vers unauthorized
   if (roles && !roles.includes(utilisateur.role)) {
-    return <Navigate to="/unauthorized" replace />
+    return <Navigate to="/caisse" replace />
   }
 
   return children

@@ -65,7 +65,7 @@ const Navbar = ({ menuOuvert, setMenuOuvert }) => {
             </div>
             <div>
               <p style={{ color: 'white', fontWeight: 'bold', fontSize: '14px', margin: 0 }}>
-                {utilisateur?.maquis?.nom || 'MaquisFlow'}
+                {utilisateur?.maquis?.nom || 'Flowix'}
               </p>
               <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', margin: 0 }}>
                 {isResto ? 'Restaurant' : 'Maquis'} · <span style={{ textTransform: 'capitalize' }}>{utilisateur?.role}</span>

@@ -1,5 +1,5 @@
 // ============================================================
-// APP.JS - Point d'entrée de l'app mobile MaquisFlow
+// APP.JS - Point d'entrée de l'app mobile Flowix
 // Navigation par onglets en bas pour le patron
 // ============================================================
 

@@ -1,15 +1,9 @@
-// ============================================================
-// ADMIN CONTROLLER
-// ============================================================
-
 const adminService = require('./admin.service')
 
 const login = async (req, res) => {
   try {
     const { email, mot_de_passe } = req.body
-    if (!email || !mot_de_passe) {
-      return res.status(400).json({ success: false, message: 'Email et mot de passe requis' })
-    }
+    if (!email || !mot_de_passe) return res.status(400).json({ success: false, message: 'Email et mot de passe requis' })
     const resultat = await adminService.login(req.prisma, email, mot_de_passe)
     return res.status(200).json({ success: true, data: resultat })
   } catch (error) {
@@ -53,6 +47,17 @@ const modifierMaquis = async (req, res) => {
   }
 }
 
+const uploadLogoMaquis = async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: 'Aucun fichier reçu' })
+    const logo_url = `/uploads/logos/${req.file.filename}`
+    const data = await adminService.modifierMaquis(req.prisma, parseInt(req.params.id), { logo_url })
+    return res.status(200).json({ success: true, message: 'Logo uploadé', data, logo_url })
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message })
+  }
+}
+
 const modifierAbonnement = async (req, res) => {
   try {
     const data = await adminService.modifierAbonnement(req.prisma, parseInt(req.params.id), req.body)
@@ -83,6 +88,6 @@ const toggleUtilisateur = async (req, res) => {
 
 module.exports = {
   login, getDashboard, getMaquis,
-  creerMaquis, modifierMaquis,
+  creerMaquis, modifierMaquis, uploadLogoMaquis,
   modifierAbonnement, creerUtilisateur, toggleUtilisateur
 }

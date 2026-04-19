@@ -1,5 +1,5 @@
 // ============================================================
-// SEED - Création du compte super admin MaquisFlow
+// SEED - Création du compte super admin Flowix
 // Crée : 2 établissements + 1 utilisateur patron avec accès aux deux
 // ============================================================
 
@@ -9,7 +9,7 @@ const bcrypt = require('bcryptjs')
 const prisma = new PrismaClient()
 
 async function main() {
-  console.log('🌱 Démarrage du seed MaquisFlow...')
+  console.log('🌱 Démarrage du seed Flowix...')
 
   // ── 1. Créer le Maquis ──
   const maquis = await prisma.maquis.upsert({
@@ -45,11 +45,11 @@ async function main() {
   const motDePasseHash = await bcrypt.hash('TIA123', 10)
 
   const utilisateur = await prisma.utilisateur.upsert({
-    where: { email: 'kannan.tia@maquisflow.com' },
+    where: { email: 'kannan.tia@Flowix.com' },
     update: {},
     create: {
       nom:          'Tia Kan-nan',
-      email:        'kannan.tia@maquisflow.com',
+      email:        'kannan.tia@Flowix.com',
       mot_de_passe: motDePasseHash,
       actif:        true
     }
@@ -94,7 +94,7 @@ async function main() {
 
   console.log('\n🎉 Seed terminé avec succès !')
   console.log('─────────────────────────────────')
-  console.log(`📧 Email    : kannan.tia@maquisflow.com`)
+  console.log(`📧 Email    : kannan.tia@Flowix.com`)
   console.log(`🔑 Password : TIA123`)
   console.log(`🏪 Accès    : Maquis + Restaurant`)
   console.log('─────────────────────────────────')

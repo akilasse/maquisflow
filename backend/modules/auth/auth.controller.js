@@ -1,61 +1,54 @@
-// ============================================================
-// AUTH CONTROLLER - Reçoit les requêtes HTTP et répond
-// Il appelle le service et formate la réponse JSON
-// Ne contient pas de logique métier - juste la communication
-// ============================================================
-
 const authService = require('./auth.service')
 
 // POST /api/auth/login
-// Body : { email, mot_de_passe, type } — type = 'maquis' | 'restaurant'
 const login = async (req, res) => {
   try {
-    const { email, mot_de_passe, type } = req.body
-
-    // Vérifie que les champs sont présents
+    const { email, mot_de_passe } = req.body
     if (!email || !mot_de_passe) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email et mot de passe requis'
-      })
+      return res.status(400).json({ success: false, message: 'Email et mot de passe requis' })
     }
+    const resultat = await authService.login(req.prisma, email, mot_de_passe)
 
-    // Vérifie que le type est valide
-    if (type && !['maquis', 'restaurant'].includes(type)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Type invalide — maquis ou restaurant uniquement'
-      })
-    }
-
-    // Appelle le service avec le type (défaut : maquis)
-    const resultat = await authService.login(
-      req.prisma,
-      email,
-      mot_de_passe,
-      type || 'maquis'
-    )
-
-    // Stocke le refresh token dans un cookie sécurisé
     res.cookie('refreshToken', resultat.refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       maxAge: 7 * 24 * 60 * 60 * 1000
     })
 
+    if (resultat.selection_requise) {
+      return res.status(200).json({
+        success: true,
+        selection_requise: true,
+        data: { utilisateur: resultat.utilisateur, etablissements: resultat.etablissements }
+      })
+    }
+
     return res.status(200).json({
       success: true,
+      selection_requise: false,
       message: 'Connexion réussie',
-      data: {
-        accessToken:  resultat.accessToken,
-        utilisateur:  resultat.utilisateur
-      }
+      data: { accessToken: resultat.accessToken, utilisateur: resultat.utilisateur }
     })
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: error.message
+    return res.status(401).json({ success: false, message: error.message })
+  }
+}
+
+// POST /api/auth/selectionner
+const selectionnerEtablissement = async (req, res) => {
+  try {
+    const { utilisateur_id, maquis_id } = req.body
+    if (!utilisateur_id || !maquis_id) {
+      return res.status(400).json({ success: false, message: 'utilisateur_id et maquis_id requis' })
+    }
+    const resultat = await authService.selectionnerEtablissement(req.prisma, utilisateur_id, maquis_id)
+    return res.status(200).json({
+      success: true,
+      message: 'Établissement sélectionné',
+      data: { accessToken: resultat.accessToken, utilisateur: resultat.utilisateur }
     })
+  } catch (error) {
+    return res.status(401).json({ success: false, message: error.message })
   }
 }
 
@@ -63,35 +56,18 @@ const login = async (req, res) => {
 const refresh = async (req, res) => {
   try {
     const token = req.cookies?.refreshToken
-
-    if (!token) {
-      return res.status(401).json({
-        success: false,
-        message: 'Refresh token manquant'
-      })
-    }
-
+    if (!token) return res.status(401).json({ success: false, message: 'Refresh token manquant' })
     const resultat = await authService.refreshToken(req.prisma, token)
-
-    return res.status(200).json({
-      success: true,
-      data: resultat
-    })
+    return res.status(200).json({ success: true, data: resultat })
   } catch (error) {
-    return res.status(401).json({
-      success: false,
-      message: error.message
-    })
+    return res.status(401).json({ success: false, message: error.message })
   }
 }
 
 // POST /api/auth/logout
 const logout = async (req, res) => {
   res.clearCookie('refreshToken')
-  return res.status(200).json({
-    success: true,
-    message: 'Déconnexion réussie'
-  })
+  return res.status(200).json({ success: true, message: 'Déconnexion réussie' })
 }
 
-module.exports = { login, refresh, logout }
+module.exports = { login, selectionnerEtablissement, refresh, logout }

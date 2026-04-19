@@ -1,5 +1,5 @@
 // ============================================================
-// MAQUISFLOW - Schéma de base de données
+// Flowix - Schéma de base de données
 // ORM : Prisma v5 | Base : MySQL / MariaDB
 // ============================================================
 
@@ -12,9 +12,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ------------------------------------------------------------
-// SUPER ADMIN
-// ------------------------------------------------------------
 model SuperAdmin {
   id           Int      @id @default(autoincrement())
   nom          String   @db.VarChar(100)
@@ -24,20 +21,17 @@ model SuperAdmin {
   created_at   DateTime @default(now())
 }
 
-// ------------------------------------------------------------
-// MAQUIS
-// ------------------------------------------------------------
 model Maquis {
   id               Int        @id @default(autoincrement())
   nom              String     @db.VarChar(100)
   type             TypeMaquis @default(maquis)
+  activite         String?    @db.VarChar(100)
   logo_url         String?    @db.VarChar(255)
   couleur_primaire String?    @db.VarChar(7)
   devise           String     @default("XOF") @db.VarChar(10)
   fuseau_horaire   String     @default("Africa/Abidjan") @db.VarChar(50)
   actif            Boolean    @default(true)
   created_at       DateTime   @default(now())
-  // Relations
   utilisateurs   UtilisateurMaquis[]
   produits       Produit[]
   ventes         Vente[]
@@ -54,24 +48,17 @@ enum TypeMaquis {
   restaurant
 }
 
-// ------------------------------------------------------------
-// ABONNEMENT
-// type_acces : achat_unique (permanent) | abonnement (mensuel/annuel)
-// periodicite : mensuel | annuel (null si achat_unique)
-// date_echeance : null si achat_unique (accès permanent)
-// bloque : true si abonnement expiré → déconnexion automatique
-// ------------------------------------------------------------
 model Abonnement {
   id              Int              @id @default(autoincrement())
   maquis_id       Int              @unique
   maquis          Maquis           @relation(fields: [maquis_id], references: [id])
   type_acces      TypeAcces        @default(abonnement)
-  periodicite     Periodicite?     // null si achat_unique
+  periodicite     Periodicite?
   montant         Decimal          @default(35000) @db.Decimal(10,2)
   statut          StatutAbonnement @default(essai)
-  bloque          Boolean          @default(false) // true = déconnexion forcée
+  bloque          Boolean          @default(false)
   date_debut      DateTime         @default(now())
-  date_echeance   DateTime?        // null si achat_unique
+  date_echeance   DateTime?
   date_paiement   DateTime?
   mode_paiement   String?          @db.VarChar(50)
   reference       String?          @db.VarChar(100)
@@ -81,8 +68,8 @@ model Abonnement {
 }
 
 enum TypeAcces {
-  achat_unique  // Paiement unique, accès permanent
-  abonnement    // Récurrent mensuel ou annuel
+  achat_unique
+  abonnement
 }
 
 enum Periodicite {
@@ -97,9 +84,6 @@ enum StatutAbonnement {
   essai
 }
 
-// ------------------------------------------------------------
-// UTILISATEUR MAQUIS
-// ------------------------------------------------------------
 model UtilisateurMaquis {
   id             Int         @id @default(autoincrement())
   utilisateur_id Int
@@ -109,21 +93,17 @@ model UtilisateurMaquis {
   role           Role        @default(caissier)
   actif          Boolean     @default(true)
   created_at     DateTime    @default(now())
-
   @@unique([utilisateur_id, maquis_id])
 }
 
-// ------------------------------------------------------------
-// UTILISATEUR
-// ------------------------------------------------------------
 model Utilisateur {
   id           Int       @id @default(autoincrement())
   nom          String    @db.VarChar(100)
   email        String    @unique @db.VarChar(150)
   mot_de_passe String    @db.VarChar(255)
+  photo_url    String?   @db.VarChar(255)
   actif        Boolean   @default(true)
   created_at   DateTime  @default(now())
-  // Relations
   etablissements UtilisateurMaquis[]
   ventes         Vente[]
   mouvements     StockMouvement[]
@@ -136,9 +116,6 @@ enum Role {
   patron
 }
 
-// ------------------------------------------------------------
-// PRODUIT
-// ------------------------------------------------------------
 model Produit {
   id               Int       @id @default(autoincrement())
   maquis_id        Int
@@ -150,6 +127,8 @@ model Produit {
   stock_actuel     Decimal   @db.Decimal(10,3)
   stock_min        Decimal   @default(0) @db.Decimal(10,3)
   unite            String    @default("unité") @db.VarChar(20)
+  photo_url        String?   @db.VarChar(255)
+  code_barre       String?   @db.VarChar(100)
   actif            Boolean   @default(true)
   lignes           VenteLigne[]
   mouvements       StockMouvement[]
@@ -157,9 +136,6 @@ model Produit {
   lignes_livraison BonLivraisonLigne[]
 }
 
-// ------------------------------------------------------------
-// VENTE
-// ------------------------------------------------------------
 model Vente {
   id             Int          @id @default(autoincrement())
   maquis_id      Int
@@ -192,9 +168,6 @@ enum StatutVente {
   credit_en_cours
 }
 
-// ------------------------------------------------------------
-// VENTE LIGNE
-// ------------------------------------------------------------
 model VenteLigne {
   id              Int     @id @default(autoincrement())
   vente_id        Int
@@ -209,9 +182,6 @@ model VenteLigne {
   total_ligne     Decimal @db.Decimal(10,2)
 }
 
-// ------------------------------------------------------------
-// STOCK MOUVEMENT
-// ------------------------------------------------------------
 model StockMouvement {
   id             Int           @id @default(autoincrement())
   maquis_id      Int
@@ -237,9 +207,6 @@ enum TypeMouvement {
   ajustement
 }
 
-// ------------------------------------------------------------
-// INVENTAIRE
-// ------------------------------------------------------------
 model Inventaire {
   id          Int              @id @default(autoincrement())
   maquis_id   Int
@@ -257,9 +224,6 @@ enum StatutInventaire {
   cloture
 }
 
-// ------------------------------------------------------------
-// INVENTAIRE LIGNE
-// ------------------------------------------------------------
 model InventaireLigne {
   id            Int        @id @default(autoincrement())
   inventaire_id Int
@@ -271,9 +235,6 @@ model InventaireLigne {
   ecart         Decimal    @db.Decimal(10,3)
 }
 
-// ------------------------------------------------------------
-// LOG ACTION
-// ------------------------------------------------------------
 model LogAction {
   id             Int         @id @default(autoincrement())
   maquis_id      Int
@@ -286,9 +247,6 @@ model LogAction {
   ip_client      String?     @db.VarChar(45)
 }
 
-// ------------------------------------------------------------
-// FOURNISSEUR
-// ------------------------------------------------------------
 model Fournisseur {
   id             Int              @id @default(autoincrement())
   maquis_id      Int
@@ -303,9 +261,6 @@ model Fournisseur {
   bons_livraison BonLivraison[]
 }
 
-// ------------------------------------------------------------
-// BON DE LIVRAISON
-// ------------------------------------------------------------
 model BonLivraison {
   id             Int                @id @default(autoincrement())
   maquis_id      Int
@@ -319,9 +274,6 @@ model BonLivraison {
   lignes         BonLivraisonLigne[]
 }
 
-// ------------------------------------------------------------
-// BON DE LIVRAISON LIGNE
-// ------------------------------------------------------------
 model BonLivraisonLigne {
   id          Int          @id @default(autoincrement())
   bon_id      Int

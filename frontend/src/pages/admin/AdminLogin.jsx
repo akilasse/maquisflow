@@ -1,5 +1,5 @@
 // ============================================================
-// ADMIN LOGIN - Connexion super admin MaquisFlow
+// ADMIN LOGIN - Connexion super admin Flowix
 // Accessible sur /admin/login — indépendant du login client
 // ============================================================
 
@@ -54,7 +54,7 @@ const AdminLogin = () => {
             ⚡
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', margin: 0 }}>
-            MaquisFlow Admin
+            Flowix Admin
           </h1>
           <p style={{ fontSize: 13, color: '#64748b', marginTop: 6 }}>
             Panneau d'administration
@@ -71,7 +71,7 @@ const AdminLogin = () => {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="admin@maquisflow.com"
+              placeholder="admin@Flowix.com"
               required
               style={{
                 width: '100%', padding: '12px 14px', fontSize: 15,
@@ -124,7 +124,7 @@ const AdminLogin = () => {
         </form>
 
         <p style={{ textAlign: 'center', color: '#475569', fontSize: 12, marginTop: 24 }}>
-          Accès restreint — MaquisFlow v1.0
+          Accès restreint — Flowix v1.0
         </p>
       </div>
     </div>

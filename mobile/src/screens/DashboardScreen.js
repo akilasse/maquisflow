@@ -1,8 +1,3 @@
-// ============================================================
-// DASHBOARD SCREEN - Écran principal du patron
-// Ventes + Bénéfice par période + Wallets colorés comme la caisse
-// ============================================================
-
 import { useState, useEffect, useCallback } from 'react'
 import {
   View, Text, ScrollView, StyleSheet,
@@ -14,19 +9,15 @@ import api from '../utils/api'
 const DEVISE = 'FCFA'
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR')
 
-const MODES_LABELS = {
-  especes: 'Espèces', wave: 'Wave', orange_money: 'Orange Money',
-  mtn_money: 'MTN MoMo', credit: 'Crédit', autre: 'Autre',
-}
-
-// Identique aux boutons de la caisse
-const WALLETS_CONFIG = [
-  { key: 'wave',         label: 'Wave',        icone: '🐧', bg: '#1D4ED8', color: 'white',   overlayBg: 'rgba(255,255,255,0.2)' },
-  { key: 'orange_money', label: 'Orange Money', icone: '📱', bg: '#FF6B00', color: 'white',   overlayBg: 'rgba(255,255,255,0.2)' },
-  { key: 'mtn_money',    label: 'MTN Money',    icone: '📱', bg: '#FFCC00', color: '#111827', overlayBg: 'rgba(0,0,0,0.08)'      },
+const MODES_PAIEMENT = [
+  { key: 'especes',      label: 'Espèces',     icone: '💵', color: '#16a34a', bgCard: '#f0fdf4', bgIcone: '#bbf7d0' },
+  { key: 'wave',         label: 'Wave',         icone: '🐧', color: '#1d4ed8', bgCard: '#eff6ff', bgIcone: '#bfdbfe' },
+  { key: 'orange_money', label: 'Orange Money', icone: '📱', color: '#ea580c', bgCard: '#fff7ed', bgIcone: '#fed7aa' },
+  { key: 'mtn_money',    label: 'MTN MoMo',     icone: '📱', color: '#854d0e', bgCard: '#fefce8', bgIcone: '#FFCC00' },
+  { key: 'credit',       label: 'Crédit',       icone: '📋', color: '#9333ea', bgCard: '#fdf4ff', bgIcone: '#e9d5ff' },
+  { key: 'autre',        label: 'Autre',        icone: '💳', color: '#64748b', bgCard: '#f8fafc', bgIcone: '#e2e8f0' },
 ]
 
-// ─── Carte période ────────────────────────────────────────────
 const CartePeriode = ({ titre, ventes, benefice, nb, isPatron, bgColor, titreColor, venteColor, beneficeColor, sousColor }) => (
   <View style={[styles.cartePeriode, { backgroundColor: bgColor }]}>
     <Text style={[styles.cartePeriodeTitre, { color: titreColor }]}>{titre}</Text>
@@ -47,17 +38,34 @@ const CartePeriode = ({ titre, ventes, benefice, nb, isPatron, bgColor, titreCol
   </View>
 )
 
-// ─── Composant principal ──────────────────────────────────────
+// Carte paiement — même largeur que CartePeriode
+const CartePaiement = ({ label, icone, color, bgCard, bgIcone, total, nombre }) => (
+  <View style={[styles.cartePaiement, { backgroundColor: bgCard }]}>
+    <View style={styles.cartePaiementHeader}>
+      <View style={[styles.iconeWrapper, { backgroundColor: bgIcone }]}>
+        <Text style={styles.iconeTexte}>{icone}</Text>
+      </View>
+      <Text style={[styles.cartePaiementLabel, { color }]}>{label}</Text>
+    </View>
+    <Text style={[styles.cartePaiementMontant, { color: total > 0 ? '#111827' : '#d1d5db' }]}>
+      {fmtNum(total)}
+    </Text>
+    <Text style={styles.cartePaiementDevise}>{DEVISE}</Text>
+    <Text style={[styles.cartePaiementNb, { color: nombre > 0 ? color : '#9ca3af' }]}>
+      {nombre > 0 ? `${nombre} vente${nombre > 1 ? 's' : ''}` : 'Aucun paiement'}
+    </Text>
+  </View>
+)
+
 export default function DashboardScreen() {
   const { utilisateur, logout } = useAuth()
-  const [data, setData]                   = useState(null)
-  const [chargement, setChargement]       = useState(true)
+  const [data, setData]                         = useState(null)
+  const [chargement, setChargement]             = useState(true)
   const [rafraichissement, setRafraichissement] = useState(false)
-  const [graphique, setGraphique]         = useState('semaine')
 
-  const chargerDashboard = useCallback(async (periode) => {
+  const chargerDashboard = useCallback(async () => {
     try {
-      const response = await api.get(`/api/dashboard?graphique=${periode}`)
+      const response = await api.get('/api/dashboard?graphique=semaine')
       setData(response.data.data)
     } catch (error) {
       console.error('Erreur dashboard:', error)
@@ -68,18 +76,30 @@ export default function DashboardScreen() {
   }, [])
 
   useEffect(() => {
-    chargerDashboard(graphique)
-    const interval = setInterval(() => chargerDashboard(graphique), 30000)
+    chargerDashboard()
+    const interval = setInterval(chargerDashboard, 30000)
     return () => clearInterval(interval)
-  }, [graphique])
+  }, [])
 
   const onRefresh = useCallback(() => {
     setRafraichissement(true)
-    chargerDashboard(graphique)
-  }, [graphique])
+    chargerDashboard()
+  }, [])
 
   const isPatron = utilisateur?.role === 'patron'
   const r = data?.resume || {}
+
+  const paiementsParMode = MODES_PAIEMENT.map(mode => {
+    const rep    = data?.repartition_paiement?.find(r => r.mode === mode.key)
+    const wallet = data?.wallets?.[mode.key] ?? 0
+    const total  = rep ? Number(rep.total) : wallet
+    const nombre = rep ? rep.nombre : 0
+    return { ...mode, total, nombre }
+  })
+
+  // Groupes de 3
+  const ligne1 = paiementsParMode.slice(0, 3)
+  const ligne2 = paiementsParMode.slice(3, 6)
 
   if (chargement) return (
     <View style={styles.centrer}>
@@ -93,7 +113,6 @@ export default function DashboardScreen() {
       style={styles.container}
       refreshControl={<RefreshControl refreshing={rafraichissement} onRefresh={onRefresh} colors={['#FF6B35']} />}
     >
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitre}>{data?.maquis?.nom}</Text>
@@ -106,38 +125,22 @@ export default function DashboardScreen() {
 
       <View style={styles.content}>
 
-        {/* Date */}
         <Text style={styles.date}>
           {new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
         </Text>
 
-        {/* 3 Cartes période */}
+        {/* 3 Cartes chiffres d'affaires */}
         <CartePeriode titre="AUJOURD'HUI"   ventes={r.vente_jour}    benefice={r.benefice_jour}    nb={r.nb_jour}    isPatron={isPatron} bgColor="#FFF7ED" titreColor="#c2410c" venteColor="#7c2d12" beneficeColor="#16a34a" sousColor="#f97316" />
         <CartePeriode titre="CETTE SEMAINE" ventes={r.vente_semaine} benefice={r.benefice_semaine} nb={r.nb_semaine} isPatron={isPatron} bgColor="#F0FDF4" titreColor="#15803d" venteColor="#14532d" beneficeColor="#15803d" sousColor="#22c55e" />
         <CartePeriode titre="CE MOIS"       ventes={r.vente_mois}    benefice={r.benefice_mois}    nb={r.nb_mois}    isPatron={isPatron} bgColor="#EFF6FF" titreColor="#1d4ed8" venteColor="#1e3a8a" beneficeColor="#1d4ed8" sousColor="#3b82f6" />
 
-        {/* ── Wallets — style identique aux boutons de la caisse ── */}
-        <Text style={styles.sectionTitreGris}>SOLDE DES WALLETS</Text>
-        <View style={styles.walletsRow}>
-          {WALLETS_CONFIG.map(({ key, label, icone, bg, color }) => {
-            const solde = data?.wallets?.[key] ?? 0
-            return (
-              <View key={key} style={[styles.walletCard, { backgroundColor: bg }]}>
-                {/* Icône + label */}
-                <View style={styles.walletHeader}>
-                  <Text style={styles.walletIcone}>{icone}</Text>
-                  <Text style={[styles.walletNom, { color }]}>{label}</Text>
-                </View>
-                {/* Montant */}
-                <Text style={[styles.walletValeur, { color }]}>{fmtNum(solde)}</Text>
-                <Text style={[styles.walletDevise, { color }]}>{DEVISE}</Text>
-                {/* Statut */}
-                <Text style={[styles.walletSous, { color, opacity: 0.8 }]}>
-                  {solde === 0 ? 'Aucun paiement reçu' : 'Solde du jour'}
-                </Text>
-              </View>
-            )
-          })}
+        {/* Paiements — 2 lignes de 3 */}
+        <Text style={styles.sectionTitreGris}>PAIEMENTS DU JOUR</Text>
+        <View style={styles.ligneCartes}>
+          {ligne1.map(p => <CartePaiement key={p.key} {...p} />)}
+        </View>
+        <View style={styles.ligneCartes}>
+          {ligne2.map(p => <CartePaiement key={p.key} {...p} />)}
         </View>
 
         {/* Top produits */}
@@ -157,28 +160,8 @@ export default function DashboardScreen() {
                 </View>
                 <View style={{ alignItems: 'flex-end' }}>
                   <Text style={styles.produitCA}>{fmtNum(produit.ca_produit)}</Text>
-                  {isPatron && produit.marge > 0 && (
-                    <Text style={styles.produitMarge}>+{fmtNum(produit.marge)}</Text>
-                  )}
+                  {isPatron && produit.marge > 0 && <Text style={styles.produitMarge}>+{fmtNum(produit.marge)}</Text>}
                 </View>
-              </View>
-            ))
-          )}
-        </View>
-
-        {/* Répartition paiements */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitre}>Répartition des paiements</Text>
-          {!data?.repartition_paiement?.length ? (
-            <Text style={styles.vide}>Aucune vente aujourd'hui</Text>
-          ) : (
-            data.repartition_paiement.map(item => (
-              <View key={item.mode} style={styles.paiementLigne}>
-                <View>
-                  <Text style={styles.paiementMode}>{MODES_LABELS[item.mode] || item.mode}</Text>
-                  <Text style={styles.paiementNb}>{item.nombre} vente{item.nombre > 1 ? 's' : ''}</Text>
-                </View>
-                <Text style={styles.paiementMontant}>{fmtNum(item.total)} {DEVISE}</Text>
               </View>
             ))
           )}
@@ -191,18 +174,15 @@ export default function DashboardScreen() {
               Stocks critiques ({data.stocks_critiques.length})
             </Text>
             {data.stocks_critiques.map(p => (
-              <View key={p.id} style={styles.paiementLigne}>
-                <Text style={styles.paiementMode}>{p.nom}</Text>
-                <Text style={[styles.paiementMontant, { color: '#dc2626' }]}>
-                  {fmtNum(p.stock_actuel)} {p.unite}
-                </Text>
+              <View key={p.id} style={{ flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8 }}>
+                <Text style={styles.produitNom}>{p.nom}</Text>
+                <Text style={[styles.produitCA, { color: '#dc2626' }]}>{fmtNum(p.stock_actuel)} {p.unite}</Text>
               </View>
             ))}
           </View>
         )}
 
         <Text style={styles.refresh}>Tire vers le bas pour rafraîchir · Auto 30s</Text>
-
       </View>
     </ScrollView>
   )
@@ -213,47 +193,41 @@ const styles = StyleSheet.create({
   centrer:          { flex: 1, justifyContent: 'center', alignItems: 'center' },
   chargementTexte:  { marginTop: 12, color: '#9ca3af', fontSize: 14 },
 
-  header:       { backgroundColor: '#FF6B35', padding: 20, paddingTop: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  headerTitre:  { color: 'white', fontSize: 18, fontWeight: 'bold' },
-  headerSous:   { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 },
-  logoutBtn:    { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  logoutTexte:  { color: 'white', fontSize: 13, fontWeight: '500' },
+  header:      { backgroundColor: '#FF6B35', padding: 20, paddingTop: 50, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  headerTitre: { color: 'white', fontSize: 18, fontWeight: 'bold' },
+  headerSous:  { color: 'rgba(255,255,255,0.8)', fontSize: 13, marginTop: 2 },
+  logoutBtn:   { backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  logoutTexte: { color: 'white', fontSize: 13, fontWeight: '500' },
 
   content: { padding: 16 },
   date:    { fontSize: 13, color: '#9ca3af', marginBottom: 16, textTransform: 'capitalize' },
 
-  // Cartes période
-  cartePeriode:      { borderRadius: 14, padding: 20, marginBottom: 12 },
+  cartePeriode:      { borderRadius: 14, padding: 20, marginBottom: 10 },
   cartePeriodeTitre: { fontSize: 11, fontWeight: '700', letterSpacing: 1, marginBottom: 12 },
   carteRow:          { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
   carteLabel:        { fontSize: 11, marginBottom: 4 },
-  carteValeur:       { fontSize: 40, fontWeight: '700', lineHeight: 44 },
-  carteBenefice:     { fontSize: 28, fontWeight: '700', lineHeight: 32 },
+  carteValeur:       { fontSize: 38, fontWeight: '700', lineHeight: 42 },
+  carteBenefice:     { fontSize: 26, fontWeight: '700', lineHeight: 30 },
   carteSous:         { fontSize: 12, marginTop: 4 },
 
-  // Wallets — style caisse
-  sectionTitreGris: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 1, marginBottom: 10, marginTop: 4 },
-  walletsRow:       { flexDirection: 'row', gap: 8, marginBottom: 16 },
-  walletCard:   { flex: 1, borderRadius: 14, padding: 14 },
-  walletHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  walletIcone:  { fontSize: 18 },
-  walletNom:    { fontSize: 11, fontWeight: '700' },
-  walletValeur: { fontSize: 24, fontWeight: '700', lineHeight: 28, marginBottom: 2 },
-  walletDevise: { fontSize: 12, marginBottom: 6 },
-  walletSous:   { fontSize: 11, fontWeight: '500' },
+  sectionTitreGris: { fontSize: 11, fontWeight: '700', color: '#9ca3af', letterSpacing: 1, marginTop: 6, marginBottom: 10 },
 
-  // Sections
+  // Ligne de 3 cartes paiement
+  ligneCartes: { flexDirection: 'row', gap: 8, marginBottom: 8 },
+
+  cartePaiement: { flex: 1, borderRadius: 12, padding: 12 },
+  cartePaiementHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+  iconeWrapper:  { width: 28, height: 28, borderRadius: 8, justifyContent: 'center', alignItems: 'center' },
+  iconeTexte:    { fontSize: 15 },
+  cartePaiementLabel:   { fontSize: 10, fontWeight: '700', flex: 1 },
+  cartePaiementMontant: { fontSize: 20, fontWeight: '700', lineHeight: 24 },
+  cartePaiementDevise:  { fontSize: 10, color: '#9ca3af', marginBottom: 4 },
+  cartePaiementNb:      { fontSize: 10, fontWeight: '600' },
+
   section:      { backgroundColor: 'white', borderRadius: 14, padding: 16, marginBottom: 12 },
   sectionTitre: { fontSize: 15, fontWeight: '600', color: '#111827', marginBottom: 12 },
   vide:         { color: '#9ca3af', fontSize: 14, textAlign: 'center', paddingVertical: 8 },
 
-  // Paiements
-  paiementLigne:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  paiementMode:    { fontSize: 14, color: '#374151', fontWeight: '500' },
-  paiementNb:      { fontSize: 11, color: '#9ca3af', marginTop: 2 },
-  paiementMontant: { fontSize: 14, fontWeight: '700', color: '#111827' },
-
-  // Top produits
   produitLigne:     { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
   produitRang:      { width: 28, height: 28, borderRadius: 14, backgroundColor: '#fff7ed', justifyContent: 'center', alignItems: 'center', marginRight: 10 },
   produitRangTexte: { color: '#FF6B35', fontWeight: 'bold', fontSize: 13 },
