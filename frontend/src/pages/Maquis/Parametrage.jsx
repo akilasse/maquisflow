@@ -54,8 +54,8 @@ const Parametrage = () => {
   }
 
   const styleInput = { width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', marginBottom: '10px' }
-  const styleBouton = (couleur = '#FF6B35') => ({ padding: '10px 20px', backgroundColor: couleur, color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' })
-  const styleOnglet = (actif) => ({ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '14px', backgroundColor: actif ? '#FF6B35' : '#f3f4f6', color: actif ? 'white' : '#374151' })
+  const styleBouton = (couleur = 'var(--couleur-principale)') => ({ padding: '10px 20px', backgroundColor: couleur, color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' })
+  const styleOnglet = (actif) => ({ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '14px', backgroundColor: actif ? 'var(--couleur-principale)' : '#f3f4f6', color: actif ? 'white' : '#374151' })
 
   const soumettreProdukt = async () => {
     try {
@@ -240,7 +240,7 @@ const Parametrage = () => {
                       ) : (
                         <div style={{ width: 40, height: 40, borderRadius: 8, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>📦</div>
                       )}
-                      <label style={{ position: 'absolute', bottom: -4, right: -4, width: 18, height: 18, backgroundColor: '#FF6B35', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, color: 'white' }}>
+                      <label style={{ position: 'absolute', bottom: -4, right: -4, width: 18, height: 18, backgroundColor: 'var(--couleur-principale)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, color: 'white' }}>
                         📷
                         <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files[0] && uploadPhotoProduit(p.id, e.target.files[0])} />
                       </label>
@@ -251,7 +251,7 @@ const Parametrage = () => {
                     {p.code_barre && <span style={{ display: 'block', fontSize: '11px', color: '#9ca3af' }}>📊 {p.code_barre}</span>}
                   </td>
                   <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{p.categorie || '-'}</td>
-                  <td style={{ padding: '10px', fontSize: '13px', color: '#FF6B35', fontWeight: '600' }}>{parseFloat(p.prix_vente).toLocaleString()} XOF</td>
+                  <td style={{ padding: '10px', fontSize: '13px', color: 'var(--couleur-principale)', fontWeight: '600' }}>{parseFloat(p.prix_vente).toLocaleString()} XOF</td>
                   <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{parseFloat(p.prix_achat).toLocaleString()} XOF</td>
                   <td style={{ padding: '10px', fontSize: '13px', color: parseFloat(p.stock_actuel) <= parseFloat(p.stock_min) ? '#dc2626' : '#16a34a', fontWeight: '600' }}>{p.stock_actuel} {p.unite}</td>
                   <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{p.stock_min} {p.unite}</td>
@@ -296,7 +296,7 @@ const Parametrage = () => {
               <div key={f.id} style={{ padding: '16px', border: '1px solid #e5e7eb', borderRadius: '10px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <p style={{ margin: 0, fontWeight: '600', fontSize: '15px' }}>🚚 {f.nom}</p>
-                  <button onClick={() => { setModal({ type: 'fournisseur', id: f.id }); setFormFournisseur({ nom: f.nom, telephone: f.telephone || '', email: f.email || '', adresse: f.adresse || '' }) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: '#FF6B35' }}>Modifier</button>
+                  <button onClick={() => { setModal({ type: 'fournisseur', id: f.id }); setFormFournisseur({ nom: f.nom, telephone: f.telephone || '', email: f.email || '', adresse: f.adresse || '' }) }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '13px', color: 'var(--couleur-principale)' }}>Modifier</button>
                 </div>
                 {f.telephone && <p style={{ margin: '4px 0', fontSize: '13px', color: '#6b7280' }}>📞 {f.telephone}</p>}
                 {f.email && <p style={{ margin: '4px 0', fontSize: '13px', color: '#6b7280' }}>✉️ {f.email}</p>}
@@ -350,11 +350,11 @@ const Parametrage = () => {
                       {u.photo_url ? (
                         <img src={u.photo_url} alt={u.nom} style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
                       ) : (
-                        <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: '#FF6B35', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'white', fontWeight: 700 }}>
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', backgroundColor: 'var(--couleur-principale)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, color: 'white', fontWeight: 700 }}>
                           {u.nom?.charAt(0)?.toUpperCase()}
                         </div>
                       )}
-                      <label style={{ position: 'absolute', bottom: -4, right: -4, width: 18, height: 18, backgroundColor: '#FF6B35', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, color: 'white' }}>
+                      <label style={{ position: 'absolute', bottom: -4, right: -4, width: 18, height: 18, backgroundColor: 'var(--couleur-principale)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, color: 'white' }}>
                         📷
                         <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files[0] && uploadPhotoUtilisateur(u.id, e.target.files[0])} />
                       </label>

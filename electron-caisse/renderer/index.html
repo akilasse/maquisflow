@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flowix Caisse</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f3f4f6; height: 100vh; overflow: hidden; }
+
+    /* LOGIN */
+    #login-screen {
+      display: flex; align-items: center; justify-content: center;
+      height: 100vh; background: linear-gradient(135deg, #FF6B35, #ff8c5a);
+    }
+    .login-card {
+      background: white; border-radius: 20px; padding: 40px;
+      width: 400px; box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .login-logo {
+      width: 72px; height: 72px; border-radius: 18px;
+      background: linear-gradient(135deg, #FF6B35, #ff8c5a);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px; margin: 0 auto 16px;
+    }
+    .login-title { text-align: center; font-size: 24px; font-weight: 800; color: #111827; margin-bottom: 6px; }
+    .login-sub { text-align: center; font-size: 14px; color: #9ca3af; margin-bottom: 28px; }
+    .form-group { margin-bottom: 16px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    .form-group input {
+      width: 100%; padding: 13px 16px; font-size: 15px;
+      border: 2px solid #f3f4f6; border-radius: 10px;
+      background: #f9fafb; outline: none; transition: all 0.2s;
+    }
+    .form-group input:focus { border-color: #FF6B35; background: white; }
+    .btn-login {
+      width: 100%; padding: 15px; border-radius: 12px; border: none;
+      background: linear-gradient(135deg, #FF6B35, #ff8c5a);
+      color: white; font-size: 16px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 8px 20px rgba(255,107,53,0.35); margin-top: 8px;
+    }
+    .btn-login:hover { opacity: 0.9; }
+    .login-error {
+      background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+      border-radius: 10px; padding: 12px 14px; font-size: 14px;
+      margin-bottom: 14px; display: none;
+    }
+
+    /* CAISSE */
+    #caisse-screen { display: none; flex-direction: column; height: 100vh; padding: 12px; gap: 10px; }
+
+    /* Topbar */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      background: white; border-radius: 12px; padding: 10px 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .topbar-left { display: flex; align-items: center; gap: 10px; }
+    .topbar-logo { font-size: 20px; }
+    .topbar-nom { font-size: 15px; font-weight: 700; color: #111827; }
+    .topbar-caissier { font-size: 12px; color: #9ca3af; }
+    .status-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      display: inline-block; margin-right: 6px;
+    }
+    .status-online { background: #16a34a; }
+    .status-offline { background: #f59e0b; }
+    .status-text { font-size: 12px; font-weight: 600; }
+    .badge-pending {
+      background: #fef3c7; color: #92400e; border-radius: 20px;
+      padding: 4px 10px; font-size: 12px; font-weight: 600;
+    }
+    .btn-sync {
+      background: #FF6B35; color: white; border: none; border-radius: 8px;
+      padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .btn-logout {
+      background: #f3f4f6; color: #6b7280; border: none; border-radius: 8px;
+      padding: 8px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+    }
+
+    /* Main */
+    .caisse-main { display: flex; gap: 10px; flex: 1; overflow: hidden; }
+
+    /* Produits */
+    .col-produits {
+      flex: 0.9; background: white; border-radius: 12px; padding: 16px;
+      display: flex; flex-direction: column; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+    .col-title { font-size: 16px; font-weight: 700; color: #374151; margin-bottom: 12px; }
+    .search-input {
+      width: 100%; padding: 10px 14px; border: 1px solid #e5e7eb;
+      border-radius: 8px; font-size: 14px; margin-bottom: 12px; outline: none;
+    }
+    .search-input:focus { border-color: #FF6B35; }
+    .produits-list { flex: 1; overflow-y: auto; }
+    .produit-item {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 12px; border-radius: 10px; margin-bottom: 6px;
+      cursor: pointer; border: 1px solid #f3f4f6; transition: background 0.15s;
+    }
+    .produit-item:hover { background: #fff7ed; }
+    .produit-nom { font-weight: 600; font-size: 15px; color: #111827; }
+    .produit-stock { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+    .produit-prix { font-weight: 700; color: #FF6B35; font-size: 15px; }
+    .produit-rupture { opacity: 0.4; cursor: not-allowed; }
+
+    /* Panier */
+    .col-panier {
+      flex: 1.2; background: white; border-radius: 12px; padding: 16px;
+      display: flex; flex-direction: column; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .panier-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .btn-vider { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 13px; font-weight: 600; }
+    .panier-items { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+    .panier-vide { color: #9ca3af; text-align: center; padding: 40px 20px; font-size: 14px; }
+    .panier-item {
+      background: #f9fafb; border-radius: 10px; padding: 10px;
+      margin-bottom: 8px; border: 1px solid #f3f4f6;
+    }
+    .panier-item-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .panier-item-nom { font-weight: 600; font-size: 14px; color: #111827; }
+    .btn-retirer { background: none; border: none; color: #ef4444; cursor: pointer; font-size: 16px; }
+    .panier-item-controls { display: flex; gap: 8px; align-items: center; }
+    .qty-btn {
+      width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e5e7eb;
+      background: white; cursor: pointer; font-size: 16px; font-weight: 600;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .qty-val { min-width: 28px; text-align: center; font-size: 15px; font-weight: 700; }
+    .prix-input {
+      flex: 1; padding: 6px 10px; border: 1px solid #e5e7eb;
+      border-radius: 8px; font-size: 14px; outline: none;
+    }
+    .item-total { font-weight: 700; color: #FF6B35; font-size: 14px; min-width: 80px; text-align: right; }
+
+    /* Paiement */
+    .paiement-section { margin-bottom: 10px; }
+    .paiement-label { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 8px; }
+    .modes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .mode-btn {
+      padding: 10px 6px; border-radius: 8px; border: 1px solid #e5e7eb;
+      background: white; cursor: pointer; font-size: 12px; font-weight: 600;
+      color: #374151; transition: all 0.15s; text-align: center;
+    }
+    .mode-btn.actif { color: white; border-width: 2px; }
+
+    /* Monnaie */
+    .montant-recu-section { margin-bottom: 8px; }
+    .montant-input {
+      width: 100%; padding: 12px; border: 1px solid #e5e7eb;
+      border-radius: 8px; font-size: 15px; outline: none; margin-top: 6px;
+    }
+    .monnaie-box {
+      margin-top: 8px; padding: 12px 14px; border-radius: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .monnaie-ok { background: #f0fdf4; color: #16a34a; }
+    .monnaie-err { background: #fef2f2; color: #dc2626; }
+    .monnaie-label { font-size: 14px; font-weight: 600; }
+    .monnaie-val { font-size: 20px; font-weight: 700; }
+
+    /* Note */
+    .note-input {
+      width: 100%; padding: 10px 14px; border: 1px solid #e5e7eb;
+      border-radius: 8px; font-size: 13px; outline: none; margin-bottom: 10px;
+    }
+
+    /* Total + Bouton */
+    .total-section { border-top: 2px solid #f3f4f6; padding-top: 12px; }
+    .total-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .total-label { font-size: 18px; font-weight: 700; color: #374151; }
+    .total-val { font-size: 26px; font-weight: 800; color: #FF6B35; }
+    .btn-valider {
+      width: 100%; padding: 16px; border-radius: 12px; border: none;
+      background: #FF6B35; color: white; font-size: 16px; font-weight: 700;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .btn-valider:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
+    .btn-valider.offline { background: #f59e0b; }
+
+    /* Message */
+    .message-box {
+      padding: 10px 14px; border-radius: 8px; font-size: 13px;
+      margin-bottom: 10px; display: none;
+    }
+    .message-erreur { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+    .message-succes { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .message-info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+
+    /* Modal reçu */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: none; align-items: center; justify-content: center; z-index: 1000;
+    }
+    .modal-overlay.visible { display: flex; }
+    .modal-card {
+      background: white; border-radius: 16px; padding: 28px;
+      width: 400px; box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    }
+    .modal-icon { font-size: 48px; text-align: center; margin-bottom: 12px; }
+    .modal-title { font-size: 20px; font-weight: 700; text-align: center; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: #9ca3af; text-align: center; margin-bottom: 16px; }
+    .modal-offline-badge {
+      background: #fef3c7; color: #92400e; border-radius: 8px;
+      padding: 8px 12px; font-size: 13px; text-align: center; margin-bottom: 12px;
+    }
+    .recu-details { background: #f9fafb; border-radius: 10px; padding: 14px; margin-bottom: 16px; }
+    .recu-ligne { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+    .recu-total { display: flex; justify-content: space-between; font-size: 17px; font-weight: 700; border-top: 1px solid #e5e7eb; padding-top: 10px; margin-top: 8px; }
+    .recu-monnaie { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; color: #16a34a; background: #f0fdf4; padding: 10px; border-radius: 8px; margin-top: 8px; }
+    .modal-btns { display: flex; gap: 10px; }
+    .btn-imprimer {
+      flex: 1; padding: 13px; background: #FF6B35; color: white;
+      border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+    .btn-fermer {
+      flex: 1; padding: 13px; background: #f3f4f6; color: #374151;
+      border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">⚡</div>
+    <div class="login-title">Flowix Caisse</div>
+    <div class="login-sub">Application de caisse professionnelle</div>
+    <div class="login-error" id="login-error"></div>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="input-email" placeholder="votre@email.com" />
+    </div>
+    <div class="form-group">
+      <label>Mot de passe</label>
+      <input type="password" id="input-password" placeholder="••••••••" />
+    </div>
+    <button class="btn-login" id="btn-login">⚡ Se connecter</button>
+  </div>
+</div>
+
+<!-- ═══ CAISSE ═══════════════════════════════════════════════ -->
+<div id="caisse-screen">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-left">
+      <span class="topbar-logo">⚡</span>
+      <div>
+        <div class="topbar-nom" id="topbar-nom">Flowix</div>
+        <div class="topbar-caissier" id="topbar-caissier">Caissier</div>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div>
+        <span class="status-dot status-online" id="status-dot"></span>
+        <span class="status-text" id="status-text">En ligne</span>
+      </div>
+      <span class="badge-pending" id="badge-pending" style="display:none"></span>
+      <button class="btn-sync" id="btn-sync" style="display:none" onclick="syncVentes()">🔄 Sync</button>
+      <button class="btn-logout" onclick="logout()">Déconnexion</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div class="caisse-main">
+
+    <!-- Produits -->
+    <div class="col-produits">
+      <div class="col-title">Produits disponibles</div>
+      <input class="search-input" type="text" placeholder="Rechercher..." id="search-produits" oninput="filtrerProduits()" />
+      <div class="produits-list" id="produits-list">
+        <p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>
+      </div>
+    </div>
+
+    <!-- Panier -->
+    <div class="col-panier">
+      <div class="panier-header">
+        <div class="col-title" id="panier-titre">Panier (0)</div>
+        <button class="btn-vider" onclick="viderPanier()">Vider</button>
+      </div>
+
+      <div class="message-box" id="message-box"></div>
+
+      <div class="panier-items" id="panier-items">
+        <div class="panier-vide">Cliquez sur un produit pour l'ajouter</div>
+      </div>
+
+      <!-- Mode paiement -->
+      <div class="paiement-section">
+        <div class="paiement-label">Mode de paiement</div>
+        <div class="modes-grid" id="modes-grid"></div>
+      </div>
+
+      <!-- Montant reçu espèces -->
+      <div class="montant-recu-section" id="montant-section" style="display:none">
+        <div class="paiement-label">Montant reçu du client</div>
+        <input class="montant-input" type="number" id="montant-recu" placeholder="0" oninput="calculerMonnaie()" />
+        <div class="monnaie-box" id="monnaie-box" style="display:none">
+          <span class="monnaie-label" id="monnaie-label"></span>
+          <span class="monnaie-val" id="monnaie-val"></span>
+        </div>
+      </div>
+
+      <!-- Note -->
+      <input class="note-input" type="text" id="note-input" placeholder="Note (table, client...)" />
+
+      <!-- Total -->
+      <div class="total-section">
+        <div class="total-row">
+          <span class="total-label">Total</span>
+          <span class="total-val" id="total-val">0 XOF</span>
+        </div>
+        <button class="btn-valider" id="btn-valider" disabled onclick="validerVente()">
+          ✅ Valider la vente
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal reçu -->
+<div class="modal-overlay" id="modal-recu">
+  <div class="modal-card">
+    <div class="modal-icon" id="modal-icon">✅</div>
+    <div class="modal-title" id="modal-title">Vente enregistrée !</div>
+    <div class="modal-sub" id="modal-sub"></div>
+    <div class="modal-offline-badge" id="modal-offline-badge" style="display:none">
+      📴 Sera synchronisée au retour de la connexion
+    </div>
+    <div class="recu-details" id="recu-details"></div>
+    <div class="modal-btns">
+      <button class="btn-imprimer" onclick="imprimerTicket()">🖨️ Imprimer</button>
+      <button class="btn-fermer" onclick="fermerModal()">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const API_URL = 'https://maquisflow.com'
+
+const MODES = [
+  { value: 'especes',      label: 'Espèces',     bg: '#16a34a', color: 'white',   icone: '💵' },
+  { value: 'wave',         label: 'Wave',         bg: '#1D4ED8', color: 'white',   icone: '🐧' },
+  { value: 'orange_money', label: 'Orange Money', bg: '#FF6B00', color: 'white',   icone: '📱' },
+  { value: 'mtn_money',    label: 'MTN MoMo',     bg: '#FFCC00', color: '#111827', icone: '📱' },
+  { value: 'credit',       label: 'Crédit',       bg: '#7c3aed', color: 'white',   icone: '📝' },
+  { value: 'autre',        label: 'Autre',        bg: '#6b7280', color: 'white',   icone: '💳' },
+]
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let state = {
+  token: null,
+  utilisateur: null,
+  produits: [],
+  panier: [],
+  modePaiement: 'especes',
+  isOnline: navigator.onLine,
+  dernierRecu: null
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', async () => {
+  // Charger session sauvegardée
+  const token = await window.electronAPI.storeGet('token')
+  const user  = await window.electronAPI.storeGet('utilisateur')
+  if (token && user) {
+    state.token = token
+    state.utilisateur = user
+    afficherCaisse()
+  }
+
+  // Surveiller connexion
+  window.addEventListener('online',  () => { state.isOnline = true;  updateStatus(); syncVentes() })
+  window.addEventListener('offline', () => { state.isOnline = false; updateStatus() })
+
+  // Initialiser les modes de paiement
+  renderModes()
+
+  // Enter sur login
+  document.getElementById('input-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') login()
+  })
+
+  updateStatus()
+  updatePendingBadge()
+})
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+document.getElementById('btn-login').addEventListener('click', login)
+
+async function login() {
+  const email = document.getElementById('input-email').value
+  const mdp   = document.getElementById('input-password').value
+  const errEl = document.getElementById('login-error')
+
+  if (!email || !mdp) { showLoginError('Email et mot de passe requis'); return }
+
+  document.getElementById('btn-login').textContent = 'Connexion...'
+
+  try {
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, mot_de_passe: mdp }),
+      credentials: 'include'
+    })
+    const data = await res.json()
+
+    if (!data.success) throw new Error(data.message)
+
+    // Gérer multi-établissements
+    if (data.selection_requise) {
+      showLoginError('Multi-établissements non supporté sur cette caisse. Contactez votre admin.')
+      return
+    }
+
+    state.token = data.data.accessToken
+    state.utilisateur = data.data.utilisateur
+
+    await window.electronAPI.storeSet('token', state.token)
+    await window.electronAPI.storeSet('utilisateur', state.utilisateur)
+
+    afficherCaisse()
+  } catch (err) {
+    showLoginError(err.message || 'Erreur de connexion')
+  } finally {
+    document.getElementById('btn-login').textContent = '⚡ Se connecter'
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('login-error')
+  el.textContent = '⚠️ ' + msg
+  el.style.display = 'block'
+}
+
+async function logout() {
+  await window.electronAPI.storeDelete('token')
+  await window.electronAPI.storeDelete('utilisateur')
+  state.token = null
+  state.utilisateur = null
+  state.panier = []
+  document.getElementById('login-screen').style.display = 'flex'
+  document.getElementById('caisse-screen').style.display = 'none'
+  document.getElementById('login-error').style.display = 'none'
+  document.getElementById('input-password').value = ''
+}
+
+// ═══════════════════════════════════════════════════════════
+// AFFICHAGE
+// ═══════════════════════════════════════════════════════════
+async function afficherCaisse() {
+  document.getElementById('login-screen').style.display = 'none'
+  document.getElementById('caisse-screen').style.display = 'flex'
+
+  const u = state.utilisateur
+  document.getElementById('topbar-nom').textContent = u?.maquis?.nom || 'Flowix'
+  document.getElementById('topbar-caissier').textContent = `Caissier: ${u?.nom || ''}`
+
+  await chargerProduits()
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRODUITS
+// ═══════════════════════════════════════════════════════════
+async function chargerProduits() {
+  try {
+    const res = await fetch(`${API_URL}/api/stock/produits`, {
+      headers: { Authorization: `Bearer ${state.token}` }
+    })
+    const data = await res.json()
+    state.produits = data.data || []
+    await window.electronAPI.storeSet('produits_cache', state.produits)
+  } catch {
+    const cache = await window.electronAPI.storeGet('produits_cache')
+    if (cache) {
+      state.produits = cache
+      showMessage('📴 Mode hors ligne — produits depuis le cache', 'info')
+    }
+  }
+  renderProduits()
+}
+
+function renderProduits() {
+  const search = document.getElementById('search-produits').value.toLowerCase()
+  const list   = document.getElementById('produits-list')
+  const filtres = state.produits.filter(p =>
+    p.nom.toLowerCase().includes(search) && parseFloat(p.stock_actuel) > 0
+  )
+
+  if (!filtres.length) {
+    list.innerHTML = '<p style="color:#9ca3af;text-align:center;padding:20px">Aucun produit</p>'
+    return
+  }
+
+  list.innerHTML = filtres.map(p => `
+    <div class="produit-item" onclick="ajouterAuPanier(${p.id})">
+      <div>
+        <div class="produit-nom">${p.nom}</div>
+        <div class="produit-stock">Stock: ${p.stock_actuel} ${p.unite}</div>
+      </div>
+      <div class="produit-prix">${parseFloat(p.prix_vente).toLocaleString('fr-FR')} XOF</div>
+    </div>
+  `).join('')
+}
+
+function filtrerProduits() { renderProduits() }
+
+// ═══════════════════════════════════════════════════════════
+// PANIER
+// ═══════════════════════════════════════════════════════════
+function ajouterAuPanier(produitId) {
+  const produit = state.produits.find(p => p.id === produitId)
+  if (!produit) return
+
+  const existe = state.panier.find(p => p.produit_id === produitId)
+  if (existe) {
+    if (existe.quantite >= parseFloat(produit.stock_actuel)) {
+      showMessage(`Stock insuffisant pour ${produit.nom}`, 'erreur'); return
+    }
+    existe.quantite++
+  } else {
+    state.panier.push({
+      produit_id:     produit.id,
+      nom:            produit.nom,
+      quantite:       1,
+      prix_catalogue: parseFloat(produit.prix_vente),
+      prix_applique:  parseFloat(produit.prix_vente),
+      unite:          produit.unite,
+      stock_max:      parseFloat(produit.stock_actuel)
+    })
+  }
+  hideMessage()
+  renderPanier()
+}
+
+function modifierQuantite(produitId, delta) {
+  const item = state.panier.find(p => p.produit_id === produitId)
+  if (!item) return
+  const nv = item.quantite + delta
+  if (nv <= 0) { retirerDuPanier(produitId); return }
+  if (nv > item.stock_max) { showMessage('Stock insuffisant', 'erreur'); return }
+  item.quantite = nv
+  renderPanier()
+}
+
+function modifierPrix(produitId, val) {
+  const item = state.panier.find(p => p.produit_id === produitId)
+  if (item) { item.prix_applique = parseFloat(val) || 0; renderPanier() }
+}
+
+function retirerDuPanier(produitId) {
+  state.panier = state.panier.filter(p => p.produit_id !== produitId)
+  renderPanier()
+}
+
+function viderPanier() {
+  state.panier = []
+  document.getElementById('note-input').value = ''
+  document.getElementById('montant-recu').value = ''
+  hideMessage()
+  renderPanier()
+}
+
+function getTotal() {
+  return state.panier.reduce((t, i) => t + i.prix_applique * i.quantite, 0)
+}
+
+function renderPanier() {
+  const total = getTotal()
+  document.getElementById('panier-titre').textContent = `Panier (${state.panier.length})`
+  document.getElementById('total-val').textContent = `${total.toLocaleString('fr-FR')} XOF`
+  document.getElementById('btn-valider').disabled = state.panier.length === 0
+
+  const btnValider = document.getElementById('btn-valider')
+  btnValider.className = 'btn-valider' + (state.panier.length === 0 ? '' : state.isOnline ? '' : ' offline')
+  btnValider.textContent = state.panier.length === 0 ? '✅ Valider la vente' : state.isOnline ? '✅ Valider la vente' : '📴 Valider (hors ligne)'
+
+  const items = document.getElementById('panier-items')
+  if (!state.panier.length) {
+    items.innerHTML = '<div class="panier-vide">Cliquez sur un produit pour l\'ajouter</div>'
+    return
+  }
+
+  items.innerHTML = state.panier.map(item => `
+    <div class="panier-item">
+      <div class="panier-item-header">
+        <span class="panier-item-nom">${item.nom}</span>
+        <button class="btn-retirer" onclick="retirerDuPanier(${item.produit_id})">×</button>
+      </div>
+      <div class="panier-item-controls">
+        <button class="qty-btn" onclick="modifierQuantite(${item.produit_id}, -1)">−</button>
+        <span class="qty-val">${item.quantite}</span>
+        <button class="qty-btn" onclick="modifierQuantite(${item.produit_id}, 1)">+</button>
+        <input class="prix-input" type="number" value="${item.prix_applique}"
+          onchange="modifierPrix(${item.produit_id}, this.value)" />
+        <span class="item-total">${(item.prix_applique * item.quantite).toLocaleString('fr-FR')} XOF</span>
+      </div>
+    </div>
+  `).join('')
+
+  calculerMonnaie()
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODES PAIEMENT
+// ═══════════════════════════════════════════════════════════
+function renderModes() {
+  const grid = document.getElementById('modes-grid')
+  grid.innerHTML = MODES.map(m => `
+    <button class="mode-btn ${m.value === state.modePaiement ? 'actif' : ''}"
+      id="mode-${m.value}"
+      style="${m.value === state.modePaiement ? `background:${m.bg};color:${m.color};border-color:${m.bg}` : ''}"
+      onclick="setMode('${m.value}')">
+      ${m.icone} ${m.label}
+    </button>
+  `).join('')
+  document.getElementById('montant-section').style.display = state.modePaiement === 'especes' ? 'block' : 'none'
+}
+
+function setMode(mode) {
+  state.modePaiement = mode
+  document.getElementById('montant-recu').value = ''
+  document.getElementById('monnaie-box').style.display = 'none'
+  renderModes()
+}
+
+function calculerMonnaie() {
+  if (state.modePaiement !== 'especes') return
+  const recu  = parseFloat(document.getElementById('montant-recu').value) || 0
+  const total = getTotal()
+  const box   = document.getElementById('monnaie-box')
+
+  if (!recu) { box.style.display = 'none'; return }
+  box.style.display = 'flex'
+
+  if (recu >= total) {
+    box.className = 'monnaie-box monnaie-ok'
+    document.getElementById('monnaie-label').textContent = '💰 Monnaie à rendre'
+    document.getElementById('monnaie-val').textContent = `${(recu - total).toLocaleString('fr-FR')} XOF`
+  } else {
+    box.className = 'monnaie-box monnaie-err'
+    document.getElementById('monnaie-label').textContent = '⚠️ Insuffisant'
+    document.getElementById('monnaie-val').textContent = `-${(total - recu).toLocaleString('fr-FR')} XOF`
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// VENTE
+// ═══════════════════════════════════════════════════════════
+async function validerVente() {
+  if (!state.panier.length) return
+  const total      = getTotal()
+  const montantRecu = parseFloat(document.getElementById('montant-recu').value) || 0
+  const note       = document.getElementById('note-input').value
+
+  if (state.modePaiement === 'especes' && montantRecu && montantRecu < total) {
+    showMessage('Montant reçu insuffisant !', 'erreur'); return
+  }
+
+  document.getElementById('btn-valider').disabled = true
+  document.getElementById('btn-valider').textContent = 'Enregistrement...'
+
+  const venteData = {
+    mode_paiement: state.modePaiement,
+    note,
+    lignes: state.panier.map(i => ({
+      produit_id:    i.produit_id,
+      quantite:      i.quantite,
+      prix_applique: i.prix_applique
+    }))
+  }
+
+  let offline = false
+  let venteId = null
+
+  try {
+    if (!state.isOnline) throw new Error('OFFLINE')
+
+    const res = await fetch(`${API_URL}/api/ventes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+      body: JSON.stringify(venteData)
+    })
+    const data = await res.json()
+    if (!data.success) throw new Error(data.message)
+    venteId = data.data?.id
+
+    // Recharger produits
+    setTimeout(chargerProduits, 500)
+
+  } catch (err) {
+    if (!state.isOnline || err.message === 'OFFLINE' || err.name === 'TypeError') {
+      await sauvegarderOffline(venteData)
+      // Mise à jour stock local
+      state.produits = state.produits.map(p => {
+        const ligne = state.panier.find(l => l.produit_id === p.id)
+        if (ligne) return { ...p, stock_actuel: String(parseFloat(p.stock_actuel) - ligne.quantite) }
+        return p
+      })
+      await window.electronAPI.storeSet('produits_cache', state.produits)
+      renderProduits()
+      offline = true
+    } else {
+      showMessage(err.message || 'Erreur vente', 'erreur')
+      document.getElementById('btn-valider').disabled = false
+      renderPanier()
+      return
+    }
+  }
+
+  // Préparer reçu
+  const monnaie = state.modePaiement === 'especes' && montantRecu ? montantRecu - total : 0
+  state.dernierRecu = {
+    id:            venteId || `OFF-${Date.now()}`,
+    date:          new Date(),
+    maquis:        state.utilisateur?.maquis?.nom || 'Flowix',
+    caissier:      state.utilisateur?.nom,
+    lignes:        [...state.panier],
+    total,
+    mode_paiement: state.modePaiement,
+    montant_recu:  montantRecu || null,
+    monnaie:       monnaie > 0 ? monnaie : null,
+    note,
+    offline
+  }
+
+  afficherModal()
+  viderPanier()
+  await updatePendingBadge()
+
+  // Impression automatique si imprimante connectée
+  const result = await window.electronAPI.printTicket(buildTicketData())
+  if (!result.success) {
+    // Pas d'imprimante — le modal reste ouvert pour impression manuelle
+    console.log('Impression auto échouée:', result.error)
+  }
+}
+
+function buildTicketData() {
+  const r = state.dernierRecu
+  return {
+    maquis:        r.maquis,
+    date:          r.date.toLocaleString('fr-FR'),
+    caissier:      r.caissier,
+    lignes:        r.lignes.map(l => ({ nom: l.nom, quantite: l.quantite, total: l.prix_applique * l.quantite })),
+    total:         r.total,
+    mode_paiement: r.mode_paiement.replace('_', ' '),
+    montant_recu:  r.montant_recu,
+    monnaie:       r.monnaie || 0
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MODAL REÇU
+// ═══════════════════════════════════════════════════════════
+function afficherModal() {
+  const r = state.dernierRecu
+  document.getElementById('modal-icon').textContent    = r.offline ? '📴' : '✅'
+  document.getElementById('modal-title').textContent   = r.offline ? 'Vente sauvegardée !' : 'Vente enregistrée !'
+  document.getElementById('modal-sub').textContent     = r.date.toLocaleString('fr-FR')
+  document.getElementById('modal-offline-badge').style.display = r.offline ? 'block' : 'none'
+
+  const details = document.getElementById('recu-details')
+  details.innerHTML = `
+    ${r.lignes.map(l => `
+      <div class="recu-ligne">
+        <span>${l.nom} × ${l.quantite}</span>
+        <span>${(l.prix_applique * l.quantite).toLocaleString('fr-FR')} XOF</span>
+      </div>
+    `).join('')}
+    <div class="recu-total">
+      <span>Total</span>
+      <span style="color:#FF6B35">${r.total.toLocaleString('fr-FR')} XOF</span>
+    </div>
+    ${r.monnaie ? `
+      <div class="recu-monnaie">
+        <span>💰 Monnaie</span>
+        <span>${r.monnaie.toLocaleString('fr-FR')} XOF</span>
+      </div>
+    ` : ''}
+  `
+
+  document.getElementById('modal-recu').classList.add('visible')
+}
+
+function fermerModal() {
+  document.getElementById('modal-recu').classList.remove('visible')
+}
+
+async function imprimerTicket() {
+  const result = await window.electronAPI.printTicket(buildTicketData())
+  if (!result.success) {
+    // Fallback impression navigateur
+    const contenu = `<html><head><style>
+      body{font-family:monospace;max-width:280px;margin:0 auto;padding:10px;font-size:12px}
+      h2{text-align:center;font-size:14px} .sep{border-top:1px dashed #000;margin:6px 0}
+      .row{display:flex;justify-content:space-between;margin:3px 0}
+      .total{font-weight:bold;font-size:13px}
+    </style></head><body>
+      <h2>${state.dernierRecu.maquis}</h2>
+      ${state.dernierRecu.offline ? '<p style="text-align:center;font-weight:bold">⚠️ VENTE HORS LIGNE</p>' : ''}
+      <div class="sep"></div>
+      <p style="text-align:center">${state.dernierRecu.date.toLocaleString('fr-FR')}</p>
+      <p style="text-align:center">Caissier: ${state.dernierRecu.caissier}</p>
+      <div class="sep"></div>
+      ${state.dernierRecu.lignes.map(l => `
+        <div class="row"><span>${l.nom} x${l.quantite}</span><span>${(l.prix_applique * l.quantite).toLocaleString()} XOF</span></div>
+      `).join('')}
+      <div class="sep"></div>
+      <div class="row total"><span>TOTAL</span><span>${state.dernierRecu.total.toLocaleString()} XOF</span></div>
+      ${state.dernierRecu.monnaie ? `<div class="row total"><span>Monnaie</span><span>${state.dernierRecu.monnaie.toLocaleString()} XOF</span></div>` : ''}
+      <div class="sep"></div>
+      <p style="text-align:center">Merci !</p>
+    </body></html>`
+    const w = window.open('', '_blank', 'width=300,height=400')
+    w.document.write(contenu)
+    w.document.close()
+    w.print()
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// OFFLINE
+// ═══════════════════════════════════════════════════════════
+async function sauvegarderOffline(vente) {
+  const pending = await window.electronAPI.storeGet('ventes_pending') || []
+  pending.push({ ...vente, id: Date.now(), created_at: new Date().toISOString() })
+  await window.electronAPI.storeSet('ventes_pending', pending)
+}
+
+async function syncVentes() {
+  const pending = await window.electronAPI.storeGet('ventes_pending') || []
+  if (!pending.length) return
+
+  showMessage(`🔄 Synchronisation de ${pending.length} vente(s)...`, 'info')
+  let synced = 0
+  const restantes = []
+
+  for (const vente of pending) {
+    try {
+      const res = await fetch(`${API_URL}/api/ventes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+        body: JSON.stringify({ mode_paiement: vente.mode_paiement, note: vente.note, lignes: vente.lignes })
+      })
+      if ((await res.json()).success) synced++
+      else restantes.push(vente)
+    } catch { restantes.push(vente) }
+  }
+
+  await window.electronAPI.storeSet('ventes_pending', restantes)
+  await updatePendingBadge()
+
+  if (synced > 0) {
+    showMessage(`✅ ${synced} vente(s) synchronisée(s) !`, 'succes')
+    chargerProduits()
+  }
+}
+
+async function updatePendingBadge() {
+  const pending = await window.electronAPI.storeGet('ventes_pending') || []
+  const nb = pending.length
+  const badge = document.getElementById('badge-pending')
+  const btnSync = document.getElementById('btn-sync')
+  if (nb > 0) {
+    badge.textContent = `${nb} en attente`
+    badge.style.display = 'inline'
+    btnSync.style.display = state.isOnline ? 'inline' : 'none'
+  } else {
+    badge.style.display = 'none'
+    btnSync.style.display = 'none'
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// STATUS + MESSAGES
+// ═══════════════════════════════════════════════════════════
+function updateStatus() {
+  const dot  = document.getElementById('status-dot')
+  const text = document.getElementById('status-text')
+  if (state.isOnline) {
+    dot.className  = 'status-dot status-online'
+    text.textContent = '🌐 En ligne'
+    text.style.color = '#15803d'
+  } else {
+    dot.className  = 'status-dot status-offline'
+    text.textContent = '📴 Hors ligne'
+    text.style.color = '#92400e'
+  }
+  renderPanier()
+}
+
+function showMessage(msg, type) {
+  const el = document.getElementById('message-box')
+  el.textContent = msg
+  el.className = `message-box message-${type}`
+  el.style.display = 'block'
+  if (type === 'succes') setTimeout(hideMessage, 4000)
+}
+
+function hideMessage() {
+  document.getElementById('message-box').style.display = 'none'
+}
+</script>
+</body>
+</html>

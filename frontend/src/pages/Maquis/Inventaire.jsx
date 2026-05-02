@@ -104,7 +104,7 @@ const Inventaire = () => {
   const styleOnglet = (actif) => ({
     padding: '8px 16px', borderRadius: '8px', border: 'none',
     cursor: 'pointer', fontWeight: '500', fontSize: '14px',
-    backgroundColor: actif ? '#FF6B35' : '#f3f4f6',
+    backgroundColor: actif ? 'var(--couleur-principale)' : '#f3f4f6',
     color: actif ? 'white' : '#374151'
   })
 
@@ -148,7 +148,7 @@ const Inventaire = () => {
               <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '8px' }}>Aucun inventaire en cours</h2>
               <p style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '24px' }}>Démarrez un inventaire pour compter physiquement vos stocks</p>
               <button onClick={demarrerInventaire} disabled={chargementAction}
-                style={{ padding: '12px 32px', backgroundColor: '#FF6B35', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
+                style={{ padding: '12px 32px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                 {chargementAction ? 'Démarrage...' : '🚀 Démarrer un inventaire'}
               </button>
             </div>

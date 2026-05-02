@@ -1,0 +1,38 @@
+{
+  "name": "flowix-caisse",
+  "version": "1.0.0",
+  "description": "Flowix — Application de caisse professionnelle",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux"
+  },
+  "build": {
+    "appId": "com.flowix.caisse",
+    "productName": "Flowix Caisse",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": "portable",
+      "forceCodeSigning": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "keywords": [],
+  "author": "Flowix",
+  "license": "ISC",
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "electron": "^41.4.0",
+    "electron-builder": "^26.8.1"
+  }
+}

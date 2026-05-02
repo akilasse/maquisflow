@@ -110,7 +110,7 @@ const Stock = () => {
   const styleOnglet = (actif) => ({
     padding: '8px 16px', borderRadius: '8px', border: 'none',
     cursor: 'pointer', fontWeight: '500', fontSize: '14px',
-    backgroundColor: actif ? '#FF6B35' : '#f3f4f6',
+    backgroundColor: actif ? 'var(--couleur-principale)' : '#f3f4f6',
     color: actif ? 'white' : '#374151'
   })
 
@@ -179,7 +179,7 @@ const Stock = () => {
                       {p.stock_actuel} {p.unite}
                     </td>
                     <td style={{ padding: '12px 10px', fontSize: '13px', color: '#6b7280' }}>{p.stock_min} {p.unite}</td>
-                    <td style={{ padding: '12px 10px', color: '#FF6B35', fontWeight: '500' }}>
+                    <td style={{ padding: '12px 10px', color: 'var(--couleur-principale)', fontWeight: '500' }}>
                       {parseFloat(p.prix_vente).toLocaleString()} XOF
                     </td>
                     <td style={{ padding: '12px 10px' }}>
@@ -248,7 +248,7 @@ const Stock = () => {
                   setLignesConfirmees([...lignesConfirmees, { ...ligne }])
                   setLignesBon([{ produit_id: '', quantite: '', prix_achat: '' }])
                 }}
-                style={{ padding: '10px 20px', backgroundColor: '#FF6B35', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}
+                style={{ padding: '10px 20px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}
               >
                 + Ajouter
               </button>
@@ -279,7 +279,7 @@ const Stock = () => {
                         <td style={{ padding: '10px', fontSize: '14px', fontWeight: '500' }}>{produit?.nom}</td>
                         <td style={{ padding: '10px', fontSize: '14px' }}>{ligne.quantite} {produit?.unite}</td>
                         <td style={{ padding: '10px', fontSize: '14px', color: '#6b7280' }}>{parseFloat(ligne.prix_achat).toLocaleString()} XOF</td>
-                        <td style={{ padding: '10px', fontSize: '14px', fontWeight: '600', color: '#FF6B35' }}>{totalLigne.toLocaleString()} XOF</td>
+                        <td style={{ padding: '10px', fontSize: '14px', fontWeight: '600', color: 'var(--couleur-principale)' }}>{totalLigne.toLocaleString()} XOF</td>
                         <td style={{ padding: '10px', textAlign: 'right' }}>
                           <button onClick={() => setLignesConfirmees(lignesConfirmees.filter((_, i) => i !== index))}
                             style={{ padding: '4px 10px', backgroundColor: '#fef2f2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#dc2626' }}>
@@ -292,7 +292,7 @@ const Stock = () => {
                   <tr style={{ backgroundColor: '#f9fafb', borderTop: '2px solid #e5e7eb' }}>
                     <td colSpan="5" style={{ padding: '12px 16px', textAlign: 'right' }}>
                       <span style={{ fontSize: '14px', fontWeight: '600', color: '#374151', marginRight: '16px' }}>Total d'achat</span>
-                      <span style={{ fontSize: '18px', fontWeight: '700', color: '#FF6B35' }}>
+                      <span style={{ fontSize: '18px', fontWeight: '700', color: 'var(--couleur-principale)' }}>
                         {lignesConfirmees.reduce((t, l) => t + parseFloat(l.prix_achat) * parseFloat(l.quantite), 0).toLocaleString()} XOF
                       </span>
                     </td>
@@ -437,7 +437,7 @@ const Stock = () => {
                     </p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <p style={{ margin: 0, fontWeight: '700', fontSize: '16px', color: '#FF6B35' }}>{parseFloat(bon.total_achat).toLocaleString()} XOF</p>
+                    <p style={{ margin: 0, fontWeight: '700', fontSize: '16px', color: 'var(--couleur-principale)' }}>{parseFloat(bon.total_achat).toLocaleString()} XOF</p>
                     <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#9ca3af' }}>{bon.lignes.length} produit(s)</p>
                   </div>
                 </div>
