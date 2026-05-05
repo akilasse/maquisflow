@@ -638,6 +638,7 @@ const AdminDashboard = () => {
                       <input name="email" type="email" placeholder="Email *" required style={S.input} />
                       <input name="mot_de_passe" type="password" placeholder="Mot de passe *" required style={S.input} />
                       <select name="role" style={S.input}>
+                        <option value="serveur">Serveur / Station</option>
                         <option value="caissier">Caissier</option>
                         <option value="gerant">Gérant</option>
                         <option value="patron">Patron</option>
