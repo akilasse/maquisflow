@@ -50,6 +50,14 @@ export const AuthProvider = ({ children }) => {
     return utilisateur
   }
 
+  const mettreAJourMaquis = (nouvellesDonneesMaquis) => {
+    setUtilisateur(prev => {
+      const mis_a_jour = { ...prev, maquis: { ...prev.maquis, ...nouvellesDonneesMaquis } }
+      localStorage.setItem('utilisateur', JSON.stringify(mis_a_jour))
+      return mis_a_jour
+    })
+  }
+
   const logout = async () => {
     try { await api.post('/api/auth/logout') } catch {}
     localStorage.removeItem('accessToken')
@@ -62,7 +70,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={{
-      utilisateur, login, logout, chargement,
+      utilisateur, login, logout, chargement, mettreAJourMaquis,
       selectionRequise, etablissements, selectionnerEtablissement, utilisateurTemp
     }}>
       {children}

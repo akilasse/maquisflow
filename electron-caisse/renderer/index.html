@@ -220,6 +220,66 @@
       border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer;
     }
 
+    /* Commandes tablette */
+    .btn-cmd-tablette {
+      width: 100%; padding: 10px 14px; border-radius: 10px; border: none;
+      background: #fff7ed; color: #FF6B35; font-size: 14px; font-weight: 700;
+      cursor: pointer; margin-bottom: 10px; text-align: left;
+      border: 1px solid #fed7aa; display: flex; align-items: center; justify-content: space-between;
+    }
+    .btn-cmd-tablette:hover { background: #ffedd5; }
+    .cmd-badge {
+      background: #FF6B35; color: white; border-radius: 12px;
+      padding: 2px 8px; font-size: 12px; font-weight: 700;
+    }
+    .panier-cmd-info {
+      background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px;
+      padding: 8px 12px; margin-bottom: 10px; font-size: 13px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .panier-cmd-info strong { color: #FF6B35; font-size: 14px; }
+    .btn-annuler-cmd {
+      background: none; border: none; color: #ef4444; cursor: pointer;
+      font-size: 12px; font-weight: 600;
+    }
+
+    /* Modal commandes */
+    .modal-commandes-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: none; align-items: flex-start; justify-content: center;
+      z-index: 1001; padding-top: 60px;
+    }
+    .modal-commandes-overlay.visible { display: flex; }
+    .modal-commandes-panel {
+      background: white; border-radius: 16px; padding: 24px;
+      width: 560px; max-height: 70vh; box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      display: flex; flex-direction: column;
+    }
+    .modal-cmd-header {
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+    }
+    .modal-cmd-title { font-size: 18px; font-weight: 700; }
+    .btn-fermer-cmd {
+      background: #f3f4f6; border: none; border-radius: 8px;
+      padding: 8px 14px; cursor: pointer; font-size: 13px; font-weight: 600;
+    }
+    .commandes-list-scroll { flex: 1; overflow-y: auto; }
+    .cmd-card {
+      border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px;
+      margin-bottom: 10px; cursor: pointer; transition: all 0.15s;
+    }
+    .cmd-card:hover { border-color: #FF6B35; background: #fff7ed; }
+    .cmd-card-header { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .cmd-card-table { font-weight: 700; font-size: 15px; }
+    .cmd-card-num { font-size: 12px; color: #9ca3af; }
+    .cmd-card-serveur { font-size: 12px; color: #6b7280; margin-bottom: 6px; }
+    .cmd-card-items { font-size: 13px; color: #374151; line-height: 1.5; }
+    .cmd-card-footer { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f3f4f6; }
+    .cmd-card-total { font-weight: 700; color: #FF6B35; }
+    .cmd-status-prete { background: #d1fae5; color: #065f46; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+    .cmd-status-servie { background: #dbeafe; color: #1e40af; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+    .cmd-empty { text-align: center; color: #9ca3af; padding: 40px 20px; font-size: 14px; }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -276,6 +336,10 @@
     <!-- Produits -->
     <div class="col-produits">
       <div class="col-title">Produits disponibles</div>
+      <button class="btn-cmd-tablette" id="btn-cmd-tablette" style="display:none" onclick="afficherCommandesPanel()">
+        <span>🍽️ Commandes tablette</span>
+        <span class="cmd-badge" id="cmd-badge">0</span>
+      </button>
       <input class="search-input" type="text" placeholder="Rechercher..." id="search-produits" oninput="filtrerProduits()" />
       <div class="produits-list" id="produits-list">
         <p style="color:#9ca3af;text-align:center;padding:20px">Chargement...</p>
@@ -345,6 +409,19 @@
   </div>
 </div>
 
+<!-- Modal commandes tablette -->
+<div class="modal-commandes-overlay" id="modal-commandes">
+  <div class="modal-commandes-panel">
+    <div class="modal-cmd-header">
+      <div class="modal-cmd-title">🍽️ Commandes en attente</div>
+      <button class="btn-fermer-cmd" onclick="fermerCommandesPanel()">Fermer ✕</button>
+    </div>
+    <div class="commandes-list-scroll" id="commandes-list-scroll">
+      <p class="cmd-empty">Aucune commande en attente</p>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══════════════════════════════════════════════════════════
 // CONFIG
@@ -370,8 +447,11 @@ let state = {
   panier: [],
   modePaiement: 'especes',
   isOnline: navigator.onLine,
-  dernierRecu: null
+  dernierRecu: null,
+  commandesTablette: [],
+  commandeActive: null
 }
+let pollInterval = null
 
 // ═══════════════════════════════════════════════════════════
 // INIT
@@ -454,11 +534,15 @@ function showLoginError(msg) {
 }
 
 async function logout() {
+  if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
   await window.electronAPI.storeDelete('token')
   await window.electronAPI.storeDelete('utilisateur')
   state.token = null
   state.utilisateur = null
   state.panier = []
+  state.commandesTablette = []
+  state.commandeActive = null
+  document.getElementById('btn-cmd-tablette').style.display = 'none'
   document.getElementById('login-screen').style.display = 'flex'
   document.getElementById('caisse-screen').style.display = 'none'
   document.getElementById('login-error').style.display = 'none'
@@ -477,6 +561,12 @@ async function afficherCaisse() {
   document.getElementById('topbar-caissier').textContent = `Caissier: ${u?.nom || ''}`
 
   await chargerProduits()
+
+  if (u?.maquis?.module_commandes_actif) {
+    document.getElementById('btn-cmd-tablette').style.display = 'flex'
+    await chargerCommandesTablette()
+    pollInterval = setInterval(chargerCommandesTablette, 15000)
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -575,6 +665,7 @@ function retirerDuPanier(produitId) {
 
 function viderPanier() {
   state.panier = []
+  state.commandeActive = null
   document.getElementById('note-input').value = ''
   document.getElementById('montant-recu').value = ''
   hideMessage()
@@ -587,13 +678,31 @@ function getTotal() {
 
 function renderPanier() {
   const total = getTotal()
-  document.getElementById('panier-titre').textContent = `Panier (${state.panier.length})`
+
+  // Titre et bouton vider
+  if (state.commandeActive) {
+    const t = state.commandeActive.table
+    document.getElementById('panier-titre').textContent = `🍽️ Table ${t?.numero || '?'} — Cmd #${state.commandeActive.id}`
+    document.querySelector('.btn-vider').textContent = '← Changer'
+  } else {
+    document.getElementById('panier-titre').textContent = `Panier (${state.panier.length})`
+    document.querySelector('.btn-vider').textContent = 'Vider'
+  }
+
   document.getElementById('total-val').textContent = `${total.toLocaleString('fr-FR')} XOF`
   document.getElementById('btn-valider').disabled = state.panier.length === 0
 
   const btnValider = document.getElementById('btn-valider')
-  btnValider.className = 'btn-valider' + (state.panier.length === 0 ? '' : state.isOnline ? '' : ' offline')
-  btnValider.textContent = state.panier.length === 0 ? '✅ Valider la vente' : state.isOnline ? '✅ Valider la vente' : '📴 Valider (hors ligne)'
+  btnValider.className = 'btn-valider' + (state.panier.length === 0 ? '' : (!state.commandeActive && !state.isOnline) ? ' offline' : '')
+  if (state.panier.length === 0) {
+    btnValider.textContent = '✅ Valider la vente'
+  } else if (state.commandeActive) {
+    btnValider.textContent = '💳 Encaisser la commande'
+  } else if (!state.isOnline) {
+    btnValider.textContent = '📴 Valider (hors ligne)'
+  } else {
+    btnValider.textContent = '✅ Valider la vente'
+  }
 
   const items = document.getElementById('panier-items')
   if (!state.panier.length) {
@@ -696,22 +805,34 @@ async function validerVente() {
   try {
     if (!state.isOnline) throw new Error('OFFLINE')
 
-    const res = await fetch(`${API_URL}/api/ventes`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
-      body: JSON.stringify(venteData)
-    })
-    const data = await res.json()
-    if (!data.success) throw new Error(data.message)
-    venteId = data.data?.id
+    if (state.commandeActive) {
+      // Encaissement d'une commande tablette
+      const res = await fetch(`${API_URL}/api/commandes/${state.commandeActive.id}/encaisser`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+        body: JSON.stringify({ mode_paiement: state.modePaiement, note })
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.message)
+      venteId = data.data?.vente_id || data.data?.id
+      state.commandeActive = null
+      chargerCommandesTablette()
+    } else {
+      const res = await fetch(`${API_URL}/api/ventes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+        body: JSON.stringify(venteData)
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.message)
+      venteId = data.data?.id
+    }
 
-    // Recharger produits
     setTimeout(chargerProduits, 500)
 
   } catch (err) {
-    if (!state.isOnline || err.message === 'OFFLINE' || err.name === 'TypeError') {
+    if (!state.commandeActive && (!state.isOnline || err.message === 'OFFLINE' || err.name === 'TypeError')) {
       await sauvegarderOffline(venteData)
-      // Mise à jour stock local
       state.produits = state.produits.map(p => {
         const ligne = state.panier.find(l => l.produit_id === p.id)
         if (ligne) return { ...p, stock_actuel: String(parseFloat(p.stock_actuel) - ligne.quantite) }
@@ -890,6 +1011,81 @@ async function updatePendingBadge() {
     badge.style.display = 'none'
     btnSync.style.display = 'none'
   }
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMMANDES TABLETTE
+// ═══════════════════════════════════════════════════════════
+async function chargerCommandesTablette() {
+  if (!state.utilisateur?.maquis?.module_commandes_actif) return
+  try {
+    const [r1, r2] = await Promise.all([
+      fetch(`${API_URL}/api/commandes?statut=prete`, { headers: { Authorization: `Bearer ${state.token}` } }),
+      fetch(`${API_URL}/api/commandes?statut=servie`, { headers: { Authorization: `Bearer ${state.token}` } })
+    ])
+    const [d1, d2] = await Promise.all([r1.json(), r2.json()])
+    state.commandesTablette = [...(d1.data || []), ...(d2.data || [])]
+    updateCommandesBadge()
+  } catch (e) { console.log('Erreur commandes:', e) }
+}
+
+function updateCommandesBadge() {
+  const n = state.commandesTablette.length
+  document.getElementById('cmd-badge').textContent = n
+  document.getElementById('btn-cmd-tablette').style.background = n > 0 ? '#fff7ed' : '#f9fafb'
+}
+
+function afficherCommandesPanel() {
+  const scroll = document.getElementById('commandes-list-scroll')
+  if (!state.commandesTablette.length) {
+    scroll.innerHTML = '<p class="cmd-empty">Aucune commande en attente</p>'
+  } else {
+    scroll.innerHTML = state.commandesTablette.map(cmd => {
+      const total = cmd.lignes?.reduce((s, l) => s + l.prix_unitaire * l.quantite, 0) || 0
+      const resume = cmd.lignes?.slice(0, 3).map(l => `${l.produit?.nom || ''} ×${l.quantite}`).join(', ')
+        + (cmd.lignes?.length > 3 ? `... +${cmd.lignes.length - 3}` : '')
+      const tAgo = cmd.created_at ? Math.floor((Date.now() - new Date(cmd.created_at)) / 60000) : 0
+      const statusCls = cmd.statut === 'prete' ? 'cmd-status-prete' : 'cmd-status-servie'
+      const statusLbl = cmd.statut === 'prete' ? '✅ Prête' : '🍽️ Servie'
+      return `
+        <div class="cmd-card" onclick="selectionnerCommande(${cmd.id})">
+          <div class="cmd-card-header">
+            <span class="cmd-card-table">Table ${cmd.table?.numero || '?'}</span>
+            <span class="cmd-card-num">#${cmd.id} · il y a ${tAgo}min</span>
+          </div>
+          <div class="cmd-card-serveur">👤 ${cmd.serveur?.nom || 'Serveur'}</div>
+          <div class="cmd-card-items">${resume}</div>
+          <div class="cmd-card-footer">
+            <span class="cmd-card-total">${total.toLocaleString('fr-FR')} XOF</span>
+            <span class="${statusCls}">${statusLbl}</span>
+          </div>
+        </div>`
+    }).join('')
+  }
+  document.getElementById('modal-commandes').classList.add('visible')
+}
+
+function fermerCommandesPanel() {
+  document.getElementById('modal-commandes').classList.remove('visible')
+}
+
+function selectionnerCommande(cmdId) {
+  const cmd = state.commandesTablette.find(c => c.id === cmdId)
+  if (!cmd) return
+  state.commandeActive = cmd
+  state.panier = (cmd.lignes || []).map(l => ({
+    produit_id:     l.produit_id,
+    nom:            l.produit?.nom || 'Produit',
+    quantite:       l.quantite,
+    prix_catalogue: l.prix_unitaire,
+    prix_applique:  l.prix_unitaire,
+    unite:          'unité',
+    stock_max:      9999
+  }))
+  document.getElementById('note-input').value = `Table ${cmd.table?.numero || ''}`
+  fermerCommandesPanel()
+  hideMessage()
+  renderPanier()
 }
 
 // ═══════════════════════════════════════════════════════════

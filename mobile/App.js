@@ -12,6 +12,7 @@ import LoginScreen from './src/screens/LoginScreen'
 import DashboardScreen from './src/screens/DashboardScreen'
 import VentesScreen from './src/screens/VentesScreen'
 import AlertesScreen from './src/screens/AlertesScreen'
+import TabletteScreen from './src/screens/TabletteScreen'
 
 const Tab = createBottomTabNavigator()
 
@@ -88,6 +89,18 @@ const Navigation = () => {
             )
           }}
         />
+        {utilisateur?.maquis?.module_commandes_actif && (
+          <Tab.Screen
+            name="Commandes"
+            component={TabletteScreen}
+            options={{
+              tabBarLabel: 'Commandes',
+              tabBarIcon: ({ color }) => (
+                <Text style={{ fontSize: 22, color }}>🪑</Text>
+              )
+            }}
+          />
+        )}
       </Tab.Navigator>
     </NavigationContainer>
   )

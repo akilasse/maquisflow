@@ -13,12 +13,13 @@ const bcrypt = require('bcryptjs')
 const getProduits = async (prisma, maquis_id) => {
   return await prisma.produit.findMany({
     where: { maquis_id },
+    include: { station: { select: { id: true, nom: true, couleur: true } } },
     orderBy: { nom: 'asc' }
   })
 }
 
 const creerProduit = async (prisma, maquis_id, data) => {
-  const { nom, categorie, prix_vente, prix_achat, stock_actuel, stock_min, unite } = data
+  const { nom, categorie, prix_vente, prix_achat, stock_actuel, stock_min, unite, station_id } = data
 
   if (!nom || !prix_vente || !prix_achat) {
     throw new Error('Nom, prix de vente et prix d\'achat requis')
@@ -33,8 +34,10 @@ const creerProduit = async (prisma, maquis_id, data) => {
       prix_achat:   parseFloat(prix_achat),
       stock_actuel: parseFloat(stock_actuel || 0),
       stock_min:    parseFloat(stock_min || 0),
-      unite:        unite || 'unité'
-    }
+      unite:        unite || 'unité',
+      station_id:   station_id ? parseInt(station_id) : null
+    },
+    include: { station: { select: { id: true, nom: true, couleur: true } } }
   })
 }
 
@@ -54,8 +57,10 @@ const modifierProduit = async (prisma, produit_id, maquis_id, data) => {
       prix_achat: data.prix_achat ? parseFloat(data.prix_achat) : undefined,
       stock_min:  data.stock_min !== undefined ? parseFloat(data.stock_min) : undefined,
       unite:      data.unite,
-      actif:      data.actif !== undefined ? data.actif : undefined
-    }
+      actif:      data.actif !== undefined ? data.actif : undefined,
+      station_id: data.station_id !== undefined ? (data.station_id ? parseInt(data.station_id) : null) : undefined
+    },
+    include: { station: { select: { id: true, nom: true, couleur: true } } }
   })
 }
 
@@ -205,11 +210,14 @@ const modifierMaquis = async (prisma, maquis_id, data) => {
   return await prisma.maquis.update({
     where: { id: maquis_id },
     data: {
-      nom:              data.nom,
-      logo_url:         data.logo_url,
-      couleur_primaire: data.couleur_primaire,
-      devise:           data.devise,
-      fuseau_horaire:   data.fuseau_horaire
+      nom:                    data.nom,
+      logo_url:               data.logo_url,
+      couleur_primaire:       data.couleur_primaire,
+      devise:                 data.devise,
+      fuseau_horaire:         data.fuseau_horaire,
+      activite:               data.activite,
+      module_commandes_actif: data.module_commandes_actif,
+      paiement_avant:         data.paiement_avant
     }
   })
 }

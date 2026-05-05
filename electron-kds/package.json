@@ -1,0 +1,26 @@
+{
+  "name": "flowix-kds",
+  "version": "1.0.0",
+  "description": "Flowix — Écran KDS cuisine/bar",
+  "main": "main.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.flowix.kds",
+    "productName": "Flowix Station KDS",
+    "directories": { "output": "dist" },
+    "win": { "target": "portable", "forceCodeSigning": false }
+  },
+  "author": "Flowix",
+  "license": "ISC",
+  "dependencies": {
+    "electron-store": "^8.2.0"
+  },
+  "devDependencies": {
+    "electron": "^41.4.0",
+    "electron-builder": "^26.8.1"
+  }
+}

@@ -57,6 +57,7 @@ app.use('/api/inventaire',  require('./modules/inventaire/inventaire.routes'))
 app.use('/api/dashboard',   require('./modules/dashboard/dashboard.routes'))
 app.use('/api/parametrage', require('./modules/parametrage/parametrage.routes'))
 app.use('/api/admin',       require('./modules/admin/admin.routes'))
+app.use('/api/commandes',  require('./modules/commandes/commandes.routes'))
 
 app.get('/', (req, res) => {
   res.json({ message: 'Flowix API en marche', version: '2.0.0', status: 'OK' })

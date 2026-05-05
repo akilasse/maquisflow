@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { useSocket } from '../../context/SocketContext'
 import api from '../../utils/api'
 import { sauvegarderVenteOffline, getVentesPending, marquerVenteSynced, compterVentesPending } from '../../utils/offlineDB'
 
@@ -14,6 +15,7 @@ const MODES_PAIEMENT = [
 
 const Caisse = () => {
   const { utilisateur } = useAuth()
+  const { socket } = useSocket()
   const [produits, setProduits]               = useState([])
   const [panier, setPanier]                   = useState([])
   const [recherche, setRecherche]             = useState('')
@@ -28,6 +30,9 @@ const Caisse = () => {
   const [isOnline, setIsOnline]               = useState(navigator.onLine)
   const [ventesEnAttente, setVentesEnAttente] = useState(0)
   const [syncEnCours, setSyncEnCours]         = useState(false)
+  const [commandesTablette, setCommandesTablette] = useState([])
+  const [commandeActive, setCommandeActive]       = useState(null)
+  const [voirCommandes, setVoirCommandes]         = useState(false)
 
   // Surveiller connexion
   useEffect(() => {
@@ -67,6 +72,55 @@ const Caisse = () => {
   }, [])
 
   useEffect(() => { chargerProduits() }, [])
+
+  // Commandes tablette en attente d'encaissement
+  const chargerCommandesTablette = useCallback(async () => {
+    if (!utilisateur?.maquis?.module_commandes_actif) return
+    try {
+      const res = await api.get('/api/commandes?statut=servie')
+      // Inclure aussi "prete" pour les établissements avec paiement avant
+      const res2 = await api.get('/api/commandes?statut=prete')
+      const toutes = [...(res.data.data || []), ...(res2.data.data || [])]
+      setCommandesTablette(toutes)
+    } catch {}
+  }, [utilisateur?.maquis?.module_commandes_actif])
+
+  useEffect(() => { chargerCommandesTablette() }, [chargerCommandesTablette])
+
+  // Socket : écouter les nouvelles commandes prêtes / servies
+  useEffect(() => {
+    if (!socket || !utilisateur?.maquis?.module_commandes_actif) return
+    const refresh = () => chargerCommandesTablette()
+    socket.on('commande:mise_a_jour', refresh)
+    socket.on('commande:nouvelle', refresh)
+    return () => {
+      socket.off('commande:mise_a_jour', refresh)
+      socket.off('commande:nouvelle', refresh)
+    }
+  }, [socket, chargerCommandesTablette, utilisateur?.maquis?.module_commandes_actif])
+
+  const selectionnerCommande = (commande) => {
+    const lignesActives = commande.lignes.filter(l => l.statut !== 'annulee')
+    const panierCommande = lignesActives.map(l => ({
+      produit_id:     l.produit_id,
+      nom:            l.produit?.nom || `Produit #${l.produit_id}`,
+      quantite:       parseFloat(l.quantite),
+      prix_catalogue: parseFloat(l.prix_unitaire),
+      prix_applique:  parseFloat(l.prix_unitaire),
+      unite:          l.produit?.unite || 'unité',
+      stock_max:      9999
+    }))
+    setPanier(panierCommande)
+    setCommandeActive(commande)
+    setVoirCommandes(false)
+    setNote(`Commande #${commande.numero}${commande.table ? ` - Table ${commande.table.numero}` : ''}`)
+  }
+
+  const annulerSelectionCommande = () => {
+    setCommandeActive(null)
+    setPanier([])
+    setNote('')
+  }
 
   // Synchroniser ventes offline
   const syncVentesOffline = useCallback(async () => {
@@ -173,7 +227,19 @@ const Caisse = () => {
     try {
       if (!isOnline) throw new Error('OFFLINE')
 
-      const response = await api.post('/api/ventes', venteData)
+      let response
+      if (commandeActive) {
+        // Encaissement d'une commande tablette
+        response = await api.post(`/api/commandes/${commandeActive.id}/encaisser`, {
+          mode_paiement: modePaiement,
+          note_vente: note
+        })
+        setCommandeActive(null)
+        await chargerCommandesTablette()
+      } else {
+        response = await api.post('/api/ventes', venteData)
+      }
+
       setDernierRecu({
         id:            response.data.data?.id || Date.now(),
         date:          new Date(),
@@ -359,8 +425,61 @@ const Caisse = () => {
           </div>
         )}
 
+        {/* PANNEAU COMMANDES TABLETTE */}
+        {voirCommandes && utilisateur?.maquis?.module_commandes_actif && (
+          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
+            <div style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, width: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🍽️ Commandes à encaisser ({commandesTablette.length})</h3>
+                <button onClick={() => setVoirCommandes(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7280' }}>✕</button>
+              </div>
+              <div style={{ flex: 1, overflowY: 'auto' }}>
+                {commandesTablette.length === 0 ? (
+                  <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0' }}>Aucune commande en attente d'encaissement</p>
+                ) : (
+                  commandesTablette.map(cmd => {
+                    const total = cmd.lignes?.filter(l => l.statut !== 'annulee').reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0) || 0
+                    return (
+                      <div key={cmd.id} onClick={() => selectionnerCommande(cmd)}
+                        style={{ padding: 16, borderRadius: 12, border: '2px solid #e5e7eb', marginBottom: 10, cursor: 'pointer', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--couleur-principale)'; e.currentTarget.style.backgroundColor = '#fff7ed' }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.backgroundColor = 'white' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <div>
+                            <p style={{ margin: 0, fontWeight: 700, fontSize: 16, color: '#111827' }}>
+                              {cmd.table ? `Table ${cmd.table.numero}` : 'Comptoir'} — Cmd #{cmd.numero}
+                            </p>
+                            <p style={{ margin: '3px 0 0', fontSize: 12, color: '#6b7280' }}>
+                              {cmd.serveur?.nom} · {new Date(cmd.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                          </div>
+                          <p style={{ margin: 0, fontWeight: 800, fontSize: 18, color: 'var(--couleur-principale)' }}>{total.toLocaleString()} XOF</p>
+                        </div>
+                        <div style={{ fontSize: 13, color: '#374151' }}>
+                          {cmd.lignes?.filter(l => l.statut !== 'annulee').map(l => `${l.produit?.nom} ×${parseFloat(l.quantite)}`).join(' · ')}
+                        </div>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* COLONNE GAUCHE - Produits */}
         <div style={{ flex: 0.8, backgroundColor: 'white', borderRadius: '12px', padding: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          {utilisateur?.maquis?.module_commandes_actif && (
+            <button onClick={() => setVoirCommandes(true)}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12, padding: '10px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', backgroundColor: commandesTablette.length > 0 ? '#fff7ed' : '#f9fafb', color: commandesTablette.length > 0 ? '#ea580c' : '#9ca3af', fontWeight: 600, fontSize: 14 }}>
+              <span>🍽️ Commandes tablette</span>
+              {commandesTablette.length > 0 && (
+                <span style={{ backgroundColor: '#ea580c', color: 'white', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+                  {commandesTablette.length}
+                </span>
+              )}
+            </button>
+          )}
           <h2 style={{ margin: '0 0 14px 0', fontSize: '18px', fontWeight: '600', color: '#374151' }}>Produits disponibles</h2>
           <input type="text" placeholder="Rechercher un produit..." value={recherche} onChange={(e) => setRecherche(e.target.value)}
             style={{ width: '100%', padding: '12px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', marginBottom: '14px', boxSizing: 'border-box', outline: 'none' }}
@@ -391,9 +510,19 @@ const Caisse = () => {
         {/* COLONNE DROITE - Panier */}
         <div style={{ flex: 1.2, backgroundColor: 'white', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-            <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#374151' }}>Panier ({panier.length})</h2>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#374151' }}>Panier ({panier.length})</h2>
+              {commandeActive && (
+                <p style={{ margin: '3px 0 0', fontSize: 12, color: '#ea580c', fontWeight: 600 }}>
+                  🍽️ {commandeActive.table ? `Table ${commandeActive.table.numero}` : 'Comptoir'} — Cmd #{commandeActive.numero}
+                </p>
+              )}
+            </div>
             {panier.length > 0 && (
-              <button onClick={viderPanier} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}>Vider</button>
+              <button onClick={commandeActive ? annulerSelectionCommande : viderPanier}
+                style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '14px', fontWeight: '500' }}>
+                {commandeActive ? '← Changer' : 'Vider'}
+              </button>
             )}
           </div>
 

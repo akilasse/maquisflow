@@ -49,6 +49,7 @@ const AdminDashboard = () => {
   const [modal, setModal]                         = useState(null)
   const [logoFichier, setLogoFichier]             = useState(null)
   const [logoPreview, setLogoPreview]             = useState(null)
+  const [editMaquis, setEditMaquis]               = useState(null) // { id, nom, couleur_primaire, activite, devise }
 
   const [formMaquis, setFormMaquis] = useState({
     nom: '', activite: '', couleur_primaire: '#FF6B35', type_acces: 'abonnement', periodicite: 'mensuel', montant: '35000',
@@ -194,6 +195,20 @@ const AdminDashboard = () => {
       setModal(null)
       await charger()
     } catch (err) { afficherMessage('erreur', err.response?.data?.message || 'Erreur') }
+  }
+
+  const sauvegarderMaquis = async () => {
+    try {
+      await api().put(`/maquis/${editMaquis.id}`, {
+        nom:              editMaquis.nom,
+        couleur_primaire: editMaquis.couleur_primaire,
+        activite:         editMaquis.activite,
+        devise:           editMaquis.devise,
+      })
+      afficherMessage('succes', 'Établissement mis à jour !')
+      setEditMaquis(null)
+      await charger()
+    } catch { afficherMessage('erreur', 'Erreur lors de la mise à jour') }
   }
 
   const toggleUser = async (utilisateur_id, maquis_id, actif) => {
@@ -536,6 +551,76 @@ const AdminDashboard = () => {
                   </div>
                 ))}
               </div>
+            </div>
+
+            {/* Paramètres établissement */}
+            <div style={{ ...S.card, marginBottom: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Paramètres</h2>
+                {!editMaquis && (
+                  <button onClick={() => setEditMaquis({ id: maquisSelectionne.id, nom: maquisSelectionne.nom, couleur_primaire: maquisSelectionne.couleur_primaire || '#FF6B35', activite: maquisSelectionne.activite || '', devise: maquisSelectionne.devise || 'XOF' })} style={S.btn()}>
+                    ✏️ Modifier
+                  </button>
+                )}
+              </div>
+
+              {editMaquis ? (
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Nom</label>
+                      <input value={editMaquis.nom} onChange={e => setEditMaquis({ ...editMaquis, nom: e.target.value })} style={{ ...S.input, marginBottom: 0 }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Activité</label>
+                      <select value={editMaquis.activite} onChange={e => { const act = ACTIVITES.find(a => a.value === e.target.value); setEditMaquis({ ...editMaquis, activite: e.target.value, couleur_primaire: act?.couleur || editMaquis.couleur_primaire }) }} style={{ ...S.input, marginBottom: 0 }}>
+                        <option value="">-- Choisir --</option>
+                        {ACTIVITES.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Couleur principale</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input type="color" value={editMaquis.couleur_primaire} onChange={e => setEditMaquis({ ...editMaquis, couleur_primaire: e.target.value })} style={{ width: 44, height: 36, border: 'none', borderRadius: 8, cursor: 'pointer' }} />
+                        <div style={{ width: 36, height: 36, borderRadius: 8, backgroundColor: editMaquis.couleur_primaire, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 700, fontSize: 14 }}>{editMaquis.nom?.charAt(0)?.toUpperCase()}</div>
+                        <span style={{ fontSize: 13, color: '#64748b' }}>{editMaquis.couleur_primaire}</span>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Devise</label>
+                      <select value={editMaquis.devise} onChange={e => setEditMaquis({ ...editMaquis, devise: e.target.value })} style={{ ...S.input, marginBottom: 0 }}>
+                        <option value="XOF">XOF (FCFA)</option>
+                        <option value="XAF">XAF (FCFA)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="USD">USD ($)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={sauvegarderMaquis} style={S.btn('#16a34a')}>✅ Sauvegarder</button>
+                    <button onClick={() => setEditMaquis(null)} style={S.btn('#64748b')}>Annuler</button>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[
+                    { label: 'Nom', val: maquisSelectionne.nom },
+                    { label: 'Activité', val: maquisSelectionne.activite || maquisSelectionne.type || '—' },
+                    { label: 'Devise', val: maquisSelectionne.devise || 'XOF' },
+                    { label: 'Couleur', val: (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ width: 16, height: 16, borderRadius: 4, backgroundColor: maquisSelectionne.couleur_primaire, display: 'inline-block' }} />
+                        {maquisSelectionne.couleur_primaire}
+                      </span>
+                    )},
+                  ].map(item => (
+                    <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+                      <span style={{ fontSize: 13, color: '#64748b' }}>{item.label}</span>
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{item.val}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div style={S.card}>

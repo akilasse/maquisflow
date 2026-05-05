@@ -22,25 +22,31 @@ model SuperAdmin {
 }
 
 model Maquis {
-  id               Int        @id @default(autoincrement())
-  nom              String     @db.VarChar(100)
-  type             TypeMaquis @default(maquis)
-  activite         String?    @db.VarChar(100)
-  logo_url         String?    @db.VarChar(255)
-  couleur_primaire String?    @db.VarChar(7)
-  devise           String     @default("XOF") @db.VarChar(10)
-  fuseau_horaire   String     @default("Africa/Abidjan") @db.VarChar(50)
-  actif            Boolean    @default(true)
-  created_at       DateTime   @default(now())
-  utilisateurs   UtilisateurMaquis[]
-  produits       Produit[]
-  ventes         Vente[]
-  mouvements     StockMouvement[]
-  inventaires    Inventaire[]
-  logs           LogAction[]
-  fournisseurs   Fournisseur[]
-  bons_livraison BonLivraison[]
-  abonnement     Abonnement?
+  id                      Int        @id @default(autoincrement())
+  nom                     String     @db.VarChar(100)
+  type                    TypeMaquis @default(maquis)
+  activite                String?    @db.VarChar(100)
+  logo_url                String?    @db.VarChar(255)
+  couleur_primaire        String?    @db.VarChar(7)
+  devise                  String     @default("XOF") @db.VarChar(10)
+  fuseau_horaire          String     @default("Africa/Abidjan") @db.VarChar(50)
+  actif                   Boolean    @default(true)
+  module_commandes_actif  Boolean    @default(false)
+  paiement_avant          Boolean    @default(false)
+  created_at              DateTime   @default(now())
+
+  utilisateurs    UtilisateurMaquis[]
+  produits        Produit[]
+  ventes          Vente[]
+  mouvements      StockMouvement[]
+  inventaires     Inventaire[]
+  logs            LogAction[]
+  fournisseurs    Fournisseur[]
+  bons_livraison  BonLivraison[]
+  abonnement      Abonnement?
+  stations        Station[]
+  tables          TableEtablissement[]
+  commandes       Commande[]
 }
 
 enum TypeMaquis {
@@ -104,16 +110,19 @@ model Utilisateur {
   photo_url    String?   @db.VarChar(255)
   actif        Boolean   @default(true)
   created_at   DateTime  @default(now())
+
   etablissements UtilisateurMaquis[]
   ventes         Vente[]
   mouvements     StockMouvement[]
   logs           LogAction[]
+  commandes      Commande[]
 }
 
 enum Role {
   caissier
   gerant
   patron
+  serveur
 }
 
 model Produit {
@@ -130,10 +139,14 @@ model Produit {
   photo_url        String?   @db.VarChar(255)
   code_barre       String?   @db.VarChar(100)
   actif            Boolean   @default(true)
+  station_id       Int?
+  station          Station?  @relation(fields: [station_id], references: [id])
+
   lignes           VenteLigne[]
   mouvements       StockMouvement[]
   inventaires      InventaireLigne[]
   lignes_livraison BonLivraisonLigne[]
+  lignes_commande  CommandeLigne[]
 }
 
 model Vente {
@@ -150,7 +163,10 @@ model Vente {
   statut         StatutVente  @default(validee)
   valide_par     Int?
   note           String?      @db.Text
-  lignes         VenteLigne[]
+  commande_id    Int?         @unique
+
+  lignes   VenteLigne[]
+  commande Commande?    @relation(fields: [commande_id], references: [id])
 }
 
 enum ModePaiement {
@@ -283,4 +299,101 @@ model BonLivraisonLigne {
   quantite    Decimal      @db.Decimal(10,3)
   prix_achat  Decimal      @db.Decimal(10,2)
   total_ligne Decimal      @db.Decimal(10,2)
+}
+
+// ============================================================
+// MODULE COMMANDES — Restaurant / Fast Food
+// ============================================================
+
+model Station {
+  id        Int     @id @default(autoincrement())
+  maquis_id Int
+  maquis    Maquis  @relation(fields: [maquis_id], references: [id])
+  nom       String  @db.VarChar(80)
+  couleur   String  @default("#6b7280") @db.VarChar(7)
+  actif     Boolean @default(true)
+
+  produits         Produit[]
+  lignes_commande  CommandeLigne[]
+}
+
+model TableEtablissement {
+  id        Int         @id @default(autoincrement())
+  maquis_id Int
+  maquis    Maquis      @relation(fields: [maquis_id], references: [id])
+  numero    Int
+  nom       String?     @db.VarChar(80)
+  capacite  Int?
+  statut    StatutTable @default(libre)
+  actif     Boolean     @default(true)
+
+  commandes Commande[]
+
+  @@unique([maquis_id, numero])
+}
+
+enum StatutTable {
+  libre
+  occupee
+  reservee
+}
+
+model Commande {
+  id            Int            @id @default(autoincrement())
+  maquis_id     Int
+  maquis        Maquis         @relation(fields: [maquis_id], references: [id])
+  table_id      Int?
+  table         TableEtablissement? @relation(fields: [table_id], references: [id])
+  serveur_id    Int?
+  serveur       Utilisateur?   @relation(fields: [serveur_id], references: [id])
+  type_commande TypeCommande   @default(sur_place)
+  statut        StatutCommande @default(ouverte)
+  numero             Int
+  note               String?  @db.Text
+  temps_preparation  Int?
+  created_at         DateTime @default(now())
+  updated_at    DateTime       @updatedAt
+
+  lignes CommandeLigne[]
+  vente  Vente?
+
+  @@unique([maquis_id, numero])
+}
+
+enum TypeCommande {
+  sur_place
+  comptoir
+  emporter
+}
+
+enum StatutCommande {
+  ouverte
+  en_cours
+  prete
+  servie
+  encaissee
+  annulee
+}
+
+model CommandeLigne {
+  id            Int         @id @default(autoincrement())
+  commande_id   Int
+  commande      Commande    @relation(fields: [commande_id], references: [id])
+  produit_id    Int
+  produit       Produit     @relation(fields: [produit_id], references: [id])
+  station_id    Int?
+  station       Station?    @relation(fields: [station_id], references: [id])
+  quantite      Decimal     @db.Decimal(10,3)
+  prix_unitaire Decimal     @db.Decimal(10,2)
+  note          String?     @db.VarChar(255)
+  statut        StatutLigne @default(en_attente)
+  created_at    DateTime    @default(now())
+}
+
+enum StatutLigne {
+  en_attente
+  en_preparation
+  prete
+  servie
+  annulee
 }

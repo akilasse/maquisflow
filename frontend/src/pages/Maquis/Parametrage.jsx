@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useAuth } from '../../context/AuthContext'
 import api from '../../utils/api'
 
 const WHATSAPP = '2250779127543'
 
 const Parametrage = () => {
+  const { mettreAJourMaquis } = useAuth()
   const [onglet, setOnglet] = useState('produits')
   const [produits, setProduits] = useState([])
   const [fournisseurs, setFournisseurs] = useState([])
@@ -18,7 +20,11 @@ const Parametrage = () => {
   })
   const [formFournisseur, setFormFournisseur] = useState({ nom: '', telephone: '', email: '', adresse: '' })
   const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', mot_de_passe: '', role: 'caissier' })
-  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', activite: '' })
+  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', activite: '', module_commandes_actif: false, paiement_avant: false })
+  const [stations, setStations] = useState([])
+  const [tables, setTables]     = useState([])
+  const [formStation, setFormStation] = useState({ nom: '', couleur: '#6b7280' })
+  const [formTable, setFormTable]     = useState({ numero: '', nom: '', capacite: '' })
 
   useEffect(() => { chargerDonnees() }, [])
 
@@ -41,8 +47,20 @@ const Parametrage = () => {
         couleur_primaire: maquisData.couleur_primaire || '#FF6B35',
         devise: maquisData.devise || 'XOF',
         fuseau_horaire: maquisData.fuseau_horaire || 'Africa/Abidjan',
-        activite: maquisData.activite || ''
+        activite: maquisData.activite || '',
+        module_commandes_actif: maquisData.module_commandes_actif || false,
+        paiement_avant: maquisData.paiement_avant || false
       })
+      mettreAJourMaquis(maquisData)
+      // Charge stations et tables si module actif
+      if (maquisData.module_commandes_actif) {
+        const [st, tb] = await Promise.all([
+          api.get('/api/commandes/stations'),
+          api.get('/api/commandes/tables')
+        ])
+        setStations(st.data.data)
+        setTables(tb.data.data)
+      }
     } catch (error) {
       setMessage({ type: 'erreur', texte: 'Erreur chargement données' })
     }
@@ -189,6 +207,7 @@ const Parametrage = () => {
           { key: 'fournisseurs', label: '🚚 Fournisseurs' },
           { key: 'utilisateurs', label: '👥 Utilisateurs' },
           { key: 'maquis',       label: '🏪 Mon Commerce' },
+          { key: 'commandes',    label: '🪑 Tables & Stations' },
           { key: 'abonnement',   label: `💳 Abonnement${urgence ? ' ⚠️' : estExpire ? ' ❌' : ''}` },
         ].map(o => (
           <button key={o.key} onClick={() => { setOnglet(o.key); setModal(null) }} style={styleOnglet(onglet === o.key)}>{o.label}</button>
@@ -432,7 +451,130 @@ const Parametrage = () => {
             <option value="Africa/Douala">Douala (GMT+1)</option>
           </select>
 
+          {/* Module commandes */}
+          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+            <p style={{ fontSize: '13px', fontWeight: '700', color: '#374151', margin: '0 0 12px' }}>Module Tablette & KDS</p>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Activer la prise de commande</p>
+                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>Tablette serveur, KDS cuisine, gestion des tables</p>
+              </div>
+              <button onClick={() => setFormMaquis({ ...formMaquis, module_commandes_actif: !formMaquis.module_commandes_actif })}
+                style={{ width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', backgroundColor: formMaquis.module_commandes_actif ? 'var(--couleur-principale)' : '#d1d5db', position: 'relative', transition: 'background 0.2s' }}>
+                <span style={{ position: 'absolute', top: 3, left: formMaquis.module_commandes_actif ? 26 : 3, width: 20, height: 20, borderRadius: '50%', backgroundColor: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+              </button>
+            </div>
+            {formMaquis.module_commandes_actif && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid #e5e7eb' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Paiement avant service</p>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>Mode fast food — le client paie à la commande</p>
+                </div>
+                <button onClick={() => setFormMaquis({ ...formMaquis, paiement_avant: !formMaquis.paiement_avant })}
+                  style={{ width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', backgroundColor: formMaquis.paiement_avant ? '#16a34a' : '#d1d5db', position: 'relative', transition: 'background 0.2s' }}>
+                  <span style={{ position: 'absolute', top: 3, left: formMaquis.paiement_avant ? 26 : 3, width: 20, height: 20, borderRadius: '50%', backgroundColor: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                </button>
+              </div>
+            )}
+          </div>
+
           <button onClick={soumettreMaquis} style={{ ...styleBouton(), width: '100%', padding: '12px' }}>Sauvegarder les paramètres</button>
+        </div>
+      )}
+
+      {/* TABLES & STATIONS */}
+      {onglet === 'commandes' && (
+        <div>
+          {!maquis?.module_commandes_actif ? (
+            <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '40px', textAlign: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <p style={{ fontSize: '40px', marginBottom: '12px' }}>🔒</p>
+              <p style={{ fontSize: '16px', fontWeight: '600', color: '#111827', margin: '0 0 8px' }}>Module non activé</p>
+              <p style={{ color: '#9ca3af', fontSize: '14px' }}>Activez le module Tablette & KDS dans l'onglet Mon Commerce.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+
+              {/* Stations */}
+              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600' }}>Stations ({stations.length})</h2>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                  <input placeholder="Nom (ex: Cuisine)" value={formStation.nom} onChange={e => setFormStation({ ...formStation, nom: e.target.value })}
+                    style={{ flex: 1, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px' }} />
+                  <input type="color" value={formStation.couleur} onChange={e => setFormStation({ ...formStation, couleur: e.target.value })}
+                    style={{ width: 40, height: 36, border: 'none', borderRadius: '8px', cursor: 'pointer' }} />
+                  <button onClick={async () => {
+                    try {
+                      await api.post('/api/commandes/stations', formStation)
+                      setFormStation({ nom: '', couleur: '#6b7280' })
+                      const res = await api.get('/api/commandes/stations')
+                      setStations(res.data.data)
+                      afficherMessage('succes', 'Station créée !')
+                    } catch (e) { afficherMessage('erreur', e.response?.data?.message || 'Erreur') }
+                  }} style={styleBouton()}>+</button>
+                </div>
+                <div>
+                  {stations.map(s => (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', backgroundColor: '#f9fafb', marginBottom: '8px' }}>
+                      <div style={{ width: 16, height: 16, borderRadius: '50%', backgroundColor: s.couleur, flexShrink: 0 }} />
+                      <span style={{ flex: 1, fontSize: '14px', fontWeight: '500' }}>{s.nom}</span>
+                      <button onClick={async () => {
+                        try {
+                          await api.delete(`/api/commandes/stations/${s.id}`)
+                          const res = await api.get('/api/commandes/stations')
+                          setStations(res.data.data)
+                          afficherMessage('succes', 'Station supprimée')
+                        } catch (e) { afficherMessage('erreur', e.response?.data?.message || 'Erreur') }
+                      }} style={{ padding: '4px 8px', backgroundColor: '#fef2f2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#dc2626' }}>
+                        Supprimer
+                      </button>
+                    </div>
+                  ))}
+                  {stations.length === 0 && <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '16px' }}>Aucune station. Créez Cuisine, Bar...</p>}
+                </div>
+              </div>
+
+              {/* Tables */}
+              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+                <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600' }}>Tables ({tables.length})</h2>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '6px', marginBottom: '16px', alignItems: 'end' }}>
+                  <input type="number" placeholder="N°" value={formTable.numero} onChange={e => setFormTable({ ...formTable, numero: e.target.value })}
+                    style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px' }} />
+                  <input placeholder="Nom (optionnel)" value={formTable.nom} onChange={e => setFormTable({ ...formTable, nom: e.target.value })}
+                    style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px' }} />
+                  <input type="number" placeholder="Capacité" value={formTable.capacite} onChange={e => setFormTable({ ...formTable, capacite: e.target.value })}
+                    style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px' }} />
+                  <button onClick={async () => {
+                    try {
+                      await api.post('/api/commandes/tables', { numero: parseInt(formTable.numero), nom: formTable.nom || null, capacite: formTable.capacite ? parseInt(formTable.capacite) : null })
+                      setFormTable({ numero: '', nom: '', capacite: '' })
+                      const res = await api.get('/api/commandes/tables')
+                      setTables(res.data.data)
+                      afficherMessage('succes', 'Table créée !')
+                    } catch (e) { afficherMessage('erreur', e.response?.data?.message || 'Erreur') }
+                  }} style={styleBouton()}>+</button>
+                </div>
+                <div>
+                  {tables.map(t => (
+                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', backgroundColor: '#f9fafb', marginBottom: '8px' }}>
+                      <span style={{ width: 32, height: 32, borderRadius: '50%', backgroundColor: 'var(--couleur-principale-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: '700', color: 'var(--couleur-principale)', flexShrink: 0 }}>{t.numero}</span>
+                      <span style={{ flex: 1, fontSize: '14px', fontWeight: '500' }}>{t.nom || `Table ${t.numero}`}{t.capacite ? ` · ${t.capacite} pers.` : ''}</span>
+                      <button onClick={async () => {
+                        try {
+                          await api.delete(`/api/commandes/tables/${t.id}`)
+                          const res = await api.get('/api/commandes/tables')
+                          setTables(res.data.data)
+                          afficherMessage('succes', 'Table supprimée')
+                        } catch (e) { afficherMessage('erreur', e.response?.data?.message || 'Erreur') }
+                      }} style={{ padding: '4px 8px', backgroundColor: '#fef2f2', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#dc2626' }}>
+                        Supprimer
+                      </button>
+                    </div>
+                  ))}
+                  {tables.length === 0 && <p style={{ color: '#9ca3af', fontSize: '13px', textAlign: 'center', padding: '16px' }}>Aucune table configurée.</p>}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
