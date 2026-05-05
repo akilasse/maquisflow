@@ -19,7 +19,7 @@ const Parametrage = () => {
     nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: ''
   })
   const [formFournisseur, setFormFournisseur] = useState({ nom: '', telephone: '', email: '', adresse: '' })
-  const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', mot_de_passe: '', role: 'caissier' })
+  const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', mot_de_passe: '', role: 'serveur' })
   const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', activite: '', module_commandes_actif: false, paiement_avant: false })
   const [stations, setStations] = useState([])
   const [tables, setTables]     = useState([])
@@ -154,7 +154,7 @@ const Parametrage = () => {
       await api.put(`/api/parametrage/utilisateurs/${modal.id}`, formUtilisateur)
       afficherMessage('succes', 'Utilisateur modifié !')
       setModal(null)
-      setFormUtilisateur({ nom: '', email: '', mot_de_passe: '', role: 'caissier' })
+      setFormUtilisateur({ nom: '', email: '', mot_de_passe: '', role: 'serveur' })
       chargerDonnees()
     } catch (error) { afficherMessage('erreur', error.response?.data?.message || 'Erreur') }
   }
@@ -342,6 +342,7 @@ const Parametrage = () => {
                 <input type="email" placeholder="Email *" value={formUtilisateur.email} onChange={e => setFormUtilisateur({ ...formUtilisateur, email: e.target.value })} style={styleInput} />
                 <input type="password" placeholder="Nouveau mot de passe (optionnel)" value={formUtilisateur.mot_de_passe} onChange={e => setFormUtilisateur({ ...formUtilisateur, mot_de_passe: e.target.value })} style={styleInput} />
                 <select value={formUtilisateur.role} onChange={e => setFormUtilisateur({ ...formUtilisateur, role: e.target.value })} style={styleInput}>
+                  <option value="serveur">Serveur / Station</option>
                   <option value="caissier">Caissier</option>
                   <option value="gerant">Gérant</option>
                   <option value="patron">Patron</option>
