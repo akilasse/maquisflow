@@ -6,6 +6,13 @@ const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const Store = require('electron-store')
 
+// Windows 7 : certificats Let's Encrypt non reconnus
+app.commandLine.appendSwitch('ignore-certificate-errors')
+app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
+  event.preventDefault()
+  callback(true)
+})
+
 const store = new Store()
 
 let mainWindow
