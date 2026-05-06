@@ -11,10 +11,25 @@ export const AuthProvider = ({ children }) => {
   const [utilisateurTemp, setUtilisateurTemp]   = useState(null)
 
   useEffect(() => {
-    const userData = localStorage.getItem('utilisateur')
-    const token    = localStorage.getItem('accessToken')
-    if (userData && token) setUtilisateur(JSON.parse(userData))
-    setChargement(false)
+    const chargerSession = async () => {
+      const userData = localStorage.getItem('utilisateur')
+      const token    = localStorage.getItem('accessToken')
+      if (userData && token) {
+        setUtilisateur(JSON.parse(userData))
+        // Rafraîchir les données maquis depuis l'API pour avoir les dernières config
+        try {
+          const res = await api.get('/api/parametrage/maquis')
+          const maquisFrais = res.data.data
+          setUtilisateur(prev => {
+            const mis_a_jour = { ...prev, maquis: { ...prev.maquis, ...maquisFrais } }
+            localStorage.setItem('utilisateur', JSON.stringify(mis_a_jour))
+            return mis_a_jour
+          })
+        } catch {}
+      }
+      setChargement(false)
+    }
+    chargerSession()
   }, [])
 
   const login = async (email, mot_de_passe) => {

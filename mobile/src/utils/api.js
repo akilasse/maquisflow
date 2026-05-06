@@ -8,7 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 
 // Change cette IP par l'IP de ton PC sur le réseau local
 // Pour trouver ton IP : ipconfig dans le terminal Windows
-const BASE_URL = 'https://Flowix.com'
+const BASE_URL = 'https://maquisflow.com'
 
 const api = axios.create({
   baseURL: BASE_URL,
