@@ -277,8 +277,10 @@
     .cmd-card-items { font-size: 13px; color: #374151; line-height: 1.5; }
     .cmd-card-footer { display: flex; justify-content: space-between; margin-top: 8px; padding-top: 8px; border-top: 1px solid #f3f4f6; }
     .cmd-card-total { font-weight: 700; color: #FF6B35; }
-    .cmd-status-prete { background: #d1fae5; color: #065f46; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
-    .cmd-status-servie { background: #dbeafe; color: #1e40af; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+    .cmd-status-prete    { background: #d1fae5; color: #065f46; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+    .cmd-status-servie   { background: #dbeafe; color: #1e40af; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+    .cmd-status-ouverte  { background: #fef3c7; color: #92400e; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+    .cmd-status-en-cours { background: #ede9fe; color: #5b21b6; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
     .cmd-empty { text-align: center; color: #9ca3af; padding: 40px 20px; font-size: 14px; }
 
     /* Filtre station */
@@ -1069,13 +1071,10 @@ async function chargerStations() {
 async function chargerCommandesTablette() {
   if (!state.utilisateur?.maquis?.module_commandes_actif) return
   try {
-    const sParam = state.stationFiltre ? `&caisse_id=${state.stationFiltre}` : ''
-    const [r1, r2] = await Promise.all([
-      fetch(`${API_URL}/api/commandes?statut=prete${sParam}`, { headers: { Authorization: `Bearer ${state.token}` } }),
-      fetch(`${API_URL}/api/commandes?statut=servie${sParam}`, { headers: { Authorization: `Bearer ${state.token}` } })
-    ])
-    const [d1, d2] = await Promise.all([r1.json(), r2.json()])
-    state.commandesTablette = [...(d1.data || []), ...(d2.data || [])]
+    const params = state.stationFiltre ? `?caisse_id=${state.stationFiltre}` : ''
+    const r = await fetch(`${API_URL}/api/commandes${params}`, { headers: { Authorization: `Bearer ${state.token}` } })
+    const d = await r.json()
+    state.commandesTablette = d.data || []
     updateCommandesBadge()
   } catch (e) { console.log('Erreur commandes:', e) }
 }
@@ -1143,8 +1142,13 @@ function afficherCommandesList() {
     const resume = cmd.lignes?.slice(0, 3).map(l => `${l.produit?.nom || ''} ×${l.quantite}`).join(', ')
       + (cmd.lignes?.length > 3 ? `... +${cmd.lignes.length - 3}` : '')
     const tAgo = cmd.created_at ? Math.floor((Date.now() - new Date(cmd.created_at)) / 60000) : 0
-    const statusCls = cmd.statut === 'prete' ? 'cmd-status-prete' : 'cmd-status-servie'
-    const statusLbl = cmd.statut === 'prete' ? '✅ Prête' : '🍽️ Servie'
+    const statusMap = {
+      ouverte:  { cls: 'cmd-status-ouverte',  lbl: '🆕 Nouvelle' },
+      en_cours: { cls: 'cmd-status-en-cours', lbl: '⏳ En cours' },
+      prete:    { cls: 'cmd-status-prete',    lbl: '✅ Prête' },
+      servie:   { cls: 'cmd-status-servie',   lbl: '🍽️ Servie' }
+    }
+    const { cls: statusCls, lbl: statusLbl } = statusMap[cmd.statut] || { cls: '', lbl: cmd.statut }
     return `
       <div class="cmd-card" onclick="selectionnerCommande(${cmd.id})">
         <div class="cmd-card-header">
