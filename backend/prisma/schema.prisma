@@ -32,6 +32,8 @@ model Maquis {
   fuseau_horaire          String     @default("Africa/Abidjan") @db.VarChar(50)
   actif                   Boolean    @default(true)
   module_commandes_actif  Boolean    @default(false)
+  module_kds_actif        Boolean    @default(false)
+  module_commandes_direct Boolean    @default(false)
   paiement_avant          Boolean    @default(false)
   created_at              DateTime   @default(now())
 
@@ -52,6 +54,12 @@ model Maquis {
 enum TypeMaquis {
   maquis
   restaurant
+  bar
+  fast_food
+  boutique
+  pharmacie
+  salon
+  autre
 }
 
 model Abonnement {

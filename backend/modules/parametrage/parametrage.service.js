@@ -216,8 +216,11 @@ const modifierMaquis = async (prisma, maquis_id, data) => {
       devise:                 data.devise,
       fuseau_horaire:         data.fuseau_horaire,
       activite:               data.activite,
-      module_commandes_actif: data.module_commandes_actif,
-      paiement_avant:         data.paiement_avant
+      module_commandes_actif:  data.module_commandes_actif,
+      module_kds_actif:        data.module_kds_actif,
+      module_commandes_direct: data.module_commandes_direct,
+      paiement_avant:          data.paiement_avant,
+      type:                    data.type
     }
   })
 }

@@ -20,7 +20,7 @@ const Parametrage = () => {
   })
   const [formFournisseur, setFormFournisseur] = useState({ nom: '', telephone: '', email: '', adresse: '' })
   const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', mot_de_passe: '', role: 'serveur' })
-  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', activite: '', module_commandes_actif: false, paiement_avant: false })
+  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false })
   const [stations, setStations] = useState([])
   const [tables, setTables]     = useState([])
   const [formStation, setFormStation] = useState({ nom: '', couleur: '#6b7280' })
@@ -47,9 +47,12 @@ const Parametrage = () => {
         couleur_primaire: maquisData.couleur_primaire || '#FF6B35',
         devise: maquisData.devise || 'XOF',
         fuseau_horaire: maquisData.fuseau_horaire || 'Africa/Abidjan',
+        type: maquisData.type || 'maquis',
         activite: maquisData.activite || '',
-        module_commandes_actif: maquisData.module_commandes_actif || false,
-        paiement_avant: maquisData.paiement_avant || false
+        module_commandes_actif:  maquisData.module_commandes_actif  || false,
+        module_kds_actif:        maquisData.module_kds_actif        || false,
+        module_commandes_direct: maquisData.module_commandes_direct || false,
+        paiement_avant:          maquisData.paiement_avant          || false
       })
       mettreAJourMaquis(maquisData)
       // Charge stations et tables si module actif
@@ -73,6 +76,18 @@ const Parametrage = () => {
 
   const styleInput = { width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', marginBottom: '10px' }
   const styleBouton = (couleur = 'var(--couleur-principale)') => ({ padding: '10px 20px', backgroundColor: couleur, color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' })
+  const toggleModule = (titre, desc, champ, form, setForm, couleur = 'var(--couleur-principale)') => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ flex: 1, marginRight: 12 }}>
+        <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#111827' }}>{titre}</p>
+        <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>{desc}</p>
+      </div>
+      <button onClick={() => setForm({ ...form, [champ]: !form[champ] })}
+        style={{ flexShrink: 0, width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', backgroundColor: form[champ] ? couleur : '#d1d5db', position: 'relative', transition: 'background 0.2s' }}>
+        <span style={{ position: 'absolute', top: 3, left: form[champ] ? 26 : 3, width: 20, height: 20, borderRadius: '50%', backgroundColor: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+      </button>
+    </div>
+  )
   const styleOnglet = (actif) => ({ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '14px', backgroundColor: actif ? 'var(--couleur-principale)' : '#f3f4f6', color: actif ? 'white' : '#374151' })
 
   const soumettreProdukt = async () => {
@@ -428,7 +443,21 @@ const Parametrage = () => {
 
           <input placeholder="Nom du commerce" value={formMaquis.nom} onChange={e => setFormMaquis({ ...formMaquis, nom: e.target.value })} style={styleInput} />
 
-          <input placeholder="Type d'activité (ex: Maquis, Restaurant, Boutique, Pharmacie...)" value={formMaquis.activite} onChange={e => setFormMaquis({ ...formMaquis, activite: e.target.value })} style={styleInput} />
+          <select value={formMaquis.type} onChange={e => {
+            const t = e.target.value
+            const couleurs = { maquis: '#FF6B35', restaurant: '#1D4ED8', bar: '#7C3AED', fast_food: '#ea580c', boutique: '#7C3AED', pharmacie: '#16A34A', salon: '#EC4899', autre: '#6b7280' }
+            setFormMaquis({ ...formMaquis, type: t, couleur_primaire: couleurs[t] || formMaquis.couleur_primaire })
+          }} style={styleInput}>
+            <option value="maquis">🍺 Maquis / Gargote</option>
+            <option value="restaurant">🍽️ Restaurant</option>
+            <option value="bar">🍸 Bar / Café</option>
+            <option value="fast_food">🍔 Fast Food</option>
+            <option value="boutique">🛍️ Boutique / Commerce</option>
+            <option value="pharmacie">💊 Pharmacie</option>
+            <option value="salon">💅 Salon de beauté</option>
+            <option value="autre">🏪 Autre</option>
+          </select>
+          <input placeholder="Description (ex: Chez Yigo, Bar de la paix...)" value={formMaquis.activite} onChange={e => setFormMaquis({ ...formMaquis, activite: e.target.value })} style={styleInput} />
 
           <div style={{ marginBottom: '10px' }}>
             <label style={{ fontSize: '13px', color: '#374151', marginBottom: '4px', display: 'block' }}>Couleur principale</label>
@@ -452,32 +481,30 @@ const Parametrage = () => {
             <option value="Africa/Douala">Douala (GMT+1)</option>
           </select>
 
-          {/* Module commandes */}
-          <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
-            <p style={{ fontSize: '13px', fontWeight: '700', color: '#374151', margin: '0 0 12px' }}>Module Tablette & KDS</p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-              <div>
-                <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Activer la prise de commande</p>
-                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>Tablette serveur, KDS cuisine, gestion des tables</p>
-              </div>
-              <button onClick={() => setFormMaquis({ ...formMaquis, module_commandes_actif: !formMaquis.module_commandes_actif })}
-                style={{ width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', backgroundColor: formMaquis.module_commandes_actif ? 'var(--couleur-principale)' : '#d1d5db', position: 'relative', transition: 'background 0.2s' }}>
-                <span style={{ position: 'absolute', top: 3, left: formMaquis.module_commandes_actif ? 26 : 3, width: 20, height: 20, borderRadius: '50%', backgroundColor: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-              </button>
-            </div>
-            {formMaquis.module_commandes_actif && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid #e5e7eb' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: '600', color: '#111827' }}>Paiement avant service</p>
-                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>Mode fast food — le client paie à la commande</p>
+          {/* Modules — visibles seulement pour les activités de service */}
+          {['maquis','restaurant','bar','fast_food'].includes(formMaquis.type) && (
+            <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
+              <p style={{ fontSize: '13px', fontWeight: '700', color: '#374151', margin: '0 0 4px' }}>Modules commandes</p>
+              <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 14px' }}>Activez selon votre mode de fonctionnement</p>
+
+              {/* Master toggle tablette */}
+              {toggleModule('Prise de commande tablette', 'Serveurs sur tablette, gestion des tables', 'module_commandes_actif', formMaquis, setFormMaquis)}
+
+              {formMaquis.module_commandes_actif && (
+                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+                  {/* Option KDS */}
+                  {toggleModule('🍳 Tablette → KDS → Caisse', 'Commandes passent par l\'écran cuisine/bar avant la caisse', 'module_kds_actif', formMaquis, setFormMaquis, '#7C3AED')}
+
+                  {/* Option Direct */}
+                  {toggleModule('💳 Tablette → Direct en caisse', 'Commandes arrivent directement à la caisse sans KDS', 'module_commandes_direct', formMaquis, setFormMaquis, '#16a34a')}
+
+                  {/* Paiement avant */}
+                  {toggleModule('⚡ Paiement avant service', 'Mode fast food — client paie à la commande', 'paiement_avant', formMaquis, setFormMaquis, '#f59e0b')}
                 </div>
-                <button onClick={() => setFormMaquis({ ...formMaquis, paiement_avant: !formMaquis.paiement_avant })}
-                  style={{ width: 48, height: 26, borderRadius: 13, border: 'none', cursor: 'pointer', backgroundColor: formMaquis.paiement_avant ? '#16a34a' : '#d1d5db', position: 'relative', transition: 'background 0.2s' }}>
-                  <span style={{ position: 'absolute', top: 3, left: formMaquis.paiement_avant ? 26 : 3, width: 20, height: 20, borderRadius: '50%', backgroundColor: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
-                </button>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <button onClick={soumettreMaquis} style={{ ...styleBouton(), width: '100%', padding: '12px' }}>Sauvegarder les paramètres</button>
         </div>

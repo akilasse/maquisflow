@@ -45,7 +45,9 @@ const login = async (prisma, email, mot_de_passe) => {
             select: {
               id: true, nom: true, type: true, activite: true,
               logo_url: true, couleur_primaire: true, devise: true,
-              actif: true, abonnement: true
+              actif: true, abonnement: true,
+              module_commandes_actif: true, module_kds_actif: true,
+              module_commandes_direct: true, paiement_avant: true
             }
           }
         }

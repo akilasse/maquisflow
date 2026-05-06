@@ -170,7 +170,7 @@ const getCommande = async (prisma, maquis_id, commandeId) => {
 }
 
 const creerCommande = async (prisma, io, data, utilisateur) => {
-  const { table_id, type_commande, lignes, note } = data
+  const { table_id, type_commande, lignes, note, direct } = data
   if (!lignes || lignes.length === 0) throw new Error('Une commande doit contenir au moins un article')
 
   await verifierModule(prisma, utilisateur.maquis_id)
@@ -196,7 +196,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
       quantite:      parseFloat(l.quantite) || 1,
       prix_unitaire: parseFloat(produit.prix_vente),
       note:          l.note || null,
-      statut:        'en_attente'
+      statut:        direct ? 'prete' : 'en_attente'
     }
   }))
 
@@ -206,7 +206,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
       table_id:      table_id || null,
       serveur_id:    utilisateur.id,
       type_commande: type_commande || 'sur_place',
-      statut:        'en_cours',
+      statut:        direct ? 'prete' : 'en_cours',
       numero,
       note:          note || null,
       lignes: { create: lignesPreparees }
@@ -237,7 +237,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
   return commande
 }
 
-const ajouterLignes = async (prisma, io, commandeId, lignes, utilisateur) => {
+const ajouterLignes = async (prisma, io, commandeId, lignes, utilisateur, direct = false) => {
   if (!lignes || lignes.length === 0) throw new Error('Aucun article à ajouter')
   const commande = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
 
@@ -257,11 +257,16 @@ const ajouterLignes = async (prisma, io, commandeId, lignes, utilisateur) => {
       quantite:      parseFloat(l.quantite) || 1,
       prix_unitaire: parseFloat(produit.prix_vente),
       note:          l.note || null,
-      statut:        'en_attente'
+      statut:        direct ? 'prete' : 'en_attente'
     }
   }))
 
   await prisma.commandeLigne.createMany({ data: lignesPreparees })
+
+  // Si envoi direct, passer la commande en prete
+  if (direct && !['prete', 'encaissee'].includes(commande.statut)) {
+    await prisma.commande.update({ where: { id: commandeId }, data: { statut: 'prete' } })
+  }
 
   const commandeMaj = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
   io.to(`maquis_${utilisateur.maquis_id}`).emit('commande:mise_a_jour', commandeMaj)

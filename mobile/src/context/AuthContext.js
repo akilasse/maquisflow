@@ -17,7 +17,18 @@ export const AuthProvider = ({ children }) => {
     try {
       const userData = await AsyncStorage.getItem('utilisateur')
       const token    = await AsyncStorage.getItem('accessToken')
-      if (userData && token) setUtilisateur(JSON.parse(userData))
+      if (userData && token) {
+        const u = JSON.parse(userData)
+        setUtilisateur(u)
+        // Rafraîchir les données maquis pour avoir les derniers modules configurés
+        try {
+          const res = await api.get('/api/parametrage/maquis')
+          const maquisFrais = res.data.data
+          const mis_a_jour = { ...u, maquis: { ...u.maquis, ...maquisFrais } }
+          await AsyncStorage.setItem('utilisateur', JSON.stringify(mis_a_jour))
+          setUtilisateur(mis_a_jour)
+        } catch {}
+      }
     } catch (error) {
       console.error('Erreur chargement session:', error)
     } finally {

@@ -111,8 +111,8 @@ export default function TabletteScreen() {
 
   const getTotal = () => panier.reduce((s, p) => s + p.prix * p.quantite, 0)
 
-  // ── Envoi cuisine ──────────────────────────────
-  const envoyerEnCuisine = async () => {
+  // ── Envoi commande ─────────────────────────────
+  const envoyerCommande = async (direct = false) => {
     if (!panier.length) { Alert.alert('Panier vide', 'Ajoutez des articles'); return }
     setEnvoi(true)
     try {
@@ -123,15 +123,13 @@ export default function TabletteScreen() {
       }))
 
       if (commandeEnCours) {
-        await api.post(`/api/commandes/${commandeEnCours.id}/lignes`, { lignes })
+        await api.post(`/api/commandes/${commandeEnCours.id}/lignes`, { lignes, direct })
       } else {
-        await api.post('/api/commandes', {
-          table_id: tableActive.id,
-          lignes
-        })
+        await api.post('/api/commandes', { table_id: tableActive.id, lignes, direct })
       }
 
-      Alert.alert('✅ Envoyé !', `Commande envoyée pour Table ${tableActive.numero}`, [
+      const msg = direct ? 'Commande envoyée directement en caisse !' : 'Commande envoyée en cuisine !'
+      Alert.alert('✅ Envoyé !', msg, [
         { text: 'OK', onPress: () => { setVue('tables'); charger() } }
       ])
     } catch (e) {
@@ -283,16 +281,37 @@ export default function TabletteScreen() {
             </ScrollView>
           )}
 
-          <TouchableOpacity
-            style={[styles.btnEnvoyer, { backgroundColor: couleur }, (envoi || !panier.length) && styles.btnDisabled]}
-            onPress={envoyerEnCuisine}
-            disabled={envoi || !panier.length}
-          >
-            {envoi
-              ? <ActivityIndicator color="white" />
-              : <Text style={styles.btnEnvoyerText}>🍳 Envoyer en cuisine</Text>
-            }
-          </TouchableOpacity>
+          {/* Boutons d'envoi selon modules actifs */}
+          {(() => {
+            const moduleKds    = utilisateur?.maquis?.module_kds_actif
+            const moduleDirect = utilisateur?.maquis?.module_commandes_direct
+            const disabled     = envoi || !panier.length
+            // Si aucun module configuré, bouton par défaut cuisine
+            const showKds    = moduleKds || (!moduleKds && !moduleDirect)
+            const showDirect = moduleDirect
+            return (
+              <View style={styles.btnsEnvoi}>
+                {showKds && (
+                  <TouchableOpacity
+                    style={[styles.btnEnvoyer, { backgroundColor: couleur, flex: showDirect ? 1 : undefined }, disabled && styles.btnDisabled]}
+                    onPress={() => envoyerCommande(false)}
+                    disabled={disabled}
+                  >
+                    {envoi ? <ActivityIndicator color="white" /> : <Text style={styles.btnEnvoyerText}>🍳 Cuisine</Text>}
+                  </TouchableOpacity>
+                )}
+                {showDirect && (
+                  <TouchableOpacity
+                    style={[styles.btnEnvoyer, styles.btnDirect, { flex: showKds ? 1 : undefined }, disabled && styles.btnDisabled]}
+                    onPress={() => envoyerCommande(true)}
+                    disabled={disabled}
+                  >
+                    {envoi ? <ActivityIndicator color="white" /> : <Text style={styles.btnEnvoyerText}>💳 Direct caisse</Text>}
+                  </TouchableOpacity>
+                )}
+              </View>
+            )
+          })()}
         </View>
       </View>
     </View>
@@ -400,10 +419,11 @@ const styles = StyleSheet.create({
   },
   stationChipText: { fontSize: 12, fontWeight: '600', color: '#374151' },
 
+  btnsEnvoi:   { flexDirection: 'row', gap: 8, marginTop: 10 },
   btnEnvoyer: {
     padding: 15, borderRadius: 12, alignItems: 'center',
-    marginTop: 10,
   },
-  btnEnvoyerText: { color: 'white', fontSize: 15, fontWeight: '700' },
+  btnDirect:      { backgroundColor: '#16a34a' },
+  btnEnvoyerText: { color: 'white', fontSize: 14, fontWeight: '700' },
   btnDisabled:    { opacity: 0.5 },
 })
