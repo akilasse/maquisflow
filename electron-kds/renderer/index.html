@@ -497,13 +497,15 @@ function renderCard(cmd) {
     ? `<span class="cmd-prep-badge">⏱️ ~${cmd.temps_preparation} min</span>`
     : ''
 
-  const btnEnCours = cmd.statut === 'ouverte'
-    ? `<button class="btn-action btn-en-cours" onclick="changerStatut(${cmd.id},'en_cours')">🔥 En cours</button>`
+  const toutesLignesPrêtes = cmd.lignes?.length > 0 && cmd.lignes.every(l => l.statut === 'prete')
+
+  const btnEnCours = !toutesLignesPrêtes
+    ? `<button class="btn-action btn-en-cours" onclick="marquerLignes(${cmd.id},'en_preparation')">🔥 En cours</button>`
     : `<button class="btn-action btn-en-cours" disabled>🔥 En cours</button>`
 
-  const btnPrete = cmd.statut !== 'prete'
-    ? `<button class="btn-action btn-prete" onclick="changerStatut(${cmd.id},'prete')">✅ Prête</button>`
-    : `<button class="btn-action btn-prete" disabled>✅ Prête</button>`
+  const btnPrete = !toutesLignesPrêtes
+    ? `<button class="btn-action btn-prete" onclick="marquerLignes(${cmd.id},'prete')">✅ Prête</button>`
+    : `<button class="btn-action btn-prete" disabled style="opacity:0.5">✅ Fait ✓</button>`
 
   return `
     <div class="cmd-card statut-${cmd.statut}" id="card-${cmd.id}">
@@ -535,20 +537,23 @@ function renderCard(cmd) {
 // ═══════════════════════════════════════════════════
 // ACTIONS
 // ═══════════════════════════════════════════════════
-async function changerStatut(cmdId, statut) {
+
+// Marque toutes les lignes de cette commande (filtrées par station) au statut donné
+// Le backend auto-promeut la commande en "prete" quand TOUTES les lignes de TOUS les KDS sont prêtes
+async function marquerLignes(cmdId, statut) {
+  const cmd = state.commandes.find(c => c.id === cmdId)
+  if (!cmd?.lignes?.length) return
   try {
-    const res  = await fetch(`${API_URL}/api/commandes/${cmdId}/statut`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
-      body: JSON.stringify({ statut })
-    })
-    const data = await res.json()
-    if (!data.success) return
-    const idx = state.commandes.findIndex(c => c.id === cmdId)
-    if (idx !== -1) { state.commandes[idx] = data.data }
-    updateBadges()
-    renderCommandes()
-  } catch (e) { console.log('Erreur statut:', e) }
+    await Promise.all(cmd.lignes.map(ligne =>
+      fetch(`${API_URL}/api/commandes/lignes/${ligne.id}/statut`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+        body: JSON.stringify({ statut })
+      })
+    ))
+    // Recharger pour avoir l'état à jour (la commande peut avoir été auto-promue)
+    await chargerCommandes()
+  } catch (e) { console.log('Erreur statut lignes:', e) }
 }
 
 async function definirTemps(cmdId) {
