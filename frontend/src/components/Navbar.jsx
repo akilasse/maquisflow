@@ -2,13 +2,11 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const LIENS = [
-  { path: '/caisse',      label: 'Caisse',      icone: '🧾', roles: ['caissier', 'gerant', 'patron'], moduleCommandes: false },
-  { path: '/tablette',    label: 'Commandes',   icone: '🪑', roles: ['caissier', 'gerant', 'patron', 'serveur'], moduleCommandes: true },
-  { path: '/kds',         label: 'Station',     icone: '🍳', roles: ['caissier', 'gerant', 'patron', 'serveur'], moduleCommandes: true },
-  { path: '/stock',       label: 'Stock',       icone: '📦', roles: ['gerant', 'patron'], moduleCommandes: false },
-  { path: '/inventaire',  label: 'Inventaire',  icone: '📋', roles: ['gerant', 'patron'], moduleCommandes: false },
-  { path: '/dashboard',   label: 'Dashboard',   icone: '📊', roles: ['gerant', 'patron'], moduleCommandes: false },
-  { path: '/parametrage', label: 'Paramétrage', icone: '⚙️', roles: ['gerant', 'patron'], moduleCommandes: false },
+  { path: '/caisse',      label: 'Caisse',      icone: '🧾', roles: ['caissier', 'gerant', 'patron'] },
+  { path: '/stock',       label: 'Stock',       icone: '📦', roles: ['gerant', 'patron'] },
+  { path: '/inventaire',  label: 'Inventaire',  icone: '📋', roles: ['gerant', 'patron'] },
+  { path: '/dashboard',   label: 'Dashboard',   icone: '📊', roles: ['gerant', 'patron'] },
+  { path: '/parametrage', label: 'Paramétrage', icone: '⚙️', roles: ['gerant', 'patron'] },
 ]
 
 const Navbar = ({ menuOuvert, setMenuOuvert }) => {
@@ -19,11 +17,7 @@ const Navbar = ({ menuOuvert, setMenuOuvert }) => {
     ? utilisateur.maquis.couleur_primaire
     : '#FF6B35'
 
-  const moduleCommandes = utilisateur?.maquis?.module_commandes_actif
-  const liensAutorises = LIENS.filter(l =>
-    l.roles.includes(utilisateur?.role) &&
-    (!l.moduleCommandes || moduleCommandes)
-  )
+  const liensAutorises = LIENS.filter(l => l.roles.includes(utilisateur?.role))
 
   const lienStyle = (actif) => ({
     display: 'flex', alignItems: 'center', gap: '12px',
