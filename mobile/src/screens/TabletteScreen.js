@@ -35,18 +35,16 @@ export default function TabletteScreen({ onRetour }) {
   const charger = useCallback(async () => {
     setChargement(true)
     try {
-      const [rTables, rProduits, rStations] = await Promise.all([
-        api.get('/api/commandes/tables'),
-        api.get('/api/stock/produits'),
-        api.get('/api/commandes/stations')
-      ])
+      const rTables  = await api.get('/api/commandes/tables').catch(e => { throw new Error('Tables: ' + (e.response?.status || e.message)) })
+      const rProduits = await api.get('/api/stock/produits').catch(e => { throw new Error('Produits: ' + (e.response?.status || e.message)) })
+      const rStations = await api.get('/api/commandes/stations').catch(e => { throw new Error('Stations: ' + (e.response?.status || e.message)) })
       setTables(rTables.data.data || [])
       setProduits((rProduits.data.data || []).filter(p => parseFloat(p.stock_actuel) > 0))
       const toutesStations = rStations.data.data || []
       setStations(toutesStations.filter(s => s.type === 'preparation' || !s.type))
       setCaisses(toutesStations.filter(s => s.type === 'caisse'))
     } catch (e) {
-      Alert.alert('Erreur', 'Impossible de charger les données')
+      Alert.alert('Erreur chargement', e.message)
     } finally {
       setChargement(false)
     }
