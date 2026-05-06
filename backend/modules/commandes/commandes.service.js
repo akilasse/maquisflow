@@ -108,11 +108,12 @@ const supprimerTable = async (prisma, maquis_id, tableId) => {
 // ── Commandes ────────────────────────────────────────────────
 
 const getCommandes = async (prisma, maquis_id, filtres = {}) => {
-  const { statut, table_id } = filtres
+  const { statut, table_id, station_id } = filtres
   const where = { maquis_id }
   if (statut) where.statut = statut
   else where.statut = { in: STATUTS_OUVERTS }
   if (table_id) where.table_id = parseInt(table_id)
+  if (station_id) where.lignes = { some: { station_id: parseInt(station_id) } }
 
   return prisma.commande.findMany({
     where,

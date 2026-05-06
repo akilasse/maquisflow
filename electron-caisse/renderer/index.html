@@ -280,6 +280,24 @@
     .cmd-status-servie { background: #dbeafe; color: #1e40af; border-radius: 6px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
     .cmd-empty { text-align: center; color: #9ca3af; padding: 40px 20px; font-size: 14px; }
 
+    /* Filtre station */
+    .station-filtre-bar {
+      display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; padding-bottom: 14px;
+      border-bottom: 1px solid #f3f4f6;
+    }
+    .station-chip {
+      padding: 5px 14px; border-radius: 20px; border: 1.5px solid #e5e7eb;
+      background: white; cursor: pointer; font-size: 12px; font-weight: 600;
+      color: #374151; transition: all 0.15s; white-space: nowrap;
+    }
+    .station-chip:hover { border-color: #d1d5db; background: #f9fafb; }
+    .station-chip.actif { color: white; border-color: transparent; }
+    .station-chip.toutes.actif { background: #374151; }
+    .topbar-station {
+      font-size: 11px; color: #FF6B35; font-weight: 600;
+      background: #fff7ed; border-radius: 6px; padding: 2px 7px; margin-top: 2px; display: inline-block;
+    }
+
     /* Scrollbar */
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -317,6 +335,7 @@
       <div>
         <div class="topbar-nom" id="topbar-nom">Flowix</div>
         <div class="topbar-caissier" id="topbar-caissier">Caissier</div>
+        <span class="topbar-station" id="topbar-station" style="display:none"></span>
       </div>
     </div>
     <div style="display:flex; align-items:center; gap:12px;">
@@ -416,6 +435,7 @@
       <div class="modal-cmd-title">🍽️ Commandes en attente</div>
       <button class="btn-fermer-cmd" onclick="fermerCommandesPanel()">Fermer ✕</button>
     </div>
+    <div class="station-filtre-bar" id="station-filtre-bar" style="display:none"></div>
     <div class="commandes-list-scroll" id="commandes-list-scroll">
       <p class="cmd-empty">Aucune commande en attente</p>
     </div>
@@ -449,7 +469,9 @@ let state = {
   isOnline: navigator.onLine,
   dernierRecu: null,
   commandesTablette: [],
-  commandeActive: null
+  commandeActive: null,
+  stations: [],
+  stationFiltre: ''
 }
 let pollInterval = null
 
@@ -542,6 +564,8 @@ async function logout() {
   state.panier = []
   state.commandesTablette = []
   state.commandeActive = null
+  state.stations = []
+  state.stationFiltre = ''
   document.getElementById('btn-cmd-tablette').style.display = 'none'
   document.getElementById('login-screen').style.display = 'flex'
   document.getElementById('caisse-screen').style.display = 'none'
@@ -564,6 +588,7 @@ async function afficherCaisse() {
 
   if (u?.maquis?.module_commandes_actif) {
     document.getElementById('btn-cmd-tablette').style.display = 'flex'
+    await chargerStations()
     await chargerCommandesTablette()
     pollInterval = setInterval(chargerCommandesTablette, 15000)
   }
@@ -1016,12 +1041,28 @@ async function updatePendingBadge() {
 // ═══════════════════════════════════════════════════════════
 // COMMANDES TABLETTE
 // ═══════════════════════════════════════════════════════════
+async function chargerStations() {
+  try {
+    const res = await fetch(`${API_URL}/api/commandes/stations`, {
+      headers: { Authorization: `Bearer ${state.token}` }
+    })
+    const data = await res.json()
+    state.stations = data.data || []
+    const saved = await window.electronAPI.storeGet('caisse_station')
+    if (saved && state.stations.find(s => s.id === saved)) {
+      state.stationFiltre = saved
+      updateTopbarStation()
+    }
+  } catch {}
+}
+
 async function chargerCommandesTablette() {
   if (!state.utilisateur?.maquis?.module_commandes_actif) return
   try {
+    const sParam = state.stationFiltre ? `&station_id=${state.stationFiltre}` : ''
     const [r1, r2] = await Promise.all([
-      fetch(`${API_URL}/api/commandes?statut=prete`, { headers: { Authorization: `Bearer ${state.token}` } }),
-      fetch(`${API_URL}/api/commandes?statut=servie`, { headers: { Authorization: `Bearer ${state.token}` } })
+      fetch(`${API_URL}/api/commandes?statut=prete${sParam}`, { headers: { Authorization: `Bearer ${state.token}` } }),
+      fetch(`${API_URL}/api/commandes?statut=servie${sParam}`, { headers: { Authorization: `Bearer ${state.token}` } })
     ])
     const [d1, d2] = await Promise.all([r1.json(), r2.json()])
     state.commandesTablette = [...(d1.data || []), ...(d2.data || [])]
@@ -1035,34 +1076,79 @@ function updateCommandesBadge() {
   document.getElementById('btn-cmd-tablette').style.background = n > 0 ? '#fff7ed' : '#f9fafb'
 }
 
+function updateTopbarStation() {
+  const el = document.getElementById('topbar-station')
+  if (!el) return
+  if (state.stationFiltre && state.stations.length) {
+    const st = state.stations.find(s => s.id === state.stationFiltre)
+    if (st) {
+      el.textContent = `📍 ${st.nom}`
+      el.style.display = 'inline-block'
+      el.style.background = st.couleur ? st.couleur + '22' : '#fff7ed'
+      el.style.color = st.couleur || '#FF6B35'
+      return
+    }
+  }
+  el.style.display = 'none'
+}
+
+function renderStationFiltreBar() {
+  const bar = document.getElementById('station-filtre-bar')
+  if (!state.stations.length) { bar.style.display = 'none'; return }
+  bar.style.display = 'flex'
+  bar.innerHTML = [
+    `<button class="station-chip toutes ${!state.stationFiltre ? 'actif' : ''}" onclick="setStationFiltre('')">Toutes</button>`,
+    ...state.stations.map(s => {
+      const bg  = s.couleur || '#6b7280'
+      const actif = state.stationFiltre === s.id
+      const style = actif ? `background:${bg};border-color:${bg}` : ''
+      return `<button class="station-chip ${actif ? 'actif' : ''}" style="${style}" onclick="setStationFiltre(${s.id})">${s.nom}</button>`
+    })
+  ].join('')
+}
+
+async function setStationFiltre(id) {
+  state.stationFiltre = id
+  await window.electronAPI.storeSet('caisse_station', id)
+  updateTopbarStation()
+  renderStationFiltreBar()
+  await chargerCommandesTablette()
+  afficherCommandesList()
+}
+
 function afficherCommandesPanel() {
+  renderStationFiltreBar()
+  afficherCommandesList()
+  document.getElementById('modal-commandes').classList.add('visible')
+}
+
+function afficherCommandesList() {
   const scroll = document.getElementById('commandes-list-scroll')
   if (!state.commandesTablette.length) {
     scroll.innerHTML = '<p class="cmd-empty">Aucune commande en attente</p>'
-  } else {
-    scroll.innerHTML = state.commandesTablette.map(cmd => {
-      const total = cmd.lignes?.reduce((s, l) => s + l.prix_unitaire * l.quantite, 0) || 0
-      const resume = cmd.lignes?.slice(0, 3).map(l => `${l.produit?.nom || ''} ×${l.quantite}`).join(', ')
-        + (cmd.lignes?.length > 3 ? `... +${cmd.lignes.length - 3}` : '')
-      const tAgo = cmd.created_at ? Math.floor((Date.now() - new Date(cmd.created_at)) / 60000) : 0
-      const statusCls = cmd.statut === 'prete' ? 'cmd-status-prete' : 'cmd-status-servie'
-      const statusLbl = cmd.statut === 'prete' ? '✅ Prête' : '🍽️ Servie'
-      return `
-        <div class="cmd-card" onclick="selectionnerCommande(${cmd.id})">
-          <div class="cmd-card-header">
-            <span class="cmd-card-table">Table ${cmd.table?.numero || '?'}</span>
-            <span class="cmd-card-num">#${cmd.id} · il y a ${tAgo}min</span>
-          </div>
-          <div class="cmd-card-serveur">👤 ${cmd.serveur?.nom || 'Serveur'}</div>
-          <div class="cmd-card-items">${resume}</div>
-          <div class="cmd-card-footer">
-            <span class="cmd-card-total">${total.toLocaleString('fr-FR')} XOF</span>
-            <span class="${statusCls}">${statusLbl}</span>
-          </div>
-        </div>`
-    }).join('')
+    return
   }
-  document.getElementById('modal-commandes').classList.add('visible')
+  scroll.innerHTML = state.commandesTablette.map(cmd => {
+    const total = cmd.lignes?.reduce((s, l) => s + l.prix_unitaire * l.quantite, 0) || 0
+    const resume = cmd.lignes?.slice(0, 3).map(l => `${l.produit?.nom || ''} ×${l.quantite}`).join(', ')
+      + (cmd.lignes?.length > 3 ? `... +${cmd.lignes.length - 3}` : '')
+    const tAgo = cmd.created_at ? Math.floor((Date.now() - new Date(cmd.created_at)) / 60000) : 0
+    const statusCls = cmd.statut === 'prete' ? 'cmd-status-prete' : 'cmd-status-servie'
+    const statusLbl = cmd.statut === 'prete' ? '✅ Prête' : '🍽️ Servie'
+    return `
+      <div class="cmd-card" onclick="selectionnerCommande(${cmd.id})">
+        <div class="cmd-card-header">
+          <span class="cmd-card-table">Table ${cmd.table?.numero || '?'}</span>
+          <span class="cmd-card-num">#${cmd.id} · il y a ${tAgo}min</span>
+        </div>
+        <div class="cmd-card-serveur">👤 ${cmd.serveur?.nom || 'Serveur'}</div>
+        <div class="cmd-card-items">${resume}</div>
+        <div class="cmd-card-footer">
+          <span class="cmd-card-total">${total.toLocaleString('fr-FR')} XOF</span>
+          <span class="${statusCls}">${statusLbl}</span>
+        </div>
+      </div>`
+  }).join('')
 }
 
 function fermerCommandesPanel() {
