@@ -63,12 +63,15 @@ export default function DashboardScreen() {
   const [chargement, setChargement]             = useState(true)
   const [rafraichissement, setRafraichissement] = useState(false)
 
+  const [erreur, setErreur] = useState(null)
+
   const chargerDashboard = useCallback(async () => {
     try {
       const response = await api.get('/api/dashboard?graphique=semaine')
       setData(response.data.data)
+      setErreur(null)
     } catch (error) {
-      console.error('Erreur dashboard:', error)
+      setErreur('Impossible de charger les données')
     } finally {
       setChargement(false)
       setRafraichissement(false)
@@ -105,6 +108,16 @@ export default function DashboardScreen() {
     <View style={styles.centrer}>
       <ActivityIndicator size="large" color="#FF6B35" />
       <Text style={styles.chargementTexte}>Chargement...</Text>
+    </View>
+  )
+
+  if (erreur && !data) return (
+    <View style={styles.centrer}>
+      <Text style={{ fontSize: 40, marginBottom: 12 }}>⚠️</Text>
+      <Text style={{ fontSize: 16, fontWeight: '700', color: '#374151', marginBottom: 8 }}>{erreur}</Text>
+      <TouchableOpacity onPress={chargerDashboard} style={{ backgroundColor: '#FF6B35', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 10, marginTop: 8 }}>
+        <Text style={{ color: 'white', fontWeight: '700' }}>Réessayer</Text>
+      </TouchableOpacity>
     </View>
   )
 

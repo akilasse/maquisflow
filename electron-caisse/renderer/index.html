@@ -560,6 +560,7 @@ function showLoginError(msg) {
 
 async function logout() {
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
+  window.removeEventListener('focus', chargerCommandesTablette)
   await window.electronAPI.storeDelete('token')
   await window.electronAPI.storeDelete('utilisateur')
   state.token = null
@@ -599,7 +600,8 @@ async function afficherCaisse() {
     document.getElementById('btn-cmd-tablette').style.display = 'flex'
     await chargerStations()
     await chargerCommandesTablette()
-    pollInterval = setInterval(chargerCommandesTablette, 15000)
+    pollInterval = setInterval(chargerCommandesTablette, 5000)
+    window.addEventListener('focus', chargerCommandesTablette)
   }
 }
 
