@@ -70,7 +70,7 @@ const creerCommande = async (req, res) => {
 }
 
 const ajouterLignes = async (req, res) => {
-  try { ok(res, await svc.ajouterLignes(req.prisma, req.io, parseInt(req.params.id), req.body.lignes, req.utilisateur, req.body.direct === true)) }
+  try { ok(res, await svc.ajouterLignes(req.prisma, req.io, parseInt(req.params.id), req.body.lignes, req.utilisateur, req.body.direct === true, req.body.caisse_id || null)) }
   catch (e) { err(res, e) }
 }
 

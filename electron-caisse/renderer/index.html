@@ -432,7 +432,7 @@
 <div class="modal-commandes-overlay" id="modal-commandes">
   <div class="modal-commandes-panel">
     <div class="modal-cmd-header">
-      <div class="modal-cmd-title">🍽️ Commandes en attente</div>
+      <div class="modal-cmd-title" id="modal-cmd-title">🍽️ Commandes en attente</div>
       <button class="btn-fermer-cmd" onclick="fermerCommandesPanel()">Fermer ✕</button>
     </div>
     <div class="station-filtre-bar" id="station-filtre-bar" style="display:none"></div>
@@ -1047,7 +1047,10 @@ async function chargerStations() {
       headers: { Authorization: `Bearer ${state.token}` }
     })
     const data = await res.json()
-    state.stations = data.data || []
+    const toutes = data.data || []
+    // Afficher seulement les stations de type caisse (ou toutes si aucune caisse définie)
+    const caisses = toutes.filter(s => s.type === 'caisse')
+    state.stations = caisses.length > 0 ? caisses : toutes
     const saved = await window.electronAPI.storeGet('caisse_station')
     if (saved && state.stations.find(s => s.id === saved)) {
       state.stationFiltre = saved
@@ -1059,7 +1062,7 @@ async function chargerStations() {
 async function chargerCommandesTablette() {
   if (!state.utilisateur?.maquis?.module_commandes_actif) return
   try {
-    const sParam = state.stationFiltre ? `&station_id=${state.stationFiltre}` : ''
+    const sParam = state.stationFiltre ? `&caisse_id=${state.stationFiltre}` : ''
     const [r1, r2] = await Promise.all([
       fetch(`${API_URL}/api/commandes?statut=prete${sParam}`, { headers: { Authorization: `Bearer ${state.token}` } }),
       fetch(`${API_URL}/api/commandes?statut=servie${sParam}`, { headers: { Authorization: `Bearer ${state.token}` } })

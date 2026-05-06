@@ -313,16 +313,23 @@ model BonLivraisonLigne {
 // MODULE COMMANDES — Restaurant / Fast Food
 // ============================================================
 
+enum TypeStation {
+  preparation
+  caisse
+}
+
 model Station {
-  id        Int     @id @default(autoincrement())
+  id        Int         @id @default(autoincrement())
   maquis_id Int
-  maquis    Maquis  @relation(fields: [maquis_id], references: [id])
-  nom       String  @db.VarChar(80)
-  couleur   String  @default("#6b7280") @db.VarChar(7)
-  actif     Boolean @default(true)
+  maquis    Maquis      @relation(fields: [maquis_id], references: [id])
+  nom       String      @db.VarChar(80)
+  couleur   String      @default("#6b7280") @db.VarChar(7)
+  type      TypeStation @default(preparation)
+  actif     Boolean     @default(true)
 
   produits         Produit[]
   lignes_commande  CommandeLigne[]
+  commandes_cible  Commande[]      @relation("CommandeCaisse")
 }
 
 model TableEtablissement {
@@ -359,6 +366,8 @@ model Commande {
   numero             Int
   note               String?  @db.Text
   temps_preparation  Int?
+  caisse_id          Int?
+  caisse             Station?            @relation("CommandeCaisse", fields: [caisse_id], references: [id])
   created_at         DateTime @default(now())
   updated_at    DateTime       @updatedAt
 

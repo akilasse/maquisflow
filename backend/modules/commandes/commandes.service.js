@@ -37,10 +37,10 @@ const getStations = async (prisma, maquis_id) => {
 }
 
 const creerStation = async (prisma, maquis_id, data) => {
-  const { nom, couleur } = data
+  const { nom, couleur, type } = data
   if (!nom) throw new Error('Le nom de la station est requis')
   return prisma.station.create({
-    data: { maquis_id, nom, couleur: couleur || '#6b7280' }
+    data: { maquis_id, nom, couleur: couleur || '#6b7280', type: type || 'preparation' }
   })
 }
 
@@ -108,18 +108,20 @@ const supprimerTable = async (prisma, maquis_id, tableId) => {
 // ── Commandes ────────────────────────────────────────────────
 
 const getCommandes = async (prisma, maquis_id, filtres = {}) => {
-  const { statut, table_id, station_id } = filtres
+  const { statut, table_id, station_id, caisse_id } = filtres
   const where = { maquis_id }
   if (statut) where.statut = statut
   else where.statut = { in: STATUTS_OUVERTS }
-  if (table_id) where.table_id = parseInt(table_id)
-  if (station_id) where.lignes = { some: { station_id: parseInt(station_id) } }
+  if (table_id)  where.table_id  = parseInt(table_id)
+  if (station_id) where.lignes   = { some: { station_id: parseInt(station_id) } }
+  if (caisse_id) where.caisse_id = parseInt(caisse_id)
 
   return prisma.commande.findMany({
     where,
     include: {
       table: true,
       serveur: { select: { id: true, nom: true } },
+      caisse:  { select: { id: true, nom: true, couleur: true } },
       lignes: {
         include: {
           produit: { select: { id: true, nom: true, unite: true } },
@@ -170,7 +172,7 @@ const getCommande = async (prisma, maquis_id, commandeId) => {
 }
 
 const creerCommande = async (prisma, io, data, utilisateur) => {
-  const { table_id, type_commande, lignes, note, direct } = data
+  const { table_id, type_commande, lignes, note, direct, caisse_id } = data
   if (!lignes || lignes.length === 0) throw new Error('Une commande doit contenir au moins un article')
 
   await verifierModule(prisma, utilisateur.maquis_id)
@@ -207,6 +209,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
       serveur_id:    utilisateur.id,
       type_commande: type_commande || 'sur_place',
       statut:        direct ? 'prete' : 'en_cours',
+      caisse_id:     caisse_id ? parseInt(caisse_id) : null,
       numero,
       note:          note || null,
       lignes: { create: lignesPreparees }
@@ -237,7 +240,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
   return commande
 }
 
-const ajouterLignes = async (prisma, io, commandeId, lignes, utilisateur, direct = false) => {
+const ajouterLignes = async (prisma, io, commandeId, lignes, utilisateur, direct = false, caisse_id = null) => {
   if (!lignes || lignes.length === 0) throw new Error('Aucun article à ajouter')
   const commande = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
 
@@ -263,9 +266,15 @@ const ajouterLignes = async (prisma, io, commandeId, lignes, utilisateur, direct
 
   await prisma.commandeLigne.createMany({ data: lignesPreparees })
 
-  // Si envoi direct, passer la commande en prete
+  // Si envoi direct, passer la commande en prete et assigner la caisse cible
   if (direct && !['prete', 'encaissee'].includes(commande.statut)) {
-    await prisma.commande.update({ where: { id: commandeId }, data: { statut: 'prete' } })
+    await prisma.commande.update({
+      where: { id: commandeId },
+      data: {
+        statut:    'prete',
+        caisse_id: caisse_id ? parseInt(caisse_id) : commande.caisse_id
+      }
+    })
   }
 
   const commandeMaj = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)

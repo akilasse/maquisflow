@@ -23,7 +23,7 @@ const Parametrage = () => {
   const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false })
   const [stations, setStations] = useState([])
   const [tables, setTables]     = useState([])
-  const [formStation, setFormStation] = useState({ nom: '', couleur: '#6b7280' })
+  const [formStation, setFormStation] = useState({ nom: '', couleur: '#6b7280', type: 'preparation' })
   const [formTable, setFormTable]     = useState({ numero: '', nom: '', capacite: '' })
 
   useEffect(() => { chargerDonnees() }, [])
@@ -525,26 +525,35 @@ const Parametrage = () => {
               {/* Stations */}
               <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
                 <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600' }}>Stations ({stations.length})</h2>
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
-                  <input placeholder="Nom (ex: Cuisine)" value={formStation.nom} onChange={e => setFormStation({ ...formStation, nom: e.target.value })}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                  <input placeholder="Nom (ex: Cuisine, Caisse Bar...)" value={formStation.nom} onChange={e => setFormStation({ ...formStation, nom: e.target.value })}
                     style={{ flex: 1, padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px' }} />
                   <input type="color" value={formStation.couleur} onChange={e => setFormStation({ ...formStation, couleur: e.target.value })}
                     style={{ width: 40, height: 36, border: 'none', borderRadius: '8px', cursor: 'pointer' }} />
+                </div>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                  {[{ v: 'preparation', label: '🍳 Préparation', bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' }, { v: 'caisse', label: '💳 Caisse', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' }].map(opt => (
+                    <button key={opt.v} onClick={() => setFormStation({ ...formStation, type: opt.v })}
+                      style={{ flex: 1, padding: '7px', borderRadius: '8px', border: `1px solid ${formStation.type === opt.v ? opt.border : '#e5e7eb'}`, backgroundColor: formStation.type === opt.v ? opt.bg : 'white', color: formStation.type === opt.v ? opt.color : '#6b7280', fontWeight: '600', fontSize: '12px', cursor: 'pointer' }}>
+                      {opt.label}
+                    </button>
+                  ))}
                   <button onClick={async () => {
                     try {
                       await api.post('/api/commandes/stations', formStation)
-                      setFormStation({ nom: '', couleur: '#6b7280' })
+                      setFormStation({ nom: '', couleur: '#6b7280', type: 'preparation' })
                       const res = await api.get('/api/commandes/stations')
                       setStations(res.data.data)
                       afficherMessage('succes', 'Station créée !')
                     } catch (e) { afficherMessage('erreur', e.response?.data?.message || 'Erreur') }
-                  }} style={styleBouton()}>+</button>
+                  }} style={{ ...styleBouton(), padding: '8px 14px' }}>+</button>
                 </div>
                 <div>
                   {stations.map(s => (
                     <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', borderRadius: '8px', backgroundColor: '#f9fafb', marginBottom: '8px' }}>
                       <div style={{ width: 16, height: 16, borderRadius: '50%', backgroundColor: s.couleur, flexShrink: 0 }} />
                       <span style={{ flex: 1, fontSize: '14px', fontWeight: '500' }}>{s.nom}</span>
+                      <span style={{ fontSize: '11px', fontWeight: '600', padding: '2px 8px', borderRadius: '10px', backgroundColor: s.type === 'caisse' ? '#f0fdf4' : '#fff7ed', color: s.type === 'caisse' ? '#16a34a' : '#ea580c' }}>{s.type === 'caisse' ? '💳 Caisse' : '🍳 Prépa'}</span>
                       <button onClick={async () => {
                         try {
                           await api.delete(`/api/commandes/stations/${s.id}`)

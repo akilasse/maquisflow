@@ -18,6 +18,7 @@ export default function TabletteScreen() {
   const [tables,    setTables]    = useState([])
   const [produits,  setProduits]  = useState([])
   const [stations,  setStations]  = useState([])
+  const [caisses,   setCaisses]   = useState([])
   const [panier,    setPanier]    = useState([])
   const [tableActive, setTableActive] = useState(null)
   const [commandeEnCours, setCommandeEnCours] = useState(null)
@@ -25,6 +26,8 @@ export default function TabletteScreen() {
   const [chargement, setChargement] = useState(true)
   const [envoi,     setEnvoi]     = useState(false)
   const [vue,       setVue]       = useState('tables') // 'tables' | 'commande'
+  const [showCaisseModal, setShowCaisseModal] = useState(false)
+  const [pendingDirect,   setPendingDirect]   = useState(false)
 
   const couleur = utilisateur?.maquis?.couleur_primaire || '#FF6B35'
 
@@ -39,7 +42,9 @@ export default function TabletteScreen() {
       ])
       setTables(rTables.data.data || [])
       setProduits((rProduits.data.data || []).filter(p => parseFloat(p.stock_actuel) > 0))
-      setStations(rStations.data.data || [])
+      const toutesStations = rStations.data.data || []
+      setStations(toutesStations.filter(s => s.type === 'preparation' || !s.type))
+      setCaisses(toutesStations.filter(s => s.type === 'caisse'))
     } catch (e) {
       Alert.alert('Erreur', 'Impossible de charger les données')
     } finally {
@@ -112,8 +117,19 @@ export default function TabletteScreen() {
   const getTotal = () => panier.reduce((s, p) => s + p.prix * p.quantite, 0)
 
   // ── Envoi commande ─────────────────────────────
-  const envoyerCommande = async (direct = false) => {
+  const envoyerCommande = async (direct = true, caisse_id = null) => {
     if (!panier.length) { Alert.alert('Panier vide', 'Ajoutez des articles'); return }
+
+    // Si direct + plusieurs caisses + pas de caisse choisie → afficher le picker
+    if (direct && caisses.length > 1 && caisse_id === null) {
+      setPendingDirect(true)
+      setShowCaisseModal(true)
+      return
+    }
+
+    // Si une seule caisse → auto-sélectionner
+    const caisseFinale = caisse_id || (direct && caisses.length === 1 ? caisses[0].id : null)
+
     setEnvoi(true)
     try {
       const lignes = panier.map(p => ({
@@ -123,12 +139,12 @@ export default function TabletteScreen() {
       }))
 
       if (commandeEnCours) {
-        await api.post(`/api/commandes/${commandeEnCours.id}/lignes`, { lignes, direct })
+        await api.post(`/api/commandes/${commandeEnCours.id}/lignes`, { lignes, direct, caisse_id: caisseFinale })
       } else {
-        await api.post('/api/commandes', { table_id: tableActive.id, lignes, direct })
+        await api.post('/api/commandes', { table_id: tableActive.id, lignes, direct, caisse_id: caisseFinale })
       }
 
-      const msg = direct ? 'Commande envoyée directement en caisse !' : 'Commande envoyée en cuisine !'
+      const msg = direct ? 'Commande envoyée en caisse !' : 'Commande envoyée en cuisine !'
       Alert.alert('✅ Envoyé !', msg, [
         { text: 'OK', onPress: () => { setVue('tables'); charger() } }
       ])
@@ -136,6 +152,8 @@ export default function TabletteScreen() {
       Alert.alert('Erreur', e.response?.data?.message || "Impossible d'envoyer")
     } finally {
       setEnvoi(false)
+      setShowCaisseModal(false)
+      setPendingDirect(false)
     }
   }
 
@@ -281,37 +299,54 @@ export default function TabletteScreen() {
             </ScrollView>
           )}
 
-          {/* Boutons d'envoi selon modules actifs */}
+          {/* Boutons d'envoi */}
           {(() => {
-            const moduleKds    = utilisateur?.maquis?.module_kds_actif
-            const moduleDirect = utilisateur?.maquis?.module_commandes_direct
-            const disabled     = envoi || !panier.length
-            // Si aucun module configuré, bouton par défaut cuisine
-            const showKds    = moduleKds || (!moduleKds && !moduleDirect)
-            const showDirect = moduleDirect
+            const moduleKds = utilisateur?.maquis?.module_kds_actif
+            const disabled  = envoi || !panier.length
             return (
               <View style={styles.btnsEnvoi}>
-                {showKds && (
+                {/* Bouton principal : Direct en caisse */}
+                <TouchableOpacity
+                  style={[styles.btnEnvoyer, styles.btnDirect, { flex: moduleKds ? 1 : undefined, minWidth: moduleKds ? undefined : '100%' }, disabled && styles.btnDisabled]}
+                  onPress={() => envoyerCommande(true)}
+                  disabled={disabled}
+                >
+                  {envoi ? <ActivityIndicator color="white" /> : <Text style={styles.btnEnvoyerText}>💳 Envoyer en caisse</Text>}
+                </TouchableOpacity>
+                {/* Bouton optionnel : Cuisine (si KDS actif) */}
+                {moduleKds && (
                   <TouchableOpacity
-                    style={[styles.btnEnvoyer, { backgroundColor: couleur, flex: showDirect ? 1 : undefined }, disabled && styles.btnDisabled]}
+                    style={[styles.btnEnvoyer, { backgroundColor: couleur, flex: 1 }, disabled && styles.btnDisabled]}
                     onPress={() => envoyerCommande(false)}
                     disabled={disabled}
                   >
-                    {envoi ? <ActivityIndicator color="white" /> : <Text style={styles.btnEnvoyerText}>🍳 Cuisine</Text>}
-                  </TouchableOpacity>
-                )}
-                {showDirect && (
-                  <TouchableOpacity
-                    style={[styles.btnEnvoyer, styles.btnDirect, { flex: showKds ? 1 : undefined }, disabled && styles.btnDisabled]}
-                    onPress={() => envoyerCommande(true)}
-                    disabled={disabled}
-                  >
-                    {envoi ? <ActivityIndicator color="white" /> : <Text style={styles.btnEnvoyerText}>💳 Direct caisse</Text>}
+                    <Text style={styles.btnEnvoyerText}>🍳 Cuisine</Text>
                   </TouchableOpacity>
                 )}
               </View>
             )
           })()}
+
+          {/* Modal sélection caisse */}
+          <Modal visible={showCaisseModal} transparent animationType="slide">
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalCaisse}>
+                <Text style={styles.modalCaisseTitle}>Choisir la caisse</Text>
+                {caisses.map(c => (
+                  <TouchableOpacity key={c.id}
+                    style={[styles.caisseOption, { borderColor: c.couleur || '#16a34a' }]}
+                    onPress={() => envoyerCommande(true, c.id)}
+                  >
+                    <View style={[styles.caisseDot, { backgroundColor: c.couleur || '#16a34a' }]} />
+                    <Text style={styles.caisseOptionText}>{c.nom}</Text>
+                  </TouchableOpacity>
+                ))}
+                <TouchableOpacity onPress={() => setShowCaisseModal(false)} style={styles.btnAnnuler}>
+                  <Text style={styles.btnAnnulerText}>Annuler</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </Modal>
         </View>
       </View>
     </View>
@@ -420,10 +455,24 @@ const styles = StyleSheet.create({
   stationChipText: { fontSize: 12, fontWeight: '600', color: '#374151' },
 
   btnsEnvoi:   { flexDirection: 'row', gap: 8, marginTop: 10 },
-  btnEnvoyer: {
-    padding: 15, borderRadius: 12, alignItems: 'center',
-  },
-  btnDirect:      { backgroundColor: '#16a34a' },
+  btnEnvoyer:  { padding: 15, borderRadius: 12, alignItems: 'center' },
+  btnDirect:   { backgroundColor: '#16a34a' },
   btnEnvoyerText: { color: 'white', fontSize: 14, fontWeight: '700' },
-  btnDisabled:    { opacity: 0.5 },
+  btnDisabled: { opacity: 0.5 },
+
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalCaisse: {
+    backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: 24, paddingBottom: 36,
+  },
+  modalCaisseTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 16, textAlign: 'center' },
+  caisseOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    padding: 16, borderRadius: 12, borderWidth: 1.5, marginBottom: 10,
+    backgroundColor: 'white',
+  },
+  caisseDot:       { width: 14, height: 14, borderRadius: 7 },
+  caisseOptionText:{ fontSize: 15, fontWeight: '600', color: '#111827' },
+  btnAnnuler:      { marginTop: 8, alignItems: 'center', padding: 14 },
+  btnAnnulerText:  { color: '#9ca3af', fontSize: 14, fontWeight: '600' },
 })
