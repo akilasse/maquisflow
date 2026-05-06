@@ -1,13 +1,6 @@
-// ============================================================
-// API - Configuration Axios pour l'app mobile
-// Pointe vers le backend Flowix
-// ============================================================
-
 import axios from 'axios'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
-// Change cette IP par l'IP de ton PC sur le réseau local
-// Pour trouver ton IP : ipconfig dans le terminal Windows
 const BASE_URL = 'https://maquisflow.com'
 
 const api = axios.create({
@@ -23,6 +16,52 @@ api.interceptors.request.use(async (config) => {
   }
   return config
 })
+
+// Refresh automatique si 401
+let enCoursDeRefresh = false
+let fileAttente = []
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const requeteOriginale = error.config
+
+    if (error.response?.status !== 401 || requeteOriginale._retry) {
+      return Promise.reject(error)
+    }
+
+    if (enCoursDeRefresh) {
+      return new Promise((resolve, reject) => {
+        fileAttente.push({ resolve, reject })
+      }).then(token => {
+        requeteOriginale.headers.Authorization = `Bearer ${token}`
+        return api(requeteOriginale)
+      }).catch(err => Promise.reject(err))
+    }
+
+    requeteOriginale._retry = true
+    enCoursDeRefresh = true
+
+    try {
+      const response = await axios.post(`${BASE_URL}/api/auth/refresh`, {}, { withCredentials: true })
+      const { accessToken } = response.data.data
+      await AsyncStorage.setItem('accessToken', accessToken)
+      api.defaults.headers.common.Authorization = `Bearer ${accessToken}`
+      fileAttente.forEach(({ resolve }) => resolve(accessToken))
+      fileAttente = []
+      requeteOriginale.headers.Authorization = `Bearer ${accessToken}`
+      return api(requeteOriginale)
+    } catch {
+      fileAttente.forEach(({ reject }) => reject(error))
+      fileAttente = []
+      await AsyncStorage.removeItem('accessToken')
+      await AsyncStorage.removeItem('utilisateur')
+      return Promise.reject(error)
+    } finally {
+      enCoursDeRefresh = false
+    }
+  }
+)
 
 export { BASE_URL }
 export default api
