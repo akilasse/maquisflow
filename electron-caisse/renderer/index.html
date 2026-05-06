@@ -56,7 +56,8 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     }
     .topbar-left { display: flex; align-items: center; gap: 10px; }
-    .topbar-logo { font-size: 20px; }
+    .topbar-logo { font-size: 20px; display: flex; align-items: center; justify-content: center; }
+    .topbar-logo img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
     .topbar-nom { font-size: 15px; font-weight: 700; color: #111827; }
     .topbar-caissier { font-size: 12px; color: #9ca3af; }
     .status-dot {
@@ -331,7 +332,7 @@
   <!-- Topbar -->
   <div class="topbar">
     <div class="topbar-left">
-      <span class="topbar-logo">⚡</span>
+      <div class="topbar-logo" id="topbar-logo">⚡</div>
       <div>
         <div class="topbar-nom" id="topbar-nom">Flowix</div>
         <div class="topbar-caissier" id="topbar-caissier">Caissier</div>
@@ -583,6 +584,12 @@ async function afficherCaisse() {
   const u = state.utilisateur
   document.getElementById('topbar-nom').textContent = u?.maquis?.nom || 'Flowix'
   document.getElementById('topbar-caissier').textContent = `Caissier: ${u?.nom || ''}`
+  const logoEl = document.getElementById('topbar-logo')
+  if (u?.maquis?.logo_url) {
+    logoEl.innerHTML = `<img src="${API_URL}${u.maquis.logo_url}" alt="logo" onerror="this.parentElement.textContent='⚡'">`
+  } else {
+    logoEl.textContent = '⚡'
+  }
 
   await chargerProduits()
 

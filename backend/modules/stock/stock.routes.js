@@ -41,7 +41,7 @@ router.get(
 router.get(
   '/produits',
   verifierToken,
-  autoriserRoles('caissier', 'gerant', 'patron'),
+  autoriserRoles('caissier', 'gerant', 'patron', 'serveur'),
   stockController.getProduits
 )
 

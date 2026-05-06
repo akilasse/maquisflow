@@ -174,11 +174,16 @@ const Dashboard = () => {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, paddingBottom:40 }}>
 
-      <div>
-        <h1 style={{ fontSize:28, fontWeight:700, color:'#111827', fontFamily:'Georgia, serif', letterSpacing:'-0.5px', margin:0 }}>Dashboard</h1>
-        <p style={{ fontSize:13, color:'#9ca3af', marginTop:4 }}>
-          {data?.maquis?.nom} — {new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
-        </p>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+        <div>
+          <h1 style={{ fontSize:28, fontWeight:700, color:'#111827', fontFamily:'Georgia, serif', letterSpacing:'-0.5px', margin:0 }}>Dashboard</h1>
+          <p style={{ fontSize:13, color:'#9ca3af', marginTop:4 }}>
+            {data?.maquis?.nom} — {new Date().toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' })}
+          </p>
+        </div>
+        <button onClick={() => chargerDashboard(graphique)} style={{ padding:'8px 14px', backgroundColor:'#f3f4f6', border:'none', borderRadius:'8px', cursor:'pointer', fontSize:'13px', fontWeight:'600', color:'#374151' }}>
+          🔄 Actualiser
+        </button>
       </div>
 
       {/* 3 Cartes chiffres d'affaires */}

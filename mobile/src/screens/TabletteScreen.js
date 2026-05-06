@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 
-export default function TabletteScreen() {
+export default function TabletteScreen({ onRetour }) {
   const { utilisateur } = useAuth()
 
   const [tables,    setTables]    = useState([])
@@ -163,6 +163,26 @@ export default function TabletteScreen() {
       return (
         <View style={styles.centrer}>
           <ActivityIndicator size="large" color={couleur} />
+        </View>
+      )
+    }
+
+    if (!tables.length) {
+      return (
+        <View style={styles.centrer}>
+          <Text style={{ fontSize: 52, marginBottom: 16 }}>🪑</Text>
+          <Text style={{ fontSize: 17, fontWeight: '700', color: '#374151', textAlign: 'center' }}>
+            Aucune table configurée
+          </Text>
+          <Text style={{ fontSize: 14, color: '#9ca3af', marginTop: 8, textAlign: 'center', paddingHorizontal: 40 }}>
+            Demandez à votre responsable de créer des tables dans le paramétrage
+          </Text>
+          <TouchableOpacity
+            style={{ marginTop: 24, paddingVertical: 14, paddingHorizontal: 28, borderRadius: 12, backgroundColor: couleur }}
+            onPress={charger}
+          >
+            <Text style={{ color: 'white', fontWeight: '700', fontSize: 14 }}>🔄 Actualiser</Text>
+          </TouchableOpacity>
         </View>
       )
     }
@@ -357,13 +377,24 @@ export default function TabletteScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={[styles.header, { backgroundColor: couleur }]}>
+        {onRetour && vue === 'tables' ? (
+          <TouchableOpacity onPress={onRetour} style={styles.btnHeaderLateral}>
+            <Text style={styles.btnHeaderLateralText}>
+              {utilisateur?.role === 'serveur' ? '🚪 Sortir' : '← Retour'}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 72 }} />
+        )}
         <Text style={styles.headerTitle}>
           {vue === 'tables' ? '🪑 Commandes' : `Table ${tableActive?.numero || ''}`}
         </Text>
-        {vue === 'tables' && (
-          <TouchableOpacity onPress={charger}>
+        {vue === 'tables' ? (
+          <TouchableOpacity onPress={charger} style={styles.btnHeaderLateral}>
             <Text style={styles.btnActualiser}>🔄</Text>
           </TouchableOpacity>
+        ) : (
+          <View style={{ width: 72 }} />
         )}
       </View>
 
@@ -381,6 +412,8 @@ const styles = StyleSheet.create({
   },
   headerTitle:    { color: 'white', fontSize: 18, fontWeight: '700' },
   btnActualiser:  { fontSize: 22 },
+  btnHeaderLateral: { minWidth: 72, alignItems: 'flex-start' },
+  btnHeaderLateralText: { color: 'white', fontSize: 13, fontWeight: '600' },
 
   // Tables
   tablesGrid: {

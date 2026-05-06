@@ -126,12 +126,19 @@ const Stock = () => {
 
   return (
     <div>
-      <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>
-        Gestion du stock
-      </h1>
-      <p style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '20px' }}>
-        Approvisionnements, sorties et historique
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+        <div>
+          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>
+            Gestion du stock
+          </h1>
+          <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>
+            Approvisionnements, sorties et historique
+          </p>
+        </div>
+        <button onClick={chargerDonnees} style={{ padding: '8px 14px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#374151' }}>
+          🔄 Actualiser
+        </button>
+      </div>
 
       {message && (
         <div style={{

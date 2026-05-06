@@ -36,9 +36,9 @@ const Parametrage = () => {
         api.get('/api/parametrage/utilisateurs'),
         api.get('/api/parametrage/maquis')
       ])
-      setProduits(p.data.data)
-      setFournisseurs(f.data.data)
-      setUtilisateurs(u.data.data)
+      setProduits(p.data.data || [])
+      setFournisseurs(f.data.data || [])
+      setUtilisateurs(u.data.data || [])
       const maquisData = m.data.data
       setMaquis(maquisData)
       setAbonnement(maquisData.abonnement || null)
@@ -55,14 +55,16 @@ const Parametrage = () => {
         paiement_avant:          maquisData.paiement_avant          || false
       })
       mettreAJourMaquis(maquisData)
-      // Charge stations et tables si module actif
+      // Charge stations et tables si module actif — isolé pour ne pas bloquer le reste
       if (maquisData.module_commandes_actif) {
-        const [st, tb] = await Promise.all([
-          api.get('/api/commandes/stations'),
-          api.get('/api/commandes/tables')
-        ])
-        setStations(st.data.data)
-        setTables(tb.data.data)
+        try {
+          const [st, tb] = await Promise.all([
+            api.get('/api/commandes/stations'),
+            api.get('/api/commandes/tables')
+          ])
+          setStations(st.data.data || [])
+          setTables(tb.data.data || [])
+        } catch {}
       }
     } catch (error) {
       setMessage({ type: 'erreur', texte: 'Erreur chargement données' })
@@ -101,7 +103,7 @@ const Parametrage = () => {
       }
       setModal(null)
       setFormProduit({ nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '' })
-      chargerDonnees()
+      await chargerDonnees()
     } catch (error) { afficherMessage('erreur', error.response?.data?.message || 'Erreur') }
   }
 
@@ -160,7 +162,7 @@ const Parametrage = () => {
       }
       setModal(null)
       setFormFournisseur({ nom: '', telephone: '', email: '', adresse: '' })
-      chargerDonnees()
+      await chargerDonnees()
     } catch (error) { afficherMessage('erreur', error.response?.data?.message || 'Erreur') }
   }
 
@@ -170,7 +172,7 @@ const Parametrage = () => {
       afficherMessage('succes', 'Utilisateur modifié !')
       setModal(null)
       setFormUtilisateur({ nom: '', email: '', mot_de_passe: '', role: 'serveur' })
-      chargerDonnees()
+      await chargerDonnees()
     } catch (error) { afficherMessage('erreur', error.response?.data?.message || 'Erreur') }
   }
 
@@ -207,8 +209,15 @@ const Parametrage = () => {
 
   return (
     <div>
-      <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>Paramétrage</h1>
-      <p style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '20px' }}>Gérez vos produits, fournisseurs, utilisateurs et paramètres</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+        <div>
+          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#111827', marginBottom: '4px' }}>Paramétrage</h1>
+          <p style={{ color: '#9ca3af', fontSize: '14px', margin: 0 }}>Gérez vos produits, fournisseurs, utilisateurs et paramètres</p>
+        </div>
+        <button onClick={chargerDonnees} style={{ padding: '8px 14px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '600', color: '#374151' }}>
+          🔄 Actualiser
+        </button>
+      </div>
 
       {message && (
         <div style={{ padding: '10px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px', backgroundColor: message.type === 'succes' ? '#f0fdf4' : '#fef2f2', color: message.type === 'succes' ? '#16a34a' : '#dc2626', border: `1px solid ${message.type === 'succes' ? '#bbf7d0' : '#fecaca'}` }}>

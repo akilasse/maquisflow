@@ -19,7 +19,7 @@ import SelectionInterfaceScreen from './src/screens/SelectionInterfaceScreen'
 const Tab = createBottomTabNavigator()
 
 const Navigation = () => {
-  const { utilisateur, chargement } = useAuth()
+  const { utilisateur, chargement, logout } = useAuth()
   const insets = useSafeAreaInsets()
   const [interfaceChoisie, setInterfaceChoisie] = useState(null)
 
@@ -75,12 +75,18 @@ const Navigation = () => {
         {interfaceFinale === 'commandes' && moduleCommandes && (
           <Tab.Screen
             name="Commandes"
-            component={TabletteScreen}
             options={{
               tabBarLabel: 'Commandes',
               tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>🪑</Text>
             }}
-          />
+          >
+            {(props) => (
+              <TabletteScreen
+                {...props}
+                onRetour={estServeur ? logout : () => setInterfaceChoisie(null)}
+              />
+            )}
+          </Tab.Screen>
         )}
 
         {/* Interface Dashboard (patron/gérant ayant choisi dashboard) */}
