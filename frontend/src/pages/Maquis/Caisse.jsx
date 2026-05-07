@@ -93,9 +93,11 @@ const Caisse = () => {
     const refresh = () => chargerCommandesTablette()
     socket.on('commande:mise_a_jour', refresh)
     socket.on('commande:nouvelle', refresh)
+    socket.on('commande:encaissee', refresh)
     return () => {
       socket.off('commande:mise_a_jour', refresh)
       socket.off('commande:nouvelle', refresh)
+      socket.off('commande:encaissee', refresh)
     }
   }, [socket, chargerCommandesTablette, utilisateur?.maquis?.module_commandes_actif])
 

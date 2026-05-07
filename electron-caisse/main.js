@@ -37,9 +37,6 @@ const createWindow = () => {
   // Masquer la barre de menu
   mainWindow.setMenuBarVisibility(false)
 
-  // Ouvrir DevTools pour debug
-  mainWindow.webContents.openDevTools()
-
   mainWindow.on('ready-to-show', () => mainWindow.show())
   mainWindow.webContents.on('did-fail-load', (e, code, desc) => {
     console.error('Erreur chargement:', code, desc)

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { useSocket } from '../../context/SocketContext'
 import api from '../../utils/api'
 
 const fmtNum = (n) => Number(n || 0).toLocaleString('fr-FR')
@@ -45,6 +46,7 @@ const Modal = ({ titre, onClose, children }) => (
 
 export default function Ventes() {
   const { utilisateur } = useAuth()
+  const { socket } = useSocket()
   const estAdmin = ['gerant', 'patron'].includes(utilisateur?.role)
 
   const [ventes, setVentes] = useState([])
@@ -97,6 +99,18 @@ export default function Ventes() {
   }, [dateDebut, dateFin, filtreStatut, rechercheServeur, rechercheFacture])
 
   useEffect(() => { charger() }, [charger])
+
+  // Refresh automatique à chaque nouvelle vente ou encaissement
+  useEffect(() => {
+    if (!socket) return
+    const refresh = () => charger()
+    socket.on('dashboard:update', refresh)
+    socket.on('commande:encaissee', refresh)
+    return () => {
+      socket.off('dashboard:update', refresh)
+      socket.off('commande:encaissee', refresh)
+    }
+  }, [socket, charger])
 
   const afficherMsg = (type, texte) => {
     setMessage({ type, texte })
