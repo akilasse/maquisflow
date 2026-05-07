@@ -220,7 +220,7 @@ export default function DashboardScreen() {
       if (rechercheNum.trim()) params.append('numero_facture', rechercheNum.trim())
 
       const res = await api.get(`/api/ventes?${params}`)
-      setVentes(res.data.ventes || [])
+      setVentes(res.data.data || [])
       setVenteErreur(null)
     } catch {
       setVenteErreur('Impossible de charger les factures')
