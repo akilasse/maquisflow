@@ -67,10 +67,20 @@ const annulerVente = async (req, res) => {
   }
 }
 
+const reEncaisserVente = async (req, res) => {
+  try {
+    const vente = await ventesService.reEncaisserVente(req.prisma, req.io, parseInt(req.params.id), req.body.mode_paiement, req.utilisateur)
+    return res.json({ success: true, data: vente })
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message })
+  }
+}
+
 module.exports = {
   creerVente,
   getVentes,
   retourEnAttente,
   appliquerReduction,
-  annulerVente
+  annulerVente,
+  reEncaisserVente
 }

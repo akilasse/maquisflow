@@ -287,10 +287,35 @@ const annulerVente = async (prisma, io, venteId, motif, utilisateur) => {
   return { message: 'Vente annulée et stock rétabli' }
 }
 
+// Ré-encaisser une vente remise en attente (choix nouveau mode paiement)
+const reEncaisserVente = async (prisma, io, venteId, mode_paiement, utilisateur) => {
+  const modesValides = ['especes', 'wave', 'orange_money', 'mtn_money', 'credit', 'autre']
+  if (!modesValides.includes(mode_paiement)) throw new Error('Mode de paiement invalide')
+
+  const vente = await prisma.vente.findFirst({
+    where: { id: venteId, maquis_id: utilisateur.maquis_id }
+  })
+  if (!vente) throw new Error('Vente introuvable')
+  if (vente.statut !== 'en_attente') throw new Error('Seules les ventes en attente peuvent être ré-encaissées')
+
+  const venteMaj = await prisma.vente.update({
+    where: { id: venteId },
+    data: {
+      statut:        mode_paiement === 'credit' ? 'credit_en_cours' : 'encaissee',
+      mode_paiement,
+      caissier_id:   utilisateur.id
+    }
+  })
+
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('dashboard:update', { type: 'encaissement', vente_id: venteId })
+  return venteMaj
+}
+
 module.exports = {
   creerVente,
   getVentes,
   retourEnAttente,
   appliquerReduction,
-  annulerVente
+  annulerVente,
+  reEncaisserVente
 }

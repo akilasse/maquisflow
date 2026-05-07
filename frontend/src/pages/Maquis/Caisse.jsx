@@ -34,6 +34,11 @@ const Caisse = () => {
   const [commandeActive, setCommandeActive]       = useState(null)
   const [voirCommandes, setVoirCommandes]         = useState(false)
 
+  const [ventesAttente,      setVentesAttente]      = useState([])
+  const [voirVentesAttente,  setVoirVentesAttente]  = useState(false)
+  const [venteAttenteActive, setVenteAttenteActive] = useState(null)
+  const [modeReEncaisse,     setModeReEncaisse]     = useState('especes')
+
   // Surveiller connexion
   useEffect(() => {
     const goOnline  = () => { setIsOnline(true);  syncVentesOffline() }
@@ -92,6 +97,16 @@ const Caisse = () => {
 
   useEffect(() => { chargerCommandesTablette() }, [chargerCommandesTablette])
 
+  // Ventes remises en attente (à ré-encaisser)
+  const chargerVentesAttente = useCallback(async () => {
+    try {
+      const r = await api.get('/api/ventes?statut=en_attente')
+      setVentesAttente(r.data.data || [])
+    } catch {}
+  }, [])
+
+  useEffect(() => { chargerVentesAttente() }, [chargerVentesAttente])
+
   // Socket : écouter les nouvelles commandes prêtes / servies
   useEffect(() => {
     if (!socket || !utilisateur?.maquis?.module_commandes_actif) return
@@ -99,10 +114,12 @@ const Caisse = () => {
     socket.on('commande:mise_a_jour', refresh)
     socket.on('commande:nouvelle', refresh)
     socket.on('commande:encaissee', refresh)
+    socket.on('dashboard:update', () => chargerVentesAttente())
     return () => {
       socket.off('commande:mise_a_jour', refresh)
       socket.off('commande:nouvelle', refresh)
       socket.off('commande:encaissee', refresh)
+      socket.off('dashboard:update')
     }
   }, [socket, chargerCommandesTablette, utilisateur?.maquis?.module_commandes_actif])
 
@@ -127,6 +144,22 @@ const Caisse = () => {
     setCommandeActive(null)
     setPanier([])
     setNote('')
+  }
+
+  const confirmerReEncaissement = async () => {
+    if (!venteAttenteActive) return
+    setChargement(true)
+    try {
+      await api.put(`/api/ventes/${venteAttenteActive.id}/encaisser`, { mode_paiement: modeReEncaisse })
+      setMessage({ type: 'succes', texte: `✅ Vente #${venteAttenteActive.id} encaissée !` })
+      setVenteAttenteActive(null)
+      setVoirVentesAttente(false)
+      chargerVentesAttente()
+    } catch (e) {
+      setMessage({ type: 'erreur', texte: e.response?.data?.message || 'Erreur' })
+    } finally {
+      setChargement(false)
+    }
   }
 
   // Synchroniser ventes offline
@@ -432,6 +465,86 @@ const Caisse = () => {
           </div>
         )}
 
+        {/* PANNEAU VENTES EN ATTENTE */}
+        {voirVentesAttente && (
+          <div style={{ position:'fixed', inset:0, backgroundColor:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:500 }}>
+            <div style={{ backgroundColor:'white', borderRadius:16, padding:24, width:500, maxHeight:'80vh', display:'flex', flexDirection:'column', boxShadow:'0 20px 40px rgba(0,0,0,0.2)' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
+                <h3 style={{ margin:0, fontSize:18, fontWeight:700 }}>⏳ Ventes en attente ({ventesAttente.length})</h3>
+                <button onClick={() => { setVoirVentesAttente(false); setVenteAttenteActive(null) }} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#6b7280' }}>✕</button>
+              </div>
+
+              {venteAttenteActive ? (
+                /* Confirmation ré-encaissement */
+                <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+                  <div style={{ background:'#fffbeb', borderRadius:10, padding:'12px 16px', border:'1px solid #fde68a' }}>
+                    <p style={{ margin:'0 0 4px', fontWeight:700, fontSize:15 }}>Vente #{venteAttenteActive.id}</p>
+                    <p style={{ margin:0, fontSize:13, color:'#6b7280' }}>
+                      {venteAttenteActive.lignes?.map(l => `${l.produit?.nom} ×${parseFloat(l.quantite)}`).join(' · ')}
+                    </p>
+                    <p style={{ margin:'8px 0 0', fontWeight:800, fontSize:18, color:'#92400e' }}>
+                      {Number(venteAttenteActive.total_net).toLocaleString('fr-FR')} FCFA
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ margin:'0 0 8px', fontWeight:600, fontSize:13 }}>Mode de paiement</p>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                      {[
+                        { v:'especes', l:'💵 Espèces', bg:'#16a34a' },
+                        { v:'wave', l:'🐧 Wave', bg:'#1d4ed8' },
+                        { v:'orange_money', l:'📱 Orange Money', bg:'#ea580c' },
+                        { v:'mtn_money', l:'📱 MTN MoMo', bg:'#854d0e' },
+                        { v:'credit', l:'📋 Crédit', bg:'#9333ea' },
+                        { v:'autre', l:'💳 Autre', bg:'#6b7280' },
+                      ].map(m => (
+                        <button key={m.v} onClick={() => setModeReEncaisse(m.v)} style={{
+                          padding:'8px 14px', borderRadius:8, border:'none', cursor:'pointer', fontSize:13, fontWeight:700,
+                          background: modeReEncaisse === m.v ? m.bg : '#f3f4f6',
+                          color:      modeReEncaisse === m.v ? 'white' : '#374151'
+                        }}>{m.l}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:10, marginTop:4 }}>
+                    <button onClick={() => setVenteAttenteActive(null)} style={{ flex:1, padding:'12px', borderRadius:10, border:'1px solid #e5e7eb', background:'#f9fafb', fontWeight:600, cursor:'pointer' }}>
+                      ← Retour
+                    </button>
+                    <button onClick={confirmerReEncaissement} disabled={chargement} style={{ flex:2, padding:'12px', borderRadius:10, border:'none', background:'#16a34a', color:'white', fontWeight:700, fontSize:15, cursor:'pointer', opacity: chargement ? .7 : 1 }}>
+                      {chargement ? 'Enregistrement...' : '✓ Encaisser'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* Liste ventes en attente */
+                <div style={{ flex:1, overflowY:'auto' }}>
+                  {ventesAttente.length === 0 ? (
+                    <p style={{ color:'#9ca3af', textAlign:'center', padding:'40px 0' }}>Aucune vente en attente</p>
+                  ) : ventesAttente.map(v => {
+                    const total = Number(v.total_net).toLocaleString('fr-FR')
+                    return (
+                      <div key={v.id} onClick={() => { setVenteAttenteActive(v); setModeReEncaisse(v.mode_paiement || 'especes') }}
+                        style={{ padding:16, borderRadius:12, border:'2px solid #fde68a', marginBottom:10, cursor:'pointer', backgroundColor:'#fffbeb' }}
+                        onMouseEnter={e => e.currentTarget.style.borderColor = '#f59e0b'}
+                        onMouseLeave={e => e.currentTarget.style.borderColor = '#fde68a'}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                          <span style={{ fontWeight:700, fontSize:15, color:'#111827' }}>Vente #{v.id}</span>
+                          <span style={{ fontWeight:800, fontSize:16, color:'#92400e' }}>{total} FCFA</span>
+                        </div>
+                        <div style={{ fontSize:12, color:'#6b7280' }}>
+                          {new Date(v.date_vente).toLocaleString('fr-FR')} · {v.caissier?.nom}
+                        </div>
+                        <div style={{ fontSize:13, color:'#374151', marginTop:4 }}>
+                          {v.lignes?.map(l => `${l.produit?.nom} ×${parseFloat(l.quantite)}`).join(' · ')}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* PANNEAU COMMANDES TABLETTE */}
         {voirCommandes && utilisateur?.maquis?.module_commandes_actif && (
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
@@ -476,6 +589,16 @@ const Caisse = () => {
 
         {/* COLONNE GAUCHE - Produits */}
         <div style={{ flex: 0.8, backgroundColor: 'white', borderRadius: '12px', padding: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+          {ventesAttente.length > 0 && (
+            <button onClick={() => setVoirVentesAttente(true)}
+              style={{ display:'flex', alignItems:'center', justifyContent:'space-between', width:'100%', marginBottom:8, padding:'10px 14px', borderRadius:10, border:'2px solid #fde68a', cursor:'pointer', backgroundColor:'#fffbeb', color:'#92400e', fontWeight:600, fontSize:14 }}>
+              <span>⏳ Ventes en attente</span>
+              <span style={{ backgroundColor:'#f59e0b', color:'white', borderRadius:'50%', width:22, height:22, display:'flex', alignItems:'center', justifyContent:'center', fontSize:12, fontWeight:700 }}>
+                {ventesAttente.length}
+              </span>
+            </button>
+          )}
+
           {utilisateur?.maquis?.module_commandes_actif && (
             <button onClick={() => setVoirCommandes(true)}
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12, padding: '10px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', backgroundColor: commandesTablette.length > 0 ? '#fff7ed' : '#f9fafb', color: commandesTablette.length > 0 ? '#ea580c' : '#9ca3af', fontWeight: 600, fontSize: 14 }}>
