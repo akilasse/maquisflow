@@ -201,17 +201,24 @@ const getVentes = async (prisma, maquis_id, filtres = {}) => {
 }
 
 // Retourner une vente encaissée en attente (gérant/patron)
-const retourEnAttente = async (prisma, venteId, utilisateur) => {
+const retourEnAttente = async (prisma, io, venteId, utilisateur) => {
   const vente = await prisma.vente.findFirst({
     where: { id: venteId, maquis_id: utilisateur.maquis_id }
   })
   if (!vente) throw new Error('Vente introuvable')
   if (vente.statut !== 'encaissee') throw new Error('Seules les ventes encaissées peuvent être remises en attente')
 
-  return prisma.vente.update({
+  const venteMaj = await prisma.vente.update({
     where: { id: venteId },
     data: { statut: 'en_attente' }
   })
+
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('dashboard:update', {
+    type: 'retour_attente',
+    vente_id: venteId
+  })
+
+  return venteMaj
 }
 
 // Appliquer une réduction après encaissement (gérant/patron)

@@ -42,7 +42,7 @@ const getVentes = async (req, res) => {
 
 const retourEnAttente = async (req, res) => {
   try {
-    const vente = await ventesService.retourEnAttente(req.prisma, parseInt(req.params.id), req.utilisateur)
+    const vente = await ventesService.retourEnAttente(req.prisma, req.io, parseInt(req.params.id), req.utilisateur)
     return res.json({ success: true, data: vente })
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message })
