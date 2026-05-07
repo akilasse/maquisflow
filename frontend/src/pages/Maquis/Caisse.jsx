@@ -86,9 +86,9 @@ const Caisse = () => {
           api.get('/api/commandes?statut=prete').then(r => (r.data.data || []).map(c => ({ ...c, _type: 'commande' }))),
         )
       }
-      // Toujours charger les ventes remises en attente par le gérant
+      // Ventes remises en attente par le gérant — sans filtre date (peut être d'un autre jour)
       promises.push(
-        api.get('/api/ventes?statut=en_attente').then(r => (r.data.data || []).map(v => ({ ...v, _type: 'vente' })))
+        api.get('/api/ventes?statut=en_attente&date_debut=2020-01-01').then(r => (r.data.data || []).map(v => ({ ...v, _type: 'vente' })))
       )
       const results = await Promise.all(promises)
       setCommandesTablette(results.flat())
@@ -477,12 +477,12 @@ const Caisse = () => {
           <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}>
             <div style={{ backgroundColor: 'white', borderRadius: 16, padding: 24, width: 480, maxHeight: '80vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🍽️ Commandes à encaisser ({commandesTablette.length})</h3>
+                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>🍽️ File d'attente ({commandesTablette.length})</h3>
                 <button onClick={() => setVoirCommandes(false)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#6b7280' }}>✕</button>
               </div>
               <div style={{ flex: 1, overflowY: 'auto' }}>
                 {commandesTablette.length === 0 ? (
-                  <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0' }}>Aucune commande en attente d'encaissement</p>
+                  <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 0' }}>Aucun élément en attente d'encaissement</p>
                 ) : (
                   commandesTablette.map(item => {
                     const isVente = item._type === 'vente'
@@ -535,17 +535,15 @@ const Caisse = () => {
 
         {/* COLONNE GAUCHE - Produits */}
         <div style={{ flex: 0.8, backgroundColor: 'white', borderRadius: '12px', padding: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          {(utilisateur?.maquis?.module_commandes_actif || commandesTablette.length > 0) && (
-            <button onClick={() => setVoirCommandes(true)}
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12, padding: '10px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', backgroundColor: commandesTablette.length > 0 ? '#fff7ed' : '#f9fafb', color: commandesTablette.length > 0 ? '#ea580c' : '#9ca3af', fontWeight: 600, fontSize: 14 }}>
-              <span>🍽️ {utilisateur?.maquis?.module_commandes_actif ? 'Commandes tablette' : 'Ventes à ré-encaisser'}</span>
-              {commandesTablette.length > 0 && (
-                <span style={{ backgroundColor: '#ea580c', color: 'white', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
-                  {commandesTablette.length}
-                </span>
-              )}
-            </button>
-          )}
+          <button onClick={() => setVoirCommandes(true)}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12, padding: '10px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', backgroundColor: commandesTablette.length > 0 ? '#fff7ed' : '#f9fafb', color: commandesTablette.length > 0 ? '#ea580c' : '#9ca3af', fontWeight: 600, fontSize: 14 }}>
+            <span>🍽️ File d'attente</span>
+            {commandesTablette.length > 0 && (
+              <span style={{ backgroundColor: '#ea580c', color: 'white', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>
+                {commandesTablette.length}
+              </span>
+            )}
+          </button>
           <h2 style={{ margin: '0 0 14px 0', fontSize: '18px', fontWeight: '600', color: '#374151' }}>Produits disponibles</h2>
           <input type="text" placeholder="Rechercher un produit..." value={recherche} onChange={(e) => setRecherche(e.target.value)}
             style={{ width: '100%', padding: '12px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', marginBottom: '14px', boxSizing: 'border-box', outline: 'none' }}
