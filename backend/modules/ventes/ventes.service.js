@@ -168,7 +168,7 @@ const creerVente = async (prisma, io, data, utilisateur) => {
 
 // Récupère les ventes avec filtres
 const getVentes = async (prisma, maquis_id, filtres = {}) => {
-  const { date_debut, date_fin, mode_paiement, statut } = filtres
+  const { date_debut, date_fin, mode_paiement, statut, serveur, numero_facture, caissier_nom } = filtres
 
   const debut = date_debut
     ? new Date(date_debut)
@@ -184,6 +184,9 @@ const getVentes = async (prisma, maquis_id, filtres = {}) => {
 
   if (mode_paiement) where.mode_paiement = mode_paiement
   if (statut) where.statut = statut
+  if (serveur) where.serveur_nom = { contains: serveur }
+  if (numero_facture) where.id = parseInt(numero_facture) || undefined
+  if (caissier_nom) where.caissier = { nom: { contains: caissier_nom } }
 
   const ventes = await prisma.vente.findMany({
     where,

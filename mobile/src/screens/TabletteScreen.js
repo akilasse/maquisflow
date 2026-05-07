@@ -25,9 +25,15 @@ export default function TabletteScreen({ onRetour }) {
   const [recherche, setRecherche] = useState('')
   const [chargement, setChargement] = useState(true)
   const [envoi,     setEnvoi]     = useState(false)
-  const [vue,       setVue]       = useState('tables') // 'tables' | 'commande'
+  const [vue,       setVue]       = useState('tables') // 'tables' | 'commande' | 'historique'
   const [showCaisseModal, setShowCaisseModal] = useState(false)
   const [pendingDirect,   setPendingDirect]   = useState(false)
+
+  // Historique
+  const [historique,        setHistorique]        = useState([])
+  const [chargementHisto,   setChargementHisto]   = useState(false)
+  const [filtreStatutHisto, setFiltreStatutHisto] = useState('')
+  const [filtrePeriodeHisto, setFiltrePeriodeHisto] = useState('aujourd_hui')
 
   const couleur = utilisateur?.maquis?.couleur_primaire || '#FF6B35'
 
@@ -75,6 +81,45 @@ export default function TabletteScreen({ onRetour }) {
       }
     } catch (e) {}
     setVue('commande')
+  }
+
+  // ── Historique commandes ──────────────────────
+  const chargerHistorique = async (periode = filtrePeriodeHisto, statut = filtreStatutHisto) => {
+    setChargementHisto(true)
+    try {
+      const auj = new Date()
+      const fmt = (d) => d.toISOString().slice(0, 10)
+      let dateDebut = fmt(auj)
+      if (periode === 'semaine') {
+        const lun = new Date(auj); lun.setDate(auj.getDate() - auj.getDay() + 1)
+        dateDebut = fmt(lun)
+      } else if (periode === 'mois') {
+        dateDebut = fmt(new Date(auj.getFullYear(), auj.getMonth(), 1))
+      }
+      const params = new URLSearchParams({
+        serveur_id: utilisateur.id,
+        historique: 'true',
+        date_debut: dateDebut,
+        date_fin: fmt(auj)
+      })
+      if (statut) params.set('statut', statut)
+      const r = await api.get(`/api/commandes?${params}`)
+      setHistorique(r.data.data || [])
+    } catch (e) {
+      Alert.alert('Erreur', 'Impossible de charger l\'historique')
+    } finally {
+      setChargementHisto(false)
+    }
+  }
+
+  const changerPeriodeHisto = (periode) => {
+    setFiltrePeriodeHisto(periode)
+    chargerHistorique(periode, filtreStatutHisto)
+  }
+
+  const changerStatutHisto = (statut) => {
+    setFiltreStatutHisto(statut)
+    chargerHistorique(filtrePeriodeHisto, statut)
   }
 
   // ── Mode comptoir / sans table ─────────────────
@@ -393,6 +438,88 @@ export default function TabletteScreen({ onRetour }) {
     </View>
   )
 
+  // ── Render historique ──────────────────────────
+  const STATUTS_HISTO = [
+    { key: '', label: 'Tous' },
+    { key: 'ouverte', label: '🆕 Ouverte' },
+    { key: 'en_cours', label: '⏳ En cours' },
+    { key: 'prete', label: '✅ Prête' },
+    { key: 'servie', label: '🍽️ Servie' },
+    { key: 'encaissee', label: '💵 Encaissée' },
+    { key: 'annulee', label: '❌ Annulée' },
+  ]
+  const PERIODES_HISTO = [
+    { key: 'aujourd_hui', label: "Auj." },
+    { key: 'semaine', label: 'Semaine' },
+    { key: 'mois', label: 'Mois' },
+  ]
+
+  const renderHistorique = () => (
+    <View style={{ flex: 1 }}>
+      {/* Filtres période */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ padding: 10, maxHeight: 48 }} contentContainerStyle={{ gap: 6 }}>
+        {PERIODES_HISTO.map(p => (
+          <TouchableOpacity key={p.key} onPress={() => changerPeriodeHisto(p.key)}
+            style={{ paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: filtrePeriodeHisto === p.key ? couleur : '#e5e7eb' }}>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: filtrePeriodeHisto === p.key ? 'white' : '#374151' }}>{p.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+      {/* Filtres statut */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: 10, maxHeight: 42 }} contentContainerStyle={{ gap: 6 }}>
+        {STATUTS_HISTO.map(s => (
+          <TouchableOpacity key={s.key} onPress={() => changerStatutHisto(s.key)}
+            style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, backgroundColor: filtreStatutHisto === s.key ? '#374151' : '#f3f4f6' }}>
+            <Text style={{ fontSize: 12, fontWeight: '600', color: filtreStatutHisto === s.key ? 'white' : '#6b7280' }}>{s.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+
+      {chargementHisto ? (
+        <View style={styles.centrer}><ActivityIndicator size="large" color={couleur} /></View>
+      ) : historique.length === 0 ? (
+        <View style={styles.centrer}>
+          <Text style={{ fontSize: 40, marginBottom: 12 }}>📋</Text>
+          <Text style={{ color: '#9ca3af', fontSize: 15 }}>Aucune commande sur cette période</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={historique}
+          keyExtractor={c => String(c.id)}
+          contentContainerStyle={{ padding: 12, gap: 10 }}
+          renderItem={({ item: c }) => {
+            const total = (c.lignes || []).reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
+            const statutColors = { ouverte: '#fef3c7', en_cours: '#dbeafe', prete: '#d1fae5', servie: '#e0e7ff', encaissee: '#f0fdf4', annulee: '#fee2e2' }
+            const statutTextColors = { ouverte: '#92400e', en_cours: '#1e40af', prete: '#065f46', servie: '#3730a3', encaissee: '#166534', annulee: '#991b1b' }
+            return (
+              <View style={{ backgroundColor: 'white', borderRadius: 12, padding: 14, elevation: 1 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={{ fontWeight: '700', fontSize: 15 }}>Commande #{c.numero}</Text>
+                  <View style={{ paddingHorizontal: 10, paddingVertical: 3, borderRadius: 12, backgroundColor: statutColors[c.statut] || '#f3f4f6' }}>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: statutTextColors[c.statut] || '#374151' }}>{c.statut}</Text>
+                  </View>
+                </View>
+                {c.table && <Text style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Table {c.table.numero}</Text>}
+                <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>{new Date(c.created_at).toLocaleString('fr-FR')}</Text>
+                {(c.lignes || []).map(l => (
+                  <Text key={l.id} style={{ fontSize: 13, color: '#374151', marginTop: 4 }}>
+                    {parseFloat(l.quantite)}× {l.produit?.nom} — {parseFloat(l.prix_unitaire).toLocaleString('fr-FR')} XOF
+                  </Text>
+                ))}
+                <Text style={{ fontSize: 15, fontWeight: '700', color: couleur, marginTop: 8, textAlign: 'right' }}>
+                  {total.toLocaleString('fr-FR')} XOF
+                </Text>
+                {c.annulation_motif && (
+                  <Text style={{ fontSize: 12, color: '#991b1b', marginTop: 4 }}>Annulée : {c.annulation_motif}</Text>
+                )}
+              </View>
+            )
+          }}
+        />
+      )}
+    </View>
+  )
+
   // ── Layout principal ───────────────────────────
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -404,14 +531,22 @@ export default function TabletteScreen({ onRetour }) {
               {utilisateur?.role === 'serveur' ? '🚪 Sortir' : '← Retour'}
             </Text>
           </TouchableOpacity>
+        ) : vue !== 'tables' ? (
+          <TouchableOpacity onPress={() => setVue('tables')} style={styles.btnHeaderLateral}>
+            <Text style={styles.btnHeaderLateralText}>← Retour</Text>
+          </TouchableOpacity>
         ) : (
           <View style={{ width: 72 }} />
         )}
         <Text style={styles.headerTitle}>
-          {vue === 'tables' ? '🪑 Commandes' : `Table ${tableActive?.numero || ''}`}
+          {vue === 'tables' ? '🪑 Commandes' : vue === 'historique' ? '📋 Historique' : (tableActive ? `Table ${tableActive.numero}` : '🛒 Sans table')}
         </Text>
         {vue === 'tables' ? (
           <TouchableOpacity onPress={charger} style={styles.btnHeaderLateral}>
+            <Text style={styles.btnActualiser}>🔄</Text>
+          </TouchableOpacity>
+        ) : vue === 'historique' ? (
+          <TouchableOpacity onPress={() => chargerHistorique()} style={styles.btnHeaderLateral}>
             <Text style={styles.btnActualiser}>🔄</Text>
           </TouchableOpacity>
         ) : (
@@ -419,7 +554,22 @@ export default function TabletteScreen({ onRetour }) {
         )}
       </View>
 
-      {vue === 'tables' ? renderTables() : renderCommande()}
+      {vue === 'tables' ? renderTables() : vue === 'historique' ? renderHistorique() : renderCommande()}
+
+      {/* Barre de navigation basse (tables uniquement) */}
+      {vue === 'tables' && (
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={[styles.bottomNavBtn, { borderTopColor: couleur, borderTopWidth: 2 }]}>
+            <Text style={styles.bottomNavIcon}>🪑</Text>
+            <Text style={[styles.bottomNavLabel, { color: couleur }]}>Commandes</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.bottomNavBtn}
+            onPress={() => { setVue('historique'); chargerHistorique() }}>
+            <Text style={styles.bottomNavIcon}>📋</Text>
+            <Text style={styles.bottomNavLabel}>Historique</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </SafeAreaView>
   )
 }
@@ -514,6 +664,15 @@ const styles = StyleSheet.create({
   btnDirect:   { backgroundColor: '#16a34a' },
   btnEnvoyerText: { color: 'white', fontSize: 14, fontWeight: '700' },
   btnDisabled: { opacity: 0.5 },
+
+  bottomNav: {
+    flexDirection: 'row', backgroundColor: 'white',
+    borderTopWidth: 1, borderTopColor: '#e5e7eb',
+    paddingBottom: 4,
+  },
+  bottomNavBtn:   { flex: 1, alignItems: 'center', paddingVertical: 8 },
+  bottomNavIcon:  { fontSize: 22 },
+  bottomNavLabel: { fontSize: 11, fontWeight: '600', color: '#9ca3af', marginTop: 2 },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCaisse: {

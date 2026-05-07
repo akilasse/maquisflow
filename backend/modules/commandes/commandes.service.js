@@ -108,13 +108,22 @@ const supprimerTable = async (prisma, maquis_id, tableId) => {
 // ── Commandes ────────────────────────────────────────────────
 
 const getCommandes = async (prisma, maquis_id, filtres = {}) => {
-  const { statut, table_id, station_id, caisse_id } = filtres
+  const { statut, table_id, station_id, caisse_id, serveur_id, historique, date_debut, date_fin } = filtres
   const where = { maquis_id }
   if (statut) where.statut = statut
-  else where.statut = { in: STATUTS_OUVERTS }
-  if (table_id)  where.table_id  = parseInt(table_id)
-  if (station_id) where.lignes   = { some: { station_id: parseInt(station_id) } }
-  if (caisse_id) where.caisse_id = parseInt(caisse_id)
+  else if (!historique) where.statut = { in: STATUTS_OUVERTS }
+  if (table_id)   where.table_id   = parseInt(table_id)
+  if (station_id) where.lignes     = { some: { station_id: parseInt(station_id) } }
+  if (caisse_id)  where.caisse_id  = parseInt(caisse_id)
+  if (serveur_id) where.serveur_id = parseInt(serveur_id)
+  if (date_debut || date_fin) {
+    where.created_at = {}
+    if (date_debut) where.created_at.gte = new Date(date_debut)
+    if (date_fin) {
+      const fin = new Date(date_fin); fin.setHours(23, 59, 59, 999)
+      where.created_at.lte = fin
+    }
+  }
 
   return prisma.commande.findMany({
     where,
@@ -177,11 +186,9 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
 
   await verifierModule(prisma, utilisateur.maquis_id)
 
-  // Numéro auto : max du jour + 1
-  const debut = new Date(); debut.setHours(0, 0, 0, 0)
-  const fin   = new Date(); fin.setHours(23, 59, 59, 999)
+  // Numéro auto : max global + 1 (contrainte unique maquis_id+numero)
   const derniere = await prisma.commande.findFirst({
-    where: { maquis_id: utilisateur.maquis_id, created_at: { gte: debut, lte: fin } },
+    where: { maquis_id: utilisateur.maquis_id },
     orderBy: { numero: 'desc' }
   })
   const numero = (derniere?.numero || 0) + 1
@@ -410,9 +417,10 @@ const encaisserCommande = async (prisma, io, commandeId, data, utilisateur) => {
         remise_globale: 0,
         total_net:     parseFloat(total.toFixed(2)),
         mode_paiement,
-        statut:        mode_paiement === 'credit' ? 'credit_en_cours' : 'validee',
+        statut:        mode_paiement === 'credit' ? 'credit_en_cours' : 'encaissee',
         note:          note_vente || commande.note || null,
         commande_id:   commandeId,
+        serveur_nom:   commande.serveur?.nom || null,
         lignes: {
           create: lignesActives.map(l => ({
             produit_id:    l.produit_id,

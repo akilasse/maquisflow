@@ -52,6 +52,9 @@ export default function Ventes() {
   const [filtreStatut, setFiltreStatut] = useState('')
   const [dateDebut, setDateDebut] = useState(new Date().toISOString().slice(0, 10))
   const [dateFin, setDateFin] = useState(new Date().toISOString().slice(0, 10))
+  const [rechercheServeur, setRechercheServeur] = useState('')
+  const [rechercheFacture, setRechercheFacture] = useState('')
+  const [periodeRapide, setPeriodeRapide] = useState('aujourd_hui')
   const [venteSelectionnee, setVenteSelectionnee] = useState(null)
   const [message, setMessage] = useState(null)
 
@@ -63,11 +66,27 @@ export default function Ventes() {
   const [motifAnnulation, setMotifAnnulation] = useState('')
   const [enCours, setEnCours] = useState(false)
 
+  const appliquerPeriode = (periode) => {
+    const auj = new Date()
+    const fmt = (d) => d.toISOString().slice(0, 10)
+    setPeriodeRapide(periode)
+    if (periode === 'aujourd_hui') {
+      setDateDebut(fmt(auj)); setDateFin(fmt(auj))
+    } else if (periode === 'semaine') {
+      const lun = new Date(auj); lun.setDate(auj.getDate() - auj.getDay() + 1)
+      setDateDebut(fmt(lun)); setDateFin(fmt(auj))
+    } else if (periode === 'mois') {
+      setDateDebut(fmt(new Date(auj.getFullYear(), auj.getMonth(), 1))); setDateFin(fmt(auj))
+    }
+  }
+
   const charger = useCallback(async () => {
     setChargement(true)
     try {
       const params = new URLSearchParams({ date_debut: dateDebut, date_fin: dateFin })
       if (filtreStatut) params.set('statut', filtreStatut)
+      if (rechercheServeur.trim()) params.set('serveur', rechercheServeur.trim())
+      if (rechercheFacture.trim()) params.set('numero_facture', rechercheFacture.trim())
       const r = await api.get(`/api/ventes?${params}`)
       setVentes(r.data.data || [])
     } catch {
@@ -75,7 +94,7 @@ export default function Ventes() {
     } finally {
       setChargement(false)
     }
-  }, [dateDebut, dateFin, filtreStatut])
+  }, [dateDebut, dateFin, filtreStatut, rechercheServeur, rechercheFacture])
 
   useEffect(() => { charger() }, [charger])
 
@@ -152,25 +171,49 @@ export default function Ventes() {
       <h2 style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 700, color: '#111827' }}>Ventes / Factures</h2>
 
       {/* Filtres */}
-      <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-        <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Du</label>
-          <input type="date" value={dateDebut} onChange={e => setDateDebut(e.target.value)}
-            style={{ border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
+      <div style={{ background: '#fff', borderRadius: 12, padding: 16, marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.08)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Période rapide */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {[
+            { key: 'aujourd_hui', label: "Aujourd'hui" },
+            { key: 'semaine', label: 'Cette semaine' },
+            { key: 'mois', label: 'Ce mois' },
+            { key: 'custom', label: 'Personnalisé' },
+          ].map(p => (
+            <button key={p.key} onClick={() => appliquerPeriode(p.key)}
+              style={{ padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+                background: periodeRapide === p.key ? '#111827' : '#f3f4f6',
+                color: periodeRapide === p.key ? '#fff' : '#374151' }}>
+              {p.label}
+            </button>
+          ))}
         </div>
-        <div>
-          <label style={{ display: 'block', fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Au</label>
-          <input type="date" value={dateFin} onChange={e => setDateFin(e.target.value)}
-            style={{ border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
+
+        {/* Dates custom */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Du</label>
+            <input type="date" value={dateDebut} onChange={e => { setDateDebut(e.target.value); setPeriodeRapide('custom') }}
+              style={{ border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Au</label>
+            <input type="date" value={dateFin} onChange={e => { setDateFin(e.target.value); setPeriodeRapide('custom') }}
+              style={{ border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 10px', fontSize: 14 }} />
+          </div>
+          <input placeholder="🔍 N° vente" value={rechercheFacture} onChange={e => setRechercheFacture(e.target.value)}
+            style={{ border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 10px', fontSize: 14, width: 120 }} />
+          <input placeholder="👤 Serveur" value={rechercheServeur} onChange={e => setRechercheServeur(e.target.value)}
+            style={{ border: '1px solid #d1d5db', borderRadius: 8, padding: '6px 10px', fontSize: 14, width: 140 }} />
         </div>
+
+        {/* Statuts */}
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {STATUTS.map(s => (
             <button key={s.key} onClick={() => setFiltreStatut(s.key)}
-              style={{
-                padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
+              style={{ padding: '6px 14px', borderRadius: 20, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 600,
                 background: filtreStatut === s.key ? '#FF6B35' : s.bg,
-                color: filtreStatut === s.key ? '#fff' : s.color
-              }}>
+                color: filtreStatut === s.key ? '#fff' : s.color }}>
               {s.label}
             </button>
           ))}
