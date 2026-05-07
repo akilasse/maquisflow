@@ -97,14 +97,21 @@
     .search-input:focus { border-color: #FF6B35; }
     .produits-list { flex: 1; overflow-y: auto; }
     .produit-item {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 12px; border-radius: 10px; margin-bottom: 6px;
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px; border-radius: 10px; margin-bottom: 6px;
       cursor: pointer; border: 1px solid #f3f4f6; transition: background 0.15s;
     }
     .produit-item:hover { background: #fff7ed; }
+    .produit-thumb { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; flex-shrink: 0; }
+    .produit-thumb-placeholder {
+      width: 44px; height: 44px; border-radius: 8px; flex-shrink: 0;
+      background: #fff7ed; display: flex; align-items: center; justify-content: center;
+      font-size: 18px; font-weight: bold; color: #FF6B35;
+    }
+    .produit-info { flex: 1; }
     .produit-nom { font-weight: 600; font-size: 15px; color: #111827; }
     .produit-stock { font-size: 12px; color: #9ca3af; margin-top: 2px; }
-    .produit-prix { font-weight: 700; color: #FF6B35; font-size: 15px; }
+    .produit-prix { font-weight: 700; color: #FF6B35; font-size: 15px; flex-shrink: 0; }
     .produit-rupture { opacity: 0.4; cursor: not-allowed; }
 
     /* Panier */
@@ -642,7 +649,11 @@ function renderProduits() {
 
   list.innerHTML = filtres.map(p => `
     <div class="produit-item" onclick="ajouterAuPanier(${p.id})">
-      <div>
+      ${p.photo_url
+        ? `<img src="${API_URL}${p.photo_url}" alt="${p.nom}" class="produit-thumb" onerror="this.outerHTML='<div class=produit-thumb-placeholder>${p.nom.charAt(0).toUpperCase()}</div>'">`
+        : `<div class="produit-thumb-placeholder">${p.nom.charAt(0).toUpperCase()}</div>`
+      }
+      <div class="produit-info">
         <div class="produit-nom">${p.nom}</div>
         <div class="produit-stock">Stock: ${p.stock_actuel} ${p.unite}</div>
       </div>
@@ -911,6 +922,7 @@ async function validerVente() {
     id:            venteId || `OFF-${Date.now()}`,
     date:          new Date(),
     maquis:        state.utilisateur?.maquis?.nom || 'Flowix',
+    logo_url:      state.utilisateur?.maquis?.logo_url || null,
     caissier:      state.utilisateur?.nom,
     lignes:        [...state.panier],
     total,
@@ -925,25 +937,30 @@ async function validerVente() {
   viderPanier()
   await updatePendingBadge()
 
-  // Impression automatique si imprimante connectée
-  const result = await window.electronAPI.printTicket(buildTicketData())
-  if (!result.success) {
-    // Pas d'imprimante — le modal reste ouvert pour impression manuelle
-    console.log('Impression auto échouée:', result.error)
+  // Impression automatique : copie client puis copie caissier
+  const ticketClient   = buildTicketData(false)
+  const ticketCaissier = buildTicketData(true)
+  const r1 = await window.electronAPI.printTicket(ticketClient)
+  if (r1.success) {
+    await window.electronAPI.printTicket(ticketCaissier)
+  } else {
+    console.log('Impression auto échouée:', r1.error)
   }
 }
 
-function buildTicketData() {
+function buildTicketData(copie = false) {
   const r = state.dernierRecu
   return {
     maquis:        r.maquis,
+    logo_url:      r.logo_url,
     date:          r.date.toLocaleString('fr-FR'),
     caissier:      r.caissier,
     lignes:        r.lignes.map(l => ({ nom: l.nom, quantite: l.quantite, total: l.prix_applique * l.quantite })),
     total:         r.total,
     mode_paiement: r.mode_paiement.replace('_', ' '),
     montant_recu:  r.montant_recu,
-    monnaie:       r.monnaie || 0
+    monnaie:       r.monnaie || 0,
+    copie
   }
 }
 
@@ -985,35 +1002,47 @@ function fermerModal() {
 }
 
 async function imprimerTicket() {
-  const result = await window.electronAPI.printTicket(buildTicketData())
-  if (!result.success) {
-    // Fallback impression navigateur
-    const contenu = `<html><head><style>
-      body{font-family:monospace;max-width:280px;margin:0 auto;padding:10px;font-size:12px}
-      h2{text-align:center;font-size:14px} .sep{border-top:1px dashed #000;margin:6px 0}
-      .row{display:flex;justify-content:space-between;margin:3px 0}
-      .total{font-weight:bold;font-size:13px}
-    </style></head><body>
-      <h2>${state.dernierRecu.maquis}</h2>
-      ${state.dernierRecu.offline ? '<p style="text-align:center;font-weight:bold">⚠️ VENTE HORS LIGNE</p>' : ''}
+  const r1 = await window.electronAPI.printTicket(buildTicketData(false))
+  if (r1.success) {
+    await window.electronAPI.printTicket(buildTicketData(true))
+    return
+  }
+  // Fallback impression navigateur (deux pages : client + caissier)
+  const r = state.dernierRecu
+  const genRecu = (titre) => `
+    <div style="page-break-after:always">
+      ${r.logo_url ? `<div style="text-align:center;margin-bottom:6px"><img src="${API_URL}${r.logo_url}" style="max-width:72px;max-height:72px;border-radius:8px"></div>` : ''}
+      <h2 style="text-align:center;font-size:15px;margin:0 0 2px">${r.maquis}</h2>
+      <p style="text-align:center;font-weight:bold;margin:0 0 6px">${titre}</p>
+      ${r.offline ? '<p style="text-align:center;font-weight:bold">⚠️ VENTE HORS LIGNE</p>' : ''}
       <div class="sep"></div>
-      <p style="text-align:center">${state.dernierRecu.date.toLocaleString('fr-FR')}</p>
-      <p style="text-align:center">Caissier: ${state.dernierRecu.caissier}</p>
+      <p style="text-align:center">${r.date.toLocaleString('fr-FR')}</p>
+      <p style="text-align:center">Caissier: ${r.caissier}</p>
       <div class="sep"></div>
-      ${state.dernierRecu.lignes.map(l => `
+      ${r.lignes.map(l => `
         <div class="row"><span>${l.nom} x${l.quantite}</span><span>${(l.prix_applique * l.quantite).toLocaleString()} XOF</span></div>
       `).join('')}
       <div class="sep"></div>
-      <div class="row total"><span>TOTAL</span><span>${state.dernierRecu.total.toLocaleString()} XOF</span></div>
-      ${state.dernierRecu.monnaie ? `<div class="row total"><span>Monnaie</span><span>${state.dernierRecu.monnaie.toLocaleString()} XOF</span></div>` : ''}
+      <div class="row total"><span>TOTAL</span><span>${r.total.toLocaleString()} XOF</span></div>
+      ${r.monnaie ? `<div class="row total"><span>Monnaie</span><span>${r.monnaie.toLocaleString()} XOF</span></div>` : ''}
       <div class="sep"></div>
-      <p style="text-align:center">Merci !</p>
-    </body></html>`
-    const w = window.open('', '_blank', 'width=300,height=400')
-    w.document.write(contenu)
-    w.document.close()
-    w.print()
-  }
+      <p style="text-align:center">${titre === 'COPIE CLIENT' ? 'Merci pour votre visite !' : ''}</p>
+    </div>`
+
+  const contenu = `<html><head><style>
+    body{font-family:monospace;max-width:280px;margin:0 auto;padding:10px;font-size:12px}
+    h2{text-align:center;font-size:14px} .sep{border-top:1px dashed #000;margin:6px 0}
+    .row{display:flex;justify-content:space-between;margin:3px 0}
+    .total{font-weight:bold;font-size:13px}
+    @media print{div{page-break-after:always}}
+  </style></head><body>
+    ${genRecu('COPIE CLIENT')}
+    ${genRecu('COPIE CAISSIER')}
+  </body></html>`
+  const w = window.open('', '_blank', 'width=320,height=600')
+  w.document.write(contenu)
+  w.document.close()
+  w.print()
 }
 
 // ═══════════════════════════════════════════════════════════

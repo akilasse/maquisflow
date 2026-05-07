@@ -574,15 +574,26 @@ const Caisse = () => {
             ) : (
               produitsFiltres.map(produit => (
                 <div key={produit.id} onClick={() => ajouterAuPanier(produit)}
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px', borderRadius: '10px', marginBottom: '8px', cursor: 'pointer', border: '1px solid #f3f4f6' }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', borderRadius: '10px', marginBottom: '8px', cursor: 'pointer', border: '1px solid #f3f4f6' }}
                   onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fff7ed'}
                   onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}
                 >
-                  <div>
-                    <p style={{ margin: 0, fontWeight: '600', fontSize: '16px', color: '#111827' }}>{produit.nom}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#9ca3af' }}>Stock : {produit.stock_actuel} {produit.unite}</p>
+                  {produit.photo_url ? (
+                    <img src={produit.photo_url} alt={produit.nom}
+                      style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
+                  ) : (
+                    <div style={{
+                      width: 44, height: 44, borderRadius: 8, flexShrink: 0,
+                      backgroundColor: 'var(--couleur-principale-light)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 18, fontWeight: 'bold', color: 'var(--couleur-principale)'
+                    }}>{produit.nom.charAt(0).toUpperCase()}</div>
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <p style={{ margin: 0, fontWeight: '600', fontSize: '15px', color: '#111827' }}>{produit.nom}</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>Stock : {produit.stock_actuel} {produit.unite}</p>
                   </div>
-                  <p style={{ margin: 0, fontWeight: '700', color: 'var(--couleur-principale)', fontSize: '16px' }}>{parseFloat(produit.prix_vente).toLocaleString()} XOF</p>
+                  <p style={{ margin: 0, fontWeight: '700', color: 'var(--couleur-principale)', fontSize: '15px' }}>{parseFloat(produit.prix_vente).toLocaleString()} XOF</p>
                 </div>
               ))
             )}
