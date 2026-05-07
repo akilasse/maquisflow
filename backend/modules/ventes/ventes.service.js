@@ -170,12 +170,8 @@ const creerVente = async (prisma, io, data, utilisateur) => {
 const getVentes = async (prisma, maquis_id, filtres = {}) => {
   const { date_debut, date_fin, mode_paiement, statut, serveur, numero_facture, caissier_nom } = filtres
 
-  const debut = date_debut
-    ? new Date(date_debut)
-    : new Date(new Date().setHours(0, 0, 0, 0))
-  const fin = date_fin
-    ? new Date(date_fin)
-    : new Date(new Date().setHours(23, 59, 59, 999))
+  const debut = (() => { const d = new Date(date_debut || new Date().toISOString().slice(0,10)); d.setUTCHours(0,0,0,0); return d })()
+  const fin   = (() => { const d = new Date(date_fin   || new Date().toISOString().slice(0,10)); d.setUTCHours(23,59,59,999); return d })()
 
   const where = {
     maquis_id,
