@@ -43,7 +43,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
 
     // 1 — Agrégat jour
     prisma.vente.aggregate({
-      where: { maquis_id, date_vente: { gte: debutJour, lte: finJour }, statut: { not: 'annulee' } },
+      where: { maquis_id, date_vente: { gte: debutJour, lte: finJour }, statut: { in: ['encaissee', 'credit_en_cours'] } },
       _sum: { total_net: true },
       _count: { id: true },
       _avg: { total_net: true }
@@ -51,14 +51,14 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
 
     // 2 — Agrégat semaine (lundi → maintenant)
     prisma.vente.aggregate({
-      where: { maquis_id, date_vente: { gte: debutSemaine, lte: now }, statut: { not: 'annulee' } },
+      where: { maquis_id, date_vente: { gte: debutSemaine, lte: now }, statut: { in: ['encaissee', 'credit_en_cours'] } },
       _sum: { total_net: true },
       _count: { id: true }
     }),
 
     // 3 — Agrégat mois (1er → maintenant)
     prisma.vente.aggregate({
-      where: { maquis_id, date_vente: { gte: debutMois, lte: now }, statut: { not: 'annulee' } },
+      where: { maquis_id, date_vente: { gte: debutMois, lte: now }, statut: { in: ['encaissee', 'credit_en_cours'] } },
       _sum: { total_net: true },
       _count: { id: true }
     }),
@@ -72,7 +72,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
       WHERE v.maquis_id = ${maquis_id}
         AND v.date_vente >= ${debutJour}
         AND v.date_vente <= ${finJour}
-        AND v.statut != 'annulee'
+        AND v.statut IN ('encaissee', 'credit_en_cours')
     `,
 
     // 5 — Bénéfice semaine
@@ -84,7 +84,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
       WHERE v.maquis_id = ${maquis_id}
         AND v.date_vente >= ${debutSemaine}
         AND v.date_vente <= ${now}
-        AND v.statut != 'annulee'
+        AND v.statut IN ('encaissee', 'credit_en_cours')
     `,
 
     // 6 — Bénéfice mois
@@ -96,7 +96,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
       WHERE v.maquis_id = ${maquis_id}
         AND v.date_vente >= ${debutMois}
         AND v.date_vente <= ${now}
-        AND v.statut != 'annulee'
+        AND v.statut IN ('encaissee', 'credit_en_cours')
     `,
 
     // 7 — Graphique : par jour (semaine) ou par mois (année)
@@ -111,7 +111,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
           WHERE maquis_id = ${maquis_id}
             AND date_vente >= ${new Date(now.getFullYear(), 0, 1)}
             AND date_vente <= ${now}
-            AND statut != 'annulee'
+            AND statut IN ('encaissee', 'credit_en_cours')
           GROUP BY YEAR(date_vente), MONTH(date_vente)
           ORDER BY annee ASC, periode ASC
         `
@@ -124,7 +124,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
           WHERE maquis_id = ${maquis_id}
             AND date_vente >= ${debutSemaine}
             AND date_vente <= ${now}
-            AND statut != 'annulee'
+            AND statut IN ('encaissee', 'credit_en_cours')
           GROUP BY DATE(date_vente)
           ORDER BY periode ASC
         `,
@@ -132,7 +132,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
     // 8 — Répartition par mode de paiement (jour)
     prisma.vente.groupBy({
       by: ['mode_paiement'],
-      where: { maquis_id, date_vente: { gte: debutJour, lte: finJour }, statut: { not: 'annulee' } },
+      where: { maquis_id, date_vente: { gte: debutJour, lte: finJour }, statut: { in: ['encaissee', 'credit_en_cours'] } },
       _sum: { total_net: true },
       _count: { id: true }
     }),
@@ -162,7 +162,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
       WHERE v.maquis_id = ${maquis_id}
         AND v.date_vente >= ${debutJour}
         AND v.date_vente <= ${finJour}
-        AND v.statut != 'annulee'
+        AND v.statut IN ('encaissee', 'credit_en_cours')
       GROUP BY p.id, p.nom, p.unite, p.prix_vente, p.prix_achat
       ORDER BY total_vendu DESC
       LIMIT 5

@@ -358,9 +358,9 @@
     <!-- Produits -->
     <div class="col-produits">
       <div class="col-title">Produits disponibles</div>
-      <button class="btn-cmd-tablette" id="btn-cmd-tablette" style="display:none" onclick="afficherCommandesPanel()">
-        <span>🍽️ Commandes tablette</span>
-        <span class="cmd-badge" id="cmd-badge">0</span>
+      <button class="btn-cmd-tablette" id="btn-cmd-tablette" onclick="afficherCommandesPanel()">
+        <span>🍽️ File d'attente</span>
+        <span class="cmd-badge" id="cmd-badge" style="display:none"></span>
       </button>
       <input class="search-input" type="text" placeholder="Rechercher..." id="search-produits" oninput="filtrerProduits()" />
       <div class="produits-list" id="produits-list">
@@ -473,6 +473,7 @@ let state = {
   dernierRecu: null,
   commandesTablette: [],
   commandeActive: null,
+  venteActive: null,
   stations: [],
   stationFiltre: ''
 }
@@ -568,6 +569,7 @@ async function logout() {
   state.panier = []
   state.commandesTablette = []
   state.commandeActive = null
+  state.venteActive = null
   state.stations = []
   state.stationFiltre = ''
   document.getElementById('btn-cmd-tablette').style.display = 'none'
@@ -596,13 +598,13 @@ async function afficherCaisse() {
 
   await chargerProduits()
 
+  // Toujours charger la file d'attente (commandes + ventes remises en attente)
   if (u?.maquis?.module_commandes_actif) {
-    document.getElementById('btn-cmd-tablette').style.display = 'flex'
     await chargerStations()
-    await chargerCommandesTablette()
-    pollInterval = setInterval(chargerCommandesTablette, 5000)
-    window.addEventListener('focus', chargerCommandesTablette)
   }
+  await chargerCommandesTablette()
+  pollInterval = setInterval(chargerCommandesTablette, 5000)
+  window.addEventListener('focus', chargerCommandesTablette)
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -702,6 +704,7 @@ function retirerDuPanier(produitId) {
 function viderPanier() {
   state.panier = []
   state.commandeActive = null
+  state.venteActive    = null
   document.getElementById('note-input').value = ''
   document.getElementById('montant-recu').value = ''
   hideMessage()
@@ -716,9 +719,12 @@ function renderPanier() {
   const total = getTotal()
 
   // Titre et bouton vider
-  if (state.commandeActive) {
+  if (state.venteActive) {
+    document.getElementById('panier-titre').textContent = `🔄 Vente #${state.venteActive.id} — ré-encaissement`
+    document.querySelector('.btn-vider').textContent = '← Changer'
+  } else if (state.commandeActive) {
     const t = state.commandeActive.table
-    document.getElementById('panier-titre').textContent = `🍽️ Table ${t?.numero || '?'} — Cmd #${state.commandeActive.id}`
+    document.getElementById('panier-titre').textContent = `🍽️ ${t ? `Table ${t.numero}` : 'Comptoir'} — Cmd #${state.commandeActive.numero || state.commandeActive.id}`
     document.querySelector('.btn-vider').textContent = '← Changer'
   } else {
     document.getElementById('panier-titre').textContent = `Panier (${state.panier.length})`
@@ -732,6 +738,8 @@ function renderPanier() {
   btnValider.className = 'btn-valider' + (state.panier.length === 0 ? '' : (!state.commandeActive && !state.isOnline) ? ' offline' : '')
   if (state.panier.length === 0) {
     btnValider.textContent = '✅ Valider la vente'
+  } else if (state.venteActive) {
+    btnValider.textContent = '💳 Ré-encaisser la vente'
   } else if (state.commandeActive) {
     btnValider.textContent = '💳 Encaisser la commande'
   } else if (!state.isOnline) {
@@ -841,7 +849,19 @@ async function validerVente() {
   try {
     if (!state.isOnline) throw new Error('OFFLINE')
 
-    if (state.commandeActive) {
+    if (state.venteActive) {
+      // Ré-encaissement d'une vente remise en attente
+      const res = await fetch(`${API_URL}/api/ventes/${state.venteActive.id}/encaisser`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+        body: JSON.stringify({ mode_paiement: state.modePaiement })
+      })
+      const data = await res.json()
+      if (!data.success) throw new Error(data.message)
+      venteId = data.data?.id
+      state.venteActive = null
+      chargerCommandesTablette()
+    } else if (state.commandeActive) {
       // Encaissement d'une commande tablette
       const res = await fetch(`${API_URL}/api/commandes/${state.commandeActive.id}/encaisser`, {
         method: 'POST',
@@ -1071,20 +1091,40 @@ async function chargerStations() {
 }
 
 async function chargerCommandesTablette() {
-  if (!state.utilisateur?.maquis?.module_commandes_actif) return
   try {
-    const params = state.stationFiltre ? `?caisse_id=${state.stationFiltre}` : ''
-    const r = await fetch(`${API_URL}/api/commandes${params}`, { headers: { Authorization: `Bearer ${state.token}` } })
-    const d = await r.json()
-    state.commandesTablette = d.data || []
+    const promises = []
+    if (state.utilisateur?.maquis?.module_commandes_actif) {
+      const params = state.stationFiltre ? `?caisse_id=${state.stationFiltre}` : ''
+      promises.push(
+        fetch(`${API_URL}/api/commandes${params}`, { headers: { Authorization: `Bearer ${state.token}` } })
+          .then(r => r.json()).then(d => (d.data || []).map(c => ({ ...c, _type: 'commande' })))
+      )
+    }
+    // Ventes remises en attente par le gérant (sans filtre date)
+    promises.push(
+      fetch(`${API_URL}/api/ventes?statut=en_attente&date_debut=2020-01-01`, { headers: { Authorization: `Bearer ${state.token}` } })
+        .then(r => r.json()).then(d => (d.data || []).map(v => ({ ...v, _type: 'vente' })))
+    )
+    const results = await Promise.all(promises)
+    state.commandesTablette = results.flat()
     updateCommandesBadge()
-  } catch (e) { console.log('Erreur commandes:', e) }
+  } catch (e) { console.log('Erreur file d\'attente:', e) }
 }
 
 function updateCommandesBadge() {
   const n = state.commandesTablette.length
-  document.getElementById('cmd-badge').textContent = n
-  document.getElementById('btn-cmd-tablette').style.background = n > 0 ? '#fff7ed' : '#f9fafb'
+  const badge = document.getElementById('cmd-badge')
+  const btn   = document.getElementById('btn-cmd-tablette')
+  if (n > 0) {
+    badge.textContent    = n
+    badge.style.display  = 'inline'
+    btn.style.background = '#fff7ed'
+    btn.style.color      = '#ea580c'
+  } else {
+    badge.style.display  = 'none'
+    btn.style.background = '#f9fafb'
+    btn.style.color      = '#9ca3af'
+  }
 }
 
 function updateTopbarStation() {
@@ -1136,34 +1176,55 @@ function afficherCommandesPanel() {
 function afficherCommandesList() {
   const scroll = document.getElementById('commandes-list-scroll')
   if (!state.commandesTablette.length) {
-    scroll.innerHTML = '<p class="cmd-empty">Aucune commande en attente</p>'
+    scroll.innerHTML = '<p class="cmd-empty">Aucun élément en attente d\'encaissement</p>'
     return
   }
-  scroll.innerHTML = state.commandesTablette.map(cmd => {
-    const total = cmd.lignes?.reduce((s, l) => s + l.prix_unitaire * l.quantite, 0) || 0
-    const resume = cmd.lignes?.slice(0, 3).map(l => `${l.produit?.nom || ''} ×${l.quantite}`).join(', ')
-      + (cmd.lignes?.length > 3 ? `... +${cmd.lignes.length - 3}` : '')
-    const tAgo = cmd.created_at ? Math.floor((Date.now() - new Date(cmd.created_at)) / 60000) : 0
-    const statusMap = {
-      ouverte:  { cls: 'cmd-status-ouverte',  lbl: '🆕 Nouvelle' },
-      en_cours: { cls: 'cmd-status-en-cours', lbl: '⏳ En cours' },
-      prete:    { cls: 'cmd-status-prete',    lbl: '✅ Prête' },
-      servie:   { cls: 'cmd-status-servie',   lbl: '🍽️ Servie' }
+  scroll.innerHTML = state.commandesTablette.map(item => {
+    if (item._type === 'vente') {
+      const lignes = item.lignes || []
+      const total  = lignes.reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
+      const resume = lignes.slice(0,3).map(l => `${l.produit?.nom || ''} ×${parseFloat(l.quantite)}`).join(', ')
+        + (lignes.length > 3 ? ` +${lignes.length - 3}` : '')
+      return `
+        <div class="cmd-card" style="border-color:#ddd6fe;background:#faf5ff" onclick="selectionnerVente(${item.id})">
+          <div class="cmd-card-header">
+            <span class="cmd-card-table" style="color:#6d28d9">🔄 Vente #${item.id} — remise en attente</span>
+            <span class="cmd-card-num">${new Date(item.date_vente).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span>
+          </div>
+          <div class="cmd-card-serveur">👤 ${item.caissier?.nom || 'Caissier'}</div>
+          <div class="cmd-card-items">${resume}</div>
+          <div class="cmd-card-footer">
+            <span class="cmd-card-total">${total.toLocaleString('fr-FR')} XOF</span>
+            <span style="background:#ede9fe;color:#5b21b6;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600">Ré-encaisser</span>
+          </div>
+        </div>`
+    } else {
+      const total  = item.lignes?.reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0) || 0
+      const resume = item.lignes?.slice(0,3).map(l => `${l.produit?.nom || ''} ×${l.quantite}`).join(', ')
+        + (item.lignes?.length > 3 ? `... +${item.lignes.length - 3}` : '')
+      const tAgo = item.created_at ? Math.floor((Date.now() - new Date(item.created_at)) / 60000) : 0
+      const statusMap = {
+        ouverte:    { cls: 'cmd-status-ouverte',  lbl: '🆕 Nouvelle' },
+        en_attente: { cls: 'cmd-status-ouverte',  lbl: '⏳ En attente' },
+        en_cours:   { cls: 'cmd-status-en-cours', lbl: '⏳ En cours' },
+        prete:      { cls: 'cmd-status-prete',    lbl: '✅ Prête' },
+        servie:     { cls: 'cmd-status-servie',   lbl: '🍽️ Servie' }
+      }
+      const { cls: statusCls, lbl: statusLbl } = statusMap[item.statut] || { cls: '', lbl: item.statut }
+      return `
+        <div class="cmd-card" onclick="selectionnerCommande(${item.id})">
+          <div class="cmd-card-header">
+            <span class="cmd-card-table">${item.table ? `Table ${item.table.numero}` : 'Comptoir'} — Cmd #${item.numero || item.id}</span>
+            <span class="cmd-card-num">il y a ${tAgo}min</span>
+          </div>
+          <div class="cmd-card-serveur">👤 ${item.serveur?.nom || 'Serveur'}</div>
+          <div class="cmd-card-items">${resume}</div>
+          <div class="cmd-card-footer">
+            <span class="cmd-card-total">${total.toLocaleString('fr-FR')} XOF</span>
+            <span class="${statusCls}">${statusLbl}</span>
+          </div>
+        </div>`
     }
-    const { cls: statusCls, lbl: statusLbl } = statusMap[cmd.statut] || { cls: '', lbl: cmd.statut }
-    return `
-      <div class="cmd-card" onclick="selectionnerCommande(${cmd.id})">
-        <div class="cmd-card-header">
-          <span class="cmd-card-table">Table ${cmd.table?.numero || '?'}</span>
-          <span class="cmd-card-num">#${cmd.id} · il y a ${tAgo}min</span>
-        </div>
-        <div class="cmd-card-serveur">👤 ${cmd.serveur?.nom || 'Serveur'}</div>
-        <div class="cmd-card-items">${resume}</div>
-        <div class="cmd-card-footer">
-          <span class="cmd-card-total">${total.toLocaleString('fr-FR')} XOF</span>
-          <span class="${statusCls}">${statusLbl}</span>
-        </div>
-      </div>`
   }).join('')
 }
 
@@ -1171,10 +1232,31 @@ function fermerCommandesPanel() {
   document.getElementById('modal-commandes').classList.remove('visible')
 }
 
+function selectionnerVente(venteId) {
+  const vente = state.commandesTablette.find(c => c._type === 'vente' && c.id === venteId)
+  if (!vente) return
+  state.venteActive  = vente
+  state.commandeActive = null
+  state.panier = (vente.lignes || []).map(l => ({
+    produit_id:     l.produit_id,
+    nom:            l.produit?.nom || 'Produit',
+    quantite:       parseFloat(l.quantite),
+    prix_catalogue: parseFloat(l.prix_catalogue || l.prix_unitaire),
+    prix_applique:  parseFloat(l.prix_unitaire),
+    unite:          l.produit?.unite || 'unité',
+    stock_max:      9999
+  }))
+  document.getElementById('note-input').value = vente.note || `Vente #${vente.id}`
+  fermerCommandesPanel()
+  hideMessage()
+  renderPanier()
+}
+
 function selectionnerCommande(cmdId) {
-  const cmd = state.commandesTablette.find(c => c.id === cmdId)
+  const cmd = state.commandesTablette.find(c => c._type === 'commande' && c.id === cmdId)
   if (!cmd) return
   state.commandeActive = cmd
+  state.venteActive    = null
   state.panier = (cmd.lignes || []).map(l => ({
     produit_id:     l.produit_id,
     nom:            l.produit?.nom || 'Produit',
