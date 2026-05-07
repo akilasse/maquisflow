@@ -16,9 +16,11 @@
     "directories": {
       "output": "dist"
     },
+    "icon": "icon.png",
     "win": {
       "target": "portable",
-      "forceCodeSigning": false
+      "forceCodeSigning": false,
+      "icon": "icon.png"
     },
     "nsis": {
       "oneClick": false,
