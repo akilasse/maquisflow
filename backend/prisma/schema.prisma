@@ -140,10 +140,13 @@ model Produit {
   nom              String    @db.VarChar(150)
   categorie        String?   @db.VarChar(80)
   prix_vente       Decimal   @db.Decimal(10,2)
-  prix_achat       Decimal   @db.Decimal(10,2)
+  prix_achat       Decimal?  @db.Decimal(10,2)
   stock_actuel     Decimal   @db.Decimal(10,3)
   stock_min        Decimal   @default(0) @db.Decimal(10,3)
   unite            String    @default("unité") @db.VarChar(20)
+  conditionnement  String?   @db.VarChar(20)
+  nb_par_cond      Int?
+  prix_cond        Decimal?  @db.Decimal(10,2)
   photo_url        String?   @db.VarChar(255)
   code_barre       String?   @db.VarChar(100)
   actif            Boolean   @default(true)
@@ -158,20 +161,27 @@ model Produit {
 }
 
 model Vente {
-  id             Int          @id @default(autoincrement())
-  maquis_id      Int
-  maquis         Maquis       @relation(fields: [maquis_id], references: [id])
-  caissier_id    Int
-  caissier       Utilisateur  @relation(fields: [caissier_id], references: [id])
-  date_vente     DateTime     @default(now())
-  total_brut     Decimal      @db.Decimal(10,2)
-  remise_globale Decimal      @default(0) @db.Decimal(5,2)
-  total_net      Decimal      @db.Decimal(10,2)
-  mode_paiement  ModePaiement
-  statut         StatutVente  @default(validee)
-  valide_par     Int?
-  note           String?      @db.Text
-  commande_id    Int?         @unique
+  id                Int          @id @default(autoincrement())
+  maquis_id         Int
+  maquis            Maquis       @relation(fields: [maquis_id], references: [id])
+  caissier_id       Int
+  caissier          Utilisateur  @relation(fields: [caissier_id], references: [id])
+  date_vente        DateTime     @default(now())
+  total_brut        Decimal      @db.Decimal(10,2)
+  remise_globale    Decimal      @default(0) @db.Decimal(5,2)
+  total_net         Decimal      @db.Decimal(10,2)
+  mode_paiement     ModePaiement
+  statut            StatutVente  @default(encaissee)
+  valide_par        Int?
+  note              String?      @db.Text
+  commande_id       Int?         @unique
+  numero_facture    String?      @db.VarChar(30)
+  serveur_nom       String?      @db.VarChar(100)
+  reduction_montant Decimal?     @db.Decimal(10,2)
+  reduction_motif   String?      @db.Text
+  reduction_par     Int?
+  annulation_motif  String?      @db.Text
+  annule_par        Int?
 
   lignes   VenteLigne[]
   commande Commande?    @relation(fields: [commande_id], references: [id])
@@ -187,6 +197,8 @@ enum ModePaiement {
 }
 
 enum StatutVente {
+  en_attente
+  encaissee
   validee
   annulee
   credit_en_cours
@@ -368,6 +380,8 @@ model Commande {
   temps_preparation  Int?
   caisse_id          Int?
   caisse             Station?            @relation("CommandeCaisse", fields: [caisse_id], references: [id])
+  annulation_motif   String?  @db.Text
+  annule_par         Int?
   created_at         DateTime @default(now())
   updated_at    DateTime       @updatedAt
 

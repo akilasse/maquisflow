@@ -337,8 +337,8 @@ const changerStatutLigne = async (prisma, io, ligneId, statut, utilisateur) => {
 }
 
 const changerStatutCommande = async (prisma, io, commandeId, statut, utilisateur) => {
-  const statutsValides = ['ouverte', 'en_cours', 'prete', 'servie', 'annulee']
-  if (!statutsValides.includes(statut)) throw new Error('Statut invalide')
+  const statutsValides = ['ouverte', 'en_cours', 'prete', 'servie']
+  if (!statutsValides.includes(statut)) throw new Error('Statut invalide (utiliser /annuler pour annuler)')
 
   const commande = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
   if (['encaissee', 'annulee'].includes(commande.statut)) {
@@ -351,20 +351,38 @@ const changerStatutCommande = async (prisma, io, commandeId, statut, utilisateur
     include: { table: true }
   })
 
-  // Libère la table si annulée
-  if (statut === 'annulee' && commandeMaj.table_id) {
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('commande:mise_a_jour', commandeMaj)
+  return commandeMaj
+}
+
+const annulerCommande = async (prisma, io, commandeId, motif, utilisateur) => {
+  if (!motif || !motif.trim()) throw new Error('Le motif d\'annulation est obligatoire')
+
+  const commande = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
+  if (commande.statut === 'annulee')   throw new Error('Commande déjà annulée')
+  if (commande.statut === 'encaissee') throw new Error('Impossible d\'annuler une commande déjà encaissée')
+
+  await prisma.commande.update({
+    where: { id: commandeId },
+    data: {
+      statut:           'annulee',
+      annulation_motif: motif.trim(),
+      annule_par:       utilisateur.id
+    }
+  })
+
+  // Libère la table
+  if (commande.table_id) {
     const autresCommandes = await prisma.commande.count({
-      where: { table_id: commandeMaj.table_id, statut: { in: STATUTS_OUVERTS }, id: { not: commandeId } }
+      where: { table_id: commande.table_id, statut: { in: STATUTS_OUVERTS }, id: { not: commandeId } }
     })
     if (autresCommandes === 0) {
-      await prisma.tableEtablissement.update({
-        where: { id: commandeMaj.table_id },
-        data: { statut: 'libre' }
-      })
+      await prisma.tableEtablissement.update({ where: { id: commande.table_id }, data: { statut: 'libre' } })
     }
   }
 
-  io.to(`maquis_${utilisateur.maquis_id}`).emit('commande:mise_a_jour', commandeMaj)
+  const commandeMaj = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('commande:annulee', { commande_id: commandeId, motif, annule_par: utilisateur.nom })
   return commandeMaj
 }
 
@@ -452,5 +470,5 @@ module.exports = {
   getTables, creerTable, modifierTable, supprimerTable,
   getCommandes, getCommandesKDS, getCommande,
   creerCommande, ajouterLignes, definirTemps,
-  changerStatutLigne, changerStatutCommande, encaisserCommande
+  changerStatutLigne, changerStatutCommande, annulerCommande, encaisserCommande
 }

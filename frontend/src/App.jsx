@@ -11,6 +11,7 @@ import Caisse      from './pages/Maquis/Caisse'
 import Stock       from './pages/Maquis/Stock'
 import Inventaire  from './pages/Maquis/Inventaire'
 import Parametrage from './pages/Maquis/Parametrage'
+import Ventes      from './pages/Maquis/Ventes'
 import Tablette    from './pages/Maquis/Tablette'
 import KDS         from './pages/Maquis/KDS'
 
@@ -53,6 +54,11 @@ const App = () => {
             <Route path="/parametrage" element={
               <ProtectedRoute roles={['gerant', 'patron']}>
                 <Layout><Parametrage /></Layout>
+              </ProtectedRoute>
+            }/>
+            <Route path="/ventes" element={
+              <ProtectedRoute roles={['caissier', 'gerant', 'patron']}>
+                <Layout><Ventes /></Layout>
               </ProtectedRoute>
             }/>
             <Route path="/tablette" element={

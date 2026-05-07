@@ -89,6 +89,11 @@ const changerStatutCommande = async (req, res) => {
   catch (e) { err(res, e) }
 }
 
+const annulerCommande = async (req, res) => {
+  try { ok(res, await svc.annulerCommande(req.prisma, req.io, parseInt(req.params.id), req.body.motif, req.utilisateur)) }
+  catch (e) { err(res, e) }
+}
+
 const encaisserCommande = async (req, res) => {
   try { ok(res, await svc.encaisserCommande(req.prisma, req.io, parseInt(req.params.id), req.body, req.utilisateur)) }
   catch (e) { err(res, e) }
@@ -99,5 +104,5 @@ module.exports = {
   getTables, creerTable, modifierTable, supprimerTable,
   getCommandes, getCommandesKDS, getCommande,
   creerCommande, ajouterLignes, definirTemps,
-  changerStatutLigne, changerStatutCommande, encaisserCommande
+  changerStatutLigne, changerStatutCommande, annulerCommande, encaisserCommande
 }

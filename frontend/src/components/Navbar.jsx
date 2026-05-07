@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext'
 
 const LIENS = [
   { path: '/caisse',      label: 'Caisse',      icone: '🧾', roles: ['caissier', 'gerant', 'patron'] },
+  { path: '/ventes',      label: 'Ventes',      icone: '📄', roles: ['caissier', 'gerant', 'patron'] },
   { path: '/stock',       label: 'Stock',       icone: '📦', roles: ['gerant', 'patron'] },
   { path: '/inventaire',  label: 'Inventaire',  icone: '📋', roles: ['gerant', 'patron'] },
   { path: '/dashboard',   label: 'Dashboard',   icone: '📊', roles: ['gerant', 'patron'] },

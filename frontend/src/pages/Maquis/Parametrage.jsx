@@ -16,7 +16,8 @@ const Parametrage = () => {
   const [modal, setModal] = useState(null)
 
   const [formProduit, setFormProduit] = useState({
-    nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: ''
+    nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '',
+    conditionnement: '', nb_par_cond: '', prix_cond: ''
   })
   const [formFournisseur, setFormFournisseur] = useState({ nom: '', telephone: '', email: '', adresse: '' })
   const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', mot_de_passe: '', role: 'serveur' })
@@ -102,7 +103,7 @@ const Parametrage = () => {
         afficherMessage('succes', 'Produit créé !')
       }
       setModal(null)
-      setFormProduit({ nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '' })
+      setFormProduit({ nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '', conditionnement: '', nb_par_cond: '', prix_cond: '' })
       await chargerDonnees()
     } catch (error) { afficherMessage('erreur', error.response?.data?.message || 'Erreur') }
   }
@@ -243,7 +244,7 @@ const Parametrage = () => {
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
             <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Produits ({produits.length})</h2>
-            <button onClick={() => { setModal({ type: 'produit' }); setFormProduit({ nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '' }) }} style={styleBouton()}>+ Nouveau produit</button>
+            <button onClick={() => { setModal({ type: 'produit' }); setFormProduit({ nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '', conditionnement: '', nb_par_cond: '', prix_cond: '' }) }} style={styleBouton()}>+ Nouveau produit</button>
           </div>
 
           {modal?.type === 'produit' && (
@@ -253,10 +254,13 @@ const Parametrage = () => {
                 <input placeholder="Nom du produit *" value={formProduit.nom} onChange={e => setFormProduit({ ...formProduit, nom: e.target.value })} style={styleInput} />
                 <input placeholder="Catégorie (ex: Boissons)" value={formProduit.categorie} onChange={e => setFormProduit({ ...formProduit, categorie: e.target.value })} style={styleInput} />
                 <input type="number" placeholder="Prix de vente *" value={formProduit.prix_vente} onChange={e => setFormProduit({ ...formProduit, prix_vente: e.target.value })} style={styleInput} />
-                <input type="number" placeholder="Prix d'achat *" value={formProduit.prix_achat} onChange={e => setFormProduit({ ...formProduit, prix_achat: e.target.value })} style={styleInput} />
+                <input type="number" placeholder="Prix d'achat (optionnel)" value={formProduit.prix_achat} onChange={e => setFormProduit({ ...formProduit, prix_achat: e.target.value })} style={styleInput} />
                 <input type="number" placeholder="Seuil d'alerte (stock min)" value={formProduit.stock_min} onChange={e => setFormProduit({ ...formProduit, stock_min: e.target.value })} style={styleInput} />
                 <input placeholder="Unité (bouteille, portion...)" value={formProduit.unite} onChange={e => setFormProduit({ ...formProduit, unite: e.target.value })} style={styleInput} />
                 <input placeholder="Code barre (optionnel)" value={formProduit.code_barre} onChange={e => setFormProduit({ ...formProduit, code_barre: e.target.value })} style={styleInput} />
+                <input placeholder="Conditionnement (ex: casier, carton)" value={formProduit.conditionnement} onChange={e => setFormProduit({ ...formProduit, conditionnement: e.target.value })} style={styleInput} />
+                <input type="number" placeholder="Nb unités par cond. (ex: 24)" value={formProduit.nb_par_cond} onChange={e => setFormProduit({ ...formProduit, nb_par_cond: e.target.value })} style={styleInput} />
+                <input type="number" placeholder="Prix du conditionnement" value={formProduit.prix_cond} onChange={e => setFormProduit({ ...formProduit, prix_cond: e.target.value })} style={styleInput} />
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={soumettreProdukt} style={styleBouton()}>Enregistrer</button>
@@ -295,7 +299,7 @@ const Parametrage = () => {
                   </td>
                   <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{p.categorie || '-'}</td>
                   <td style={{ padding: '10px', fontSize: '13px', color: 'var(--couleur-principale)', fontWeight: '600' }}>{parseFloat(p.prix_vente).toLocaleString()} XOF</td>
-                  <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{parseFloat(p.prix_achat).toLocaleString()} XOF</td>
+                  <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{p.prix_achat ? parseFloat(p.prix_achat).toLocaleString() + ' XOF' : '-'}</td>
                   <td style={{ padding: '10px', fontSize: '13px', color: parseFloat(p.stock_actuel) <= parseFloat(p.stock_min) ? '#dc2626' : '#16a34a', fontWeight: '600' }}>{p.stock_actuel} {p.unite}</td>
                   <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{p.stock_min} {p.unite}</td>
                   <td style={{ padding: '10px' }}>
@@ -303,7 +307,7 @@ const Parametrage = () => {
                   </td>
                   <td style={{ padding: '10px' }}>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button onClick={() => { setModal({ type: 'produit', id: p.id }); setFormProduit({ nom: p.nom, categorie: p.categorie || '', prix_vente: p.prix_vente, prix_achat: p.prix_achat, stock_min: p.stock_min, unite: p.unite, code_barre: p.code_barre || '' }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
+                      <button onClick={() => { setModal({ type: 'produit', id: p.id }); setFormProduit({ nom: p.nom, categorie: p.categorie || '', prix_vente: p.prix_vente, prix_achat: p.prix_achat || '', stock_min: p.stock_min, unite: p.unite, code_barre: p.code_barre || '', conditionnement: p.conditionnement || '', nb_par_cond: p.nb_par_cond || '', prix_cond: p.prix_cond || '' }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
                       <button onClick={() => toggleActifProduit(p)} style={{ padding: '4px 10px', backgroundColor: p.actif ? '#fef2f2' : '#f0fdf4', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: p.actif ? '#dc2626' : '#16a34a' }}>{p.actif ? 'Désactiver' : 'Activer'}</button>
                     </div>
                   </td>

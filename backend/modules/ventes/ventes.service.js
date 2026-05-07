@@ -97,7 +97,7 @@ const creerVente = async (prisma, io, data, utilisateur) => {
         remise_globale: 0,
         total_net: parseFloat(total_net.toFixed(2)),
         mode_paiement,
-        statut: mode_paiement === 'credit' ? 'credit_en_cours' : 'validee',
+        statut: mode_paiement === 'credit' ? 'credit_en_cours' : 'encaissee',
         note,
         lignes: {
   create: lignesPreparees.map(l => ({
@@ -201,7 +201,97 @@ const getVentes = async (prisma, maquis_id, filtres = {}) => {
   return ventes
 }
 
+// Retourner une vente encaissée en attente (gérant/patron)
+const retourEnAttente = async (prisma, venteId, utilisateur) => {
+  const vente = await prisma.vente.findFirst({
+    where: { id: venteId, maquis_id: utilisateur.maquis_id }
+  })
+  if (!vente) throw new Error('Vente introuvable')
+  if (vente.statut !== 'encaissee') throw new Error('Seules les ventes encaissées peuvent être remises en attente')
+
+  return prisma.vente.update({
+    where: { id: venteId },
+    data: { statut: 'en_attente' }
+  })
+}
+
+// Appliquer une réduction après encaissement (gérant/patron)
+const appliquerReduction = async (prisma, io, venteId, data, utilisateur) => {
+  const { montant, motif } = data
+  if (!montant || parseFloat(montant) <= 0) throw new Error('Montant de réduction invalide')
+  if (!motif || !motif.trim()) throw new Error('Le motif de réduction est obligatoire')
+
+  const vente = await prisma.vente.findFirst({
+    where: { id: venteId, maquis_id: utilisateur.maquis_id }
+  })
+  if (!vente) throw new Error('Vente introuvable')
+  if (['annulee'].includes(vente.statut)) throw new Error('Impossible de modifier une vente annulée')
+
+  const reduction = parseFloat(montant)
+  if (reduction >= parseFloat(vente.total_net)) throw new Error('La réduction ne peut pas dépasser le total')
+
+  const venteMaj = await prisma.vente.update({
+    where: { id: venteId },
+    data: {
+      reduction_montant: reduction,
+      reduction_motif:   motif.trim(),
+      reduction_par:     utilisateur.id,
+      total_net:         parseFloat((parseFloat(vente.total_net) - reduction).toFixed(2))
+    }
+  })
+
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('dashboard:update', { type: 'reduction', vente_id: venteId })
+  return venteMaj
+}
+
+// Annuler une vente avec motif obligatoire + restock (gérant/patron)
+const annulerVente = async (prisma, io, venteId, motif, utilisateur) => {
+  if (!motif || !motif.trim()) throw new Error('Le motif d\'annulation est obligatoire')
+
+  const vente = await prisma.vente.findFirst({
+    where: { id: venteId, maquis_id: utilisateur.maquis_id },
+    include: { lignes: true }
+  })
+  if (!vente) throw new Error('Vente introuvable')
+  if (vente.statut === 'annulee') throw new Error('Vente déjà annulée')
+
+  await prisma.$transaction(async (tx) => {
+    await tx.vente.update({
+      where: { id: venteId },
+      data: {
+        statut:           'annulee',
+        annulation_motif: motif.trim(),
+        annule_par:       utilisateur.id
+      }
+    })
+
+    // Restock pour chaque ligne
+    for (const ligne of vente.lignes) {
+      await tx.produit.update({
+        where: { id: ligne.produit_id },
+        data: { stock_actuel: { increment: ligne.quantite } }
+      })
+      await tx.stockMouvement.create({
+        data: {
+          maquis_id:      utilisateur.maquis_id,
+          produit_id:     ligne.produit_id,
+          type_mouvement: 'ajustement',
+          quantite:       parseFloat(ligne.quantite),
+          raison:         `Annulation vente #${venteId} — ${motif}`,
+          utilisateur_id: utilisateur.id
+        }
+      })
+    }
+  })
+
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('dashboard:update', { type: 'annulation', vente_id: venteId })
+  return { message: 'Vente annulée et stock rétabli' }
+}
+
 module.exports = {
   creerVente,
-  getVentes
+  getVentes,
+  retourEnAttente,
+  appliquerReduction,
+  annulerVente
 }

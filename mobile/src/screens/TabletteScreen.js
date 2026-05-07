@@ -69,10 +69,19 @@ export default function TabletteScreen({ onRetour }) {
           nom:         l.produit?.nom || '',
           quantite:    l.quantite,
           prix:        l.prix_unitaire,
-          station_id:  l.station_id || null
+          station_id:  l.station_id || null,
+          _key:        l.id
         })))
       }
     } catch (e) {}
+    setVue('commande')
+  }
+
+  // ── Mode comptoir / sans table ─────────────────
+  const selectionnerComptoir = () => {
+    setTableActive(null)
+    setPanier([])
+    setCommandeEnCours(null)
     setVue('commande')
   }
 
@@ -139,7 +148,11 @@ export default function TabletteScreen({ onRetour }) {
       if (commandeEnCours) {
         await api.post(`/api/commandes/${commandeEnCours.id}/lignes`, { lignes, direct, caisse_id: caisseFinale })
       } else {
-        await api.post('/api/commandes', { table_id: tableActive.id, lignes, direct, caisse_id: caisseFinale })
+        await api.post('/api/commandes', {
+          table_id:      tableActive ? tableActive.id : null,
+          type_commande: tableActive ? 'sur_place' : 'comptoir',
+          lignes, direct, caisse_id: caisseFinale
+        })
       }
 
       const msg = direct ? 'Commande envoyée en caisse !' : 'Commande envoyée en cuisine !'
@@ -187,6 +200,16 @@ export default function TabletteScreen({ onRetour }) {
 
     return (
       <ScrollView contentContainerStyle={styles.tablesGrid}>
+        {/* Bouton comptoir / sans table */}
+        <TouchableOpacity
+          style={[styles.tableCard, styles.tableComptoir, { borderColor: couleur, borderWidth: 1.5 }]}
+          onPress={selectionnerComptoir}
+        >
+          <Text style={{ fontSize: 26 }}>🛒</Text>
+          <Text style={[styles.tableNum, { fontSize: 14, color: couleur }]}>Comptoir</Text>
+          <Text style={styles.tablePlaces}>Sans table</Text>
+        </TouchableOpacity>
+
         {tables.map(table => {
           const occupee = table.statut === 'occupee' || table._commande_active
           return (
@@ -217,7 +240,7 @@ export default function TabletteScreen({ onRetour }) {
         <TouchableOpacity onPress={() => setVue('tables')}>
           <Text style={styles.btnRetour}>← Retour</Text>
         </TouchableOpacity>
-        <Text style={styles.commandeTitle}>Table {tableActive?.numero}</Text>
+        <Text style={styles.commandeTitle}>{tableActive ? `Table ${tableActive.numero}` : '🛒 Comptoir'}</Text>
         <Text style={styles.commandeTotal}>{getTotal().toLocaleString('fr-FR')} XOF</Text>
       </View>
 
@@ -422,6 +445,7 @@ const styles = StyleSheet.create({
     padding: 16, alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb',
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
   },
+  tableComptoir: { borderStyle: 'dashed' },
   tableNum:    { fontSize: 22, fontWeight: '800', color: '#111827' },
   tablePlaces: { fontSize: 12, color: '#9ca3af', marginTop: 4 },
   tableDot:    { width: 8, height: 8, borderRadius: 4, marginTop: 6 },

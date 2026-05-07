@@ -3,18 +3,14 @@ const router = express.Router()
 const ventesController = require('./ventes.controller')
 const { verifierToken, autoriserRoles } = require('../../middlewares/auth')
 
-router.post(
-  '/',
-  verifierToken,
-  autoriserRoles('caissier', 'gerant', 'patron'),
-  ventesController.creerVente
-)
+const staff = [verifierToken, autoriserRoles('caissier', 'gerant', 'patron')]
+const admin = [verifierToken, autoriserRoles('gerant', 'patron')]
 
-router.get(
-  '/',
-  verifierToken,
-  autoriserRoles('caissier', 'gerant', 'patron'),
-  ventesController.getVentes
-)
+router.post('/', staff, ventesController.creerVente)
+router.get('/',  staff, ventesController.getVentes)
+
+router.put('/:id/retour-attente', admin, ventesController.retourEnAttente)
+router.put('/:id/reduction',      admin, ventesController.appliquerReduction)
+router.put('/:id/annuler',        admin, ventesController.annulerVente)
 
 module.exports = router

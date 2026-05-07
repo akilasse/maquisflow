@@ -30,6 +30,7 @@ router.get('/:id', tous,  ctrl.getCommande)
 router.post('/:id/lignes',     staff, ctrl.ajouterLignes)
 router.put('/:id/statut',      staff, ctrl.changerStatutCommande)
 router.put('/:id/temps',       staff, ctrl.definirTemps)
+router.put('/:id/annuler',     admin, ctrl.annulerCommande)
 router.post('/:id/encaisser',  staff, ctrl.encaisserCommande)
 
 router.put('/lignes/:id/statut', staff, ctrl.changerStatutLigne)
