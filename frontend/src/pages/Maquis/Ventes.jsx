@@ -331,21 +331,24 @@ export default function Ventes() {
                     )}
 
                     {/* Actions admin */}
-                    {estAdmin && (
+                    {estAdmin && !annulee && (
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:4 }}>
-                        {v.statut === 'encaissee' && <>
+                        {/* Remettre en attente — seulement si encaissée */}
+                        {v.statut === 'encaissee' && (
                           <button onClick={() => retourAttente(v)} style={{ background:'#fef9c3', color:'#713f12', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
                             ↩ Remettre en attente
                           </button>
+                        )}
+                        {/* Réduction — encaissée ou en attente */}
+                        {['encaissee', 'en_attente', 'credit_en_cours'].includes(v.statut) && (
                           <button onClick={() => { setModaleReduc(v); setMontantReduc(''); setMotifReduc('') }} style={{ background:'#fdf4ff', color:'#7e22ce', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
                             % Réduction
                           </button>
-                        </>}
-                        {v.statut !== 'annulee' && (
-                          <button onClick={() => { setModaleAnnul(v); setMotifAnnul('') }} style={{ background:'#fef2f2', color:'#991b1b', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                            ✕ Annuler la vente
-                          </button>
                         )}
+                        {/* Annuler */}
+                        <button onClick={() => { setModaleAnnul(v); setMotifAnnul('') }} style={{ background:'#fef2f2', color:'#991b1b', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                          ✕ Annuler la vente
+                        </button>
                       </div>
                     )}
                   </div>
