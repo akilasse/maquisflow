@@ -10,6 +10,7 @@ router.post('/', staff, ventesController.creerVente)
 router.get('/',  staff, ventesController.getVentes)
 
 router.put('/:id/retour-attente', admin, ventesController.retourEnAttente)
+router.put('/:id/lignes',         admin, ventesController.modifierLignes)
 router.put('/:id/encaisser',      staff, ventesController.reEncaisserVente)
 router.put('/:id/reduction',      admin, ventesController.appliquerReduction)
 router.put('/:id/annuler',        admin, ventesController.annulerVente)

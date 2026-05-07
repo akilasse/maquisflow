@@ -70,6 +70,10 @@ export default function Ventes() {
 
   const [modaleReduc,    setModaleReduc]    = useState(null)
   const [modaleAnnul,    setModaleAnnul]    = useState(null)
+  const [modaleModifier, setModaleModifier] = useState(null)
+  const [lignesEdit,     setLignesEdit]     = useState([])
+  const [produitsDispos, setProduitsDispos] = useState([])
+  const [rechProduit,    setRechProduit]    = useState('')
   const [montantReduc,   setMontantReduc]   = useState('')
   const [motifReduc,     setMotifReduc]     = useState('')
   const [motifAnnul,     setMotifAnnul]     = useState('')
@@ -113,6 +117,71 @@ export default function Ventes() {
   const msg = (type, texte) => {
     setMessage({ type, texte })
     setTimeout(() => setMessage(null), 4000)
+  }
+
+  const ouvrirModifier = async (v) => {
+    try {
+      const r = await api.get('/api/stock/produits')
+      setProduitsDispos(r.data.data || [])
+    } catch { setProduitsDispos([]) }
+    setLignesEdit(v.lignes.map(l => ({
+      produit_id:    l.produit_id,
+      nom:           l.produit?.nom || `Produit #${l.produit_id}`,
+      unite:         l.produit?.unite || '',
+      quantite:      parseFloat(l.quantite),
+      prix_applique: parseFloat(l.prix_unitaire),
+      prix_catalogue:parseFloat(l.prix_catalogue || l.prix_unitaire),
+      stock_max:     9999
+    })))
+    setRechProduit('')
+    setModaleModifier(v)
+  }
+
+  const modifQty = (produit_id, delta) => {
+    setLignesEdit(prev => prev.map(l =>
+      l.produit_id === produit_id ? { ...l, quantite: Math.max(1, l.quantite + delta) } : l
+    ))
+  }
+
+  const modifPrix = (produit_id, val) => {
+    setLignesEdit(prev => prev.map(l =>
+      l.produit_id === produit_id ? { ...l, prix_applique: parseFloat(val) || 0 } : l
+    ))
+  }
+
+  const supprimerLigne = (produit_id) => {
+    setLignesEdit(prev => prev.filter(l => l.produit_id !== produit_id))
+  }
+
+  const ajouterProduit = (produit) => {
+    if (lignesEdit.find(l => l.produit_id === produit.id)) {
+      setLignesEdit(prev => prev.map(l => l.produit_id === produit.id ? { ...l, quantite: l.quantite + 1 } : l))
+    } else {
+      setLignesEdit(prev => [...prev, {
+        produit_id:     produit.id,
+        nom:            produit.nom,
+        unite:          produit.unite,
+        quantite:       1,
+        prix_applique:  parseFloat(produit.prix_vente),
+        prix_catalogue: parseFloat(produit.prix_vente),
+        stock_max:      parseFloat(produit.stock_actuel)
+      }])
+    }
+    setRechProduit('')
+  }
+
+  const confirmerModification = async () => {
+    if (lignesEdit.length === 0) return msg('erreur', 'La vente doit avoir au moins un article')
+    setEnCours(true)
+    try {
+      await api.put(`/api/ventes/${modaleModifier.id}/lignes`, {
+        lignes: lignesEdit.map(l => ({ produit_id: l.produit_id, quantite: l.quantite, prix_applique: l.prix_applique }))
+      })
+      msg('succes', 'Vente modifiée')
+      setModaleModifier(null)
+      charger()
+    } catch (e) { msg('erreur', e.response?.data?.message || 'Erreur') }
+    finally { setEnCours(false) }
   }
 
   const retourAttente = async (v) => {
@@ -339,6 +408,12 @@ export default function Ventes() {
                             ↩ Remettre en attente
                           </button>
                         )}
+                        {/* Modifier les articles — uniquement en attente */}
+                        {v.statut === 'en_attente' && (
+                          <button onClick={() => ouvrirModifier(v)} style={{ background:'#eff6ff', color:'#1d4ed8', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                            ✏️ Modifier
+                          </button>
+                        )}
                         {/* Réduction — encaissée ou en attente */}
                         {['encaissee', 'en_attente', 'credit_en_cours'].includes(v.statut) && (
                           <button onClick={() => { setModaleReduc(v); setMontantReduc(''); setMotifReduc('') }} style={{ background:'#fdf4ff', color:'#7e22ce', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
@@ -383,6 +458,85 @@ export default function Ventes() {
           </div>
         </Modal>
       )}
+
+      {/* Modale modifier lignes */}
+      {modaleModifier && (() => {
+        const totalEdit = lignesEdit.reduce((s, l) => s + l.prix_applique * l.quantite, 0)
+        const prodFiltres = produitsDispos.filter(p =>
+          p.nom.toLowerCase().includes(rechProduit.toLowerCase()) &&
+          parseFloat(p.stock_actuel) > 0 &&
+          rechProduit.length > 0
+        ).slice(0, 6)
+        return (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+            <div style={{ background:'#fff', borderRadius:14, padding:24, width:520, maxWidth:'95vw', maxHeight:'90vh', display:'flex', flexDirection:'column', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
+                <h3 style={{ margin:0, fontSize:16, fontWeight:700 }}>✏️ Modifier — Vente #{modaleModifier.id}</h3>
+                <button onClick={() => setModaleModifier(null)} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
+              </div>
+
+              {/* Recherche produit à ajouter */}
+              <div style={{ position:'relative', marginBottom:14 }}>
+                <input value={rechProduit} onChange={e => setRechProduit(e.target.value)}
+                  placeholder="🔍 Ajouter un produit..."
+                  style={{ width:'100%', border:'1.5px solid #e5e7eb', borderRadius:8, padding:'9px 12px', fontSize:14, boxSizing:'border-box' }} />
+                {prodFiltres.length > 0 && (
+                  <div style={{ position:'absolute', top:'100%', left:0, right:0, background:'white', border:'1px solid #e5e7eb', borderRadius:8, boxShadow:'0 8px 24px rgba(0,0,0,0.12)', zIndex:10, marginTop:4 }}>
+                    {prodFiltres.map(p => (
+                      <div key={p.id} onClick={() => ajouterProduit(p)}
+                        style={{ padding:'10px 14px', cursor:'pointer', display:'flex', justifyContent:'space-between', fontSize:13, borderBottom:'1px solid #f3f4f6' }}
+                        onMouseEnter={e => e.currentTarget.style.background='#f0f9ff'}
+                        onMouseLeave={e => e.currentTarget.style.background='white'}>
+                        <span style={{ fontWeight:600 }}>{p.nom}</span>
+                        <span style={{ color:'#9ca3af' }}>{parseFloat(p.prix_vente).toLocaleString()} FCFA · stock {p.stock_actuel}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Liste des lignes */}
+              <div style={{ flex:1, overflowY:'auto', marginBottom:14 }}>
+                {lignesEdit.length === 0 ? (
+                  <p style={{ textAlign:'center', color:'#9ca3af', padding:20 }}>Aucun article</p>
+                ) : lignesEdit.map(l => (
+                  <div key={l.produit_id} style={{ display:'flex', alignItems:'center', gap:8, padding:'10px 0', borderBottom:'1px solid #f3f4f6' }}>
+                    <div style={{ flex:1, fontSize:14, fontWeight:600, color:'#111827' }}>
+                      {l.nom}
+                      <span style={{ fontSize:12, color:'#9ca3af', fontWeight:400, marginLeft:6 }}>{l.unite}</span>
+                    </div>
+                    {/* Quantité */}
+                    <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                      <button onClick={() => modifQty(l.produit_id, -1)}
+                        style={{ width:28, height:28, borderRadius:6, border:'1px solid #e5e7eb', background:'white', cursor:'pointer', fontWeight:700, fontSize:16 }}>−</button>
+                      <span style={{ minWidth:28, textAlign:'center', fontWeight:700, fontSize:15 }}>{l.quantite}</span>
+                      <button onClick={() => modifQty(l.produit_id, 1)}
+                        style={{ width:28, height:28, borderRadius:6, border:'1px solid #e5e7eb', background:'white', cursor:'pointer', fontWeight:700, fontSize:16 }}>+</button>
+                    </div>
+                    {/* Prix */}
+                    <input type="number" value={l.prix_applique} onChange={e => modifPrix(l.produit_id, e.target.value)}
+                      style={{ width:90, border:'1px solid #e5e7eb', borderRadius:6, padding:'5px 8px', fontSize:13, textAlign:'right' }} />
+                    <span style={{ fontSize:13, fontWeight:700, color:couleur, minWidth:80, textAlign:'right' }}>
+                      {(l.prix_applique * l.quantite).toLocaleString()} FCFA
+                    </span>
+                    <button onClick={() => supprimerLigne(l.produit_id)}
+                      style={{ background:'none', border:'none', color:'#ef4444', cursor:'pointer', fontSize:18, lineHeight:1, padding:'0 4px' }}>×</button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Total + Sauvegarder */}
+              <div style={{ borderTop:'2px solid #f3f4f6', paddingTop:14, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                <div style={{ fontSize:18, fontWeight:800, color:couleur }}>{totalEdit.toLocaleString()} FCFA</div>
+                <button onClick={confirmerModification} disabled={enCours || lignesEdit.length === 0}
+                  style={{ background: couleur, color:'white', border:'none', borderRadius:8, padding:'11px 24px', fontWeight:700, fontSize:15, cursor:'pointer', opacity: enCours ? .7 : 1 }}>
+                  {enCours ? 'Enregistrement...' : '✅ Sauvegarder'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Modale annulation */}
       {modaleAnnul && (

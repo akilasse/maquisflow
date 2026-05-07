@@ -76,11 +76,21 @@ const reEncaisserVente = async (req, res) => {
   }
 }
 
+const modifierLignes = async (req, res) => {
+  try {
+    const vente = await ventesService.modifierLignes(req.prisma, req.io, parseInt(req.params.id), req.body.lignes, req.utilisateur)
+    return res.json({ success: true, data: vente })
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message })
+  }
+}
+
 module.exports = {
   creerVente,
   getVentes,
   retourEnAttente,
   appliquerReduction,
   annulerVente,
-  reEncaisserVente
+  reEncaisserVente,
+  modifierLignes
 }

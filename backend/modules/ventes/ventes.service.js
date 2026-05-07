@@ -318,11 +318,83 @@ const reEncaisserVente = async (prisma, io, venteId, mode_paiement, utilisateur)
   return venteMaj
 }
 
+// Modifier les lignes d'une vente en attente (gérant/patron)
+const modifierLignes = async (prisma, io, venteId, lignes, utilisateur) => {
+  if (!lignes || lignes.length === 0) throw new Error('La vente doit contenir au moins un article')
+
+  const vente = await prisma.vente.findFirst({
+    where: { id: venteId, maquis_id: utilisateur.maquis_id },
+    include: { lignes: true }
+  })
+  if (!vente) throw new Error('Vente introuvable')
+  if (vente.statut !== 'en_attente') throw new Error('Seules les ventes en attente peuvent être modifiées')
+
+  const venteMaj = await prisma.$transaction(async (tx) => {
+    // Restituer le stock des anciennes lignes
+    for (const oldL of vente.lignes) {
+      await tx.produit.update({
+        where: { id: oldL.produit_id },
+        data: { stock_actuel: { increment: oldL.quantite } }
+      })
+    }
+
+    // Supprimer les anciennes lignes
+    await tx.venteLigne.deleteMany({ where: { vente_id: venteId } })
+
+    // Créer les nouvelles lignes
+    let total_net = 0
+    for (const ligne of lignes) {
+      const produit = await tx.produit.findFirst({
+        where: { id: ligne.produit_id, maquis_id: utilisateur.maquis_id, actif: true }
+      })
+      if (!produit) throw new Error(`Produit introuvable : ID ${ligne.produit_id}`)
+      if (parseFloat(produit.stock_actuel) < ligne.quantite) {
+        throw new Error(`Stock insuffisant pour "${produit.nom}" — disponible : ${produit.stock_actuel}`)
+      }
+
+      const prix = parseFloat(ligne.prix_applique ?? produit.prix_vente)
+      const total_ligne = parseFloat((prix * ligne.quantite).toFixed(2))
+      total_net += total_ligne
+
+      await tx.produit.update({
+        where: { id: ligne.produit_id },
+        data: { stock_actuel: { decrement: ligne.quantite } }
+      })
+
+      await tx.venteLigne.create({
+        data: {
+          vente_id:       venteId,
+          produit_id:     ligne.produit_id,
+          quantite:       ligne.quantite,
+          prix_unitaire:  prix,
+          prix_catalogue: parseFloat(produit.prix_vente),
+          economie_client: parseFloat(((parseFloat(produit.prix_vente) - prix) * ligne.quantite).toFixed(2)),
+          remise_ligne:   0,
+          total_ligne
+        }
+      })
+    }
+
+    return tx.vente.update({
+      where: { id: venteId },
+      data: {
+        total_brut: parseFloat(total_net.toFixed(2)),
+        total_net:  parseFloat(total_net.toFixed(2))
+      },
+      include: { lignes: { include: { produit: { select: { nom: true, unite: true } } } } }
+    })
+  })
+
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('dashboard:update', { type: 'modification_vente', vente_id: venteId })
+  return venteMaj
+}
+
 module.exports = {
   creerVente,
   getVentes,
   retourEnAttente,
   appliquerReduction,
   annulerVente,
-  reEncaisserVente
+  reEncaisserVente,
+  modifierLignes
 }
