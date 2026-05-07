@@ -399,6 +399,7 @@ enum TypeCommande {
 
 enum StatutCommande {
   ouverte
+  en_attente
   en_cours
   prete
   servie

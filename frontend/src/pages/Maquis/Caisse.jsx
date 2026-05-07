@@ -77,10 +77,15 @@ const Caisse = () => {
   const chargerCommandesTablette = useCallback(async () => {
     if (!utilisateur?.maquis?.module_commandes_actif) return
     try {
-      const res = await api.get('/api/commandes?statut=servie')
-      // Inclure aussi "prete" pour les établissements avec paiement avant
-      const res2 = await api.get('/api/commandes?statut=prete')
-      const toutes = [...(res.data.data || []), ...(res2.data.data || [])]
+      // en_attente = direct depuis tablette (sans préparation)
+      // servie = KDS flow (préparation faite, livrée à la table)
+      // prete = KDS avec paiement avant (tablette envoie avant service)
+      const [res, res2, res3] = await Promise.all([
+        api.get('/api/commandes?statut=en_attente'),
+        api.get('/api/commandes?statut=servie'),
+        api.get('/api/commandes?statut=prete'),
+      ])
+      const toutes = [...(res.data.data || []), ...(res2.data.data || []), ...(res3.data.data || [])]
       setCommandesTablette(toutes)
     } catch {}
   }, [utilisateur?.maquis?.module_commandes_actif])

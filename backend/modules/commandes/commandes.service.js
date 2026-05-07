@@ -3,7 +3,7 @@
 // Module optionnel activé par module_commandes_actif sur Maquis
 // ============================================================
 
-const STATUTS_OUVERTS = ['ouverte', 'en_cours', 'prete', 'servie']
+const STATUTS_OUVERTS = ['ouverte', 'en_attente', 'en_cours', 'prete', 'servie']
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -215,7 +215,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
       table_id:      table_id || null,
       serveur_id:    utilisateur.id,
       type_commande: type_commande || 'sur_place',
-      statut:        direct ? 'prete' : 'en_cours',
+      statut:        direct ? 'en_attente' : 'en_cours',
       caisse_id:     caisse_id ? parseInt(caisse_id) : null,
       numero,
       note:          note || null,
@@ -273,12 +273,12 @@ const ajouterLignes = async (prisma, io, commandeId, lignes, utilisateur, direct
 
   await prisma.commandeLigne.createMany({ data: lignesPreparees })
 
-  // Si envoi direct, passer la commande en prete et assigner la caisse cible
-  if (direct && !['prete', 'encaissee'].includes(commande.statut)) {
+  // Si envoi direct, passer la commande en_attente (caisse) et assigner la caisse cible
+  if (direct && !['en_attente', 'prete', 'encaissee'].includes(commande.statut)) {
     await prisma.commande.update({
       where: { id: commandeId },
       data: {
-        statut:    'prete',
+        statut:    'en_attente',
         caisse_id: caisse_id ? parseInt(caisse_id) : commande.caisse_id
       }
     })

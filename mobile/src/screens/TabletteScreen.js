@@ -8,12 +8,13 @@ import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 
 const STATUTS_BADGE = {
-  ouverte:   { bg: '#fef3c7', txt: '#92400e', label: 'Ouverte' },
-  en_cours:  { bg: '#dbeafe', txt: '#1e40af', label: 'En cours' },
-  prete:     { bg: '#d1fae5', txt: '#065f46', label: 'Prête' },
-  servie:    { bg: '#e0e7ff', txt: '#3730a3', label: 'Servie' },
-  encaissee: { bg: '#f0fdf4', txt: '#166534', label: 'Encaissée' },
-  annulee:   { bg: '#fee2e2', txt: '#991b1b', label: 'Annulée' },
+  ouverte:    { bg: '#fef3c7', txt: '#92400e', label: 'Ouverte' },
+  en_attente: { bg: '#fff7ed', txt: '#c2410c', label: 'En attente' },
+  en_cours:   { bg: '#dbeafe', txt: '#1e40af', label: 'En cours' },
+  prete:      { bg: '#d1fae5', txt: '#065f46', label: 'Prête' },
+  servie:     { bg: '#e0e7ff', txt: '#3730a3', label: 'Servie' },
+  encaissee:  { bg: '#f0fdf4', txt: '#166534', label: 'Encaissée' },
+  annulee:    { bg: '#fee2e2', txt: '#991b1b', label: 'Annulée' },
 }
 
 export default function TabletteScreen({ onRetour }) {
