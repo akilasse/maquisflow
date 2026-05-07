@@ -206,8 +206,8 @@ export default function TabletteScreen({ onRetour }) {
           onPress={selectionnerComptoir}
         >
           <Text style={{ fontSize: 26 }}>🛒</Text>
-          <Text style={[styles.tableNum, { fontSize: 14, color: couleur }]}>Comptoir</Text>
-          <Text style={styles.tablePlaces}>Sans table</Text>
+          <Text style={[styles.tableNum, { fontSize: 14, color: couleur }]}>Sans table</Text>
+          <Text style={styles.tablePlaces}>Commande directe</Text>
         </TouchableOpacity>
 
         {tables.map(table => {
@@ -240,7 +240,7 @@ export default function TabletteScreen({ onRetour }) {
         <TouchableOpacity onPress={() => setVue('tables')}>
           <Text style={styles.btnRetour}>← Retour</Text>
         </TouchableOpacity>
-        <Text style={styles.commandeTitle}>{tableActive ? `Table ${tableActive.numero}` : '🛒 Comptoir'}</Text>
+        <Text style={styles.commandeTitle}>{tableActive ? `Table ${tableActive.numero}` : '🛒 Sans table'}</Text>
         <Text style={styles.commandeTotal}>{getTotal().toLocaleString('fr-FR')} XOF</Text>
       </View>
 
