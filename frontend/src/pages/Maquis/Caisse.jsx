@@ -30,6 +30,7 @@ const Caisse = () => {
   const [isOnline, setIsOnline]               = useState(navigator.onLine)
   const [ventesEnAttente, setVentesEnAttente] = useState(0)
   const [syncEnCours, setSyncEnCours]         = useState(false)
+  const [ongletMobile,     setOngletMobile]     = useState('produits')
   const [commandesTablette, setCommandesTablette] = useState([])
   const [commandeActive, setCommandeActive]       = useState(null)
   const [venteActive, setVenteActive]             = useState(null)
@@ -388,7 +389,7 @@ const Caisse = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 32px)', gap: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 32px)', gap: 0 }} className="caisse-page">
 
       {/* Barre statut connexion */}
       <div style={{
@@ -416,6 +417,23 @@ const Caisse = () => {
             )}
           </div>
         )}
+      </div>
+
+      {/* Tab switcher mobile */}
+      <div className="caisse-tabs-mobile">
+        <button onClick={() => setOngletMobile('produits')}
+          style={{ flex:1, padding:'10px', border:'none', cursor:'pointer', fontWeight:700, fontSize:14, borderBottom: ongletMobile === 'produits' ? '3px solid var(--couleur-principale)' : '3px solid transparent', background:'white', color: ongletMobile === 'produits' ? 'var(--couleur-principale)' : '#6b7280' }}>
+          🛒 Produits
+        </button>
+        <button onClick={() => setOngletMobile('panier')}
+          style={{ flex:1, padding:'10px', border:'none', cursor:'pointer', fontWeight:700, fontSize:14, borderBottom: ongletMobile === 'panier' ? '3px solid var(--couleur-principale)' : '3px solid transparent', background:'white', color: ongletMobile === 'panier' ? 'var(--couleur-principale)' : '#6b7280', position:'relative' }}>
+          🧾 Panier
+          {panier.length > 0 && (
+            <span style={{ position:'absolute', top:6, right:24, background:'var(--couleur-principale)', color:'white', borderRadius:'50%', width:18, height:18, fontSize:11, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center' }}>
+              {panier.length}
+            </span>
+          )}
+        </button>
       </div>
 
       <div style={{ display: 'flex', gap: '16px', flex: 1, overflow: 'hidden' }}>
@@ -534,7 +552,7 @@ const Caisse = () => {
         )}
 
         {/* COLONNE GAUCHE - Produits */}
-        <div style={{ flex: 0.8, backgroundColor: 'white', borderRadius: '12px', padding: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div className={`col-produits-caisse ${ongletMobile === 'panier' ? 'mobile-hidden' : ''}`} style={{ flex: 0.8, backgroundColor: 'white', borderRadius: '12px', padding: '20px', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <button onClick={() => setVoirCommandes(true)}
             style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', marginBottom: 12, padding: '10px 14px', borderRadius: 10, border: 'none', cursor: 'pointer', backgroundColor: commandesTablette.length > 0 ? '#fff7ed' : '#f9fafb', color: commandesTablette.length > 0 ? '#ea580c' : '#9ca3af', fontWeight: 600, fontSize: 14 }}>
             <span>🍽️ File d'attente</span>
@@ -572,7 +590,7 @@ const Caisse = () => {
         </div>
 
         {/* COLONNE DROITE - Panier */}
-        <div style={{ flex: 1.2, backgroundColor: 'white', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div className={`col-panier-caisse ${ongletMobile === 'produits' ? 'mobile-hidden' : ''}`} style={{ flex: 1.2, backgroundColor: 'white', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#374151' }}>Panier ({panier.length})</h2>
@@ -681,6 +699,23 @@ const Caisse = () => {
           </div>
         </div>
       </div>
+
+      <style>{`
+        .caisse-tabs-mobile { display: none; }
+        @media (max-width: 768px) {
+          .caisse-page { height: auto !important; min-height: calc(100vh - 76px); }
+          .caisse-tabs-mobile {
+            display: flex; background: white; border-radius: 10px;
+            margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;
+          }
+          .caisse-page > div:last-of-type { flex-direction: column !important; }
+          .col-produits-caisse, .col-panier-caisse {
+            flex: 1 !important; width: 100% !important;
+            height: calc(100vh - 240px) !important;
+          }
+          .mobile-hidden { display: none !important; }
+        }
+      `}</style>
     </div>
   )
 }

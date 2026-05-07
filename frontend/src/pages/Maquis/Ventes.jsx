@@ -41,8 +41,9 @@ const Badge = ({ statut }) => {
 }
 
 const Modal = ({ titre, onClose, children }) => (
-  <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
-    <div style={{ background:'#fff', borderRadius:14, padding:24, width:420, maxWidth:'95vw', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
+  <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'flex-end', justifyContent:'center', zIndex:1000 }}
+    className="modal-ventes-overlay">
+    <div className="modal-ventes-card" style={{ background:'#fff', borderRadius:'14px 14px 0 0', padding:24, width:'100%', maxWidth:480, boxShadow:'0 -8px 40px rgba(0,0,0,0.2)', maxHeight:'92vh', overflowY:'auto' }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
         <h3 style={{ margin:0, fontSize:16, fontWeight:700, color:'#111827' }}>{titre}</h3>
         <button onClick={onClose} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af', lineHeight:1 }}>×</button>
@@ -215,7 +216,7 @@ export default function Ventes() {
   const couleur     = utilisateur?.maquis?.couleur_primaire || '#FF6B35'
 
   return (
-    <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }}>
+    <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }} className="ventes-page">
 
       {/* Toast */}
       {message && (
@@ -237,7 +238,7 @@ export default function Ventes() {
       <div style={{ background: '#fff', borderRadius: 14, padding: 20, marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}>
 
         {/* Périodes rapides */}
-        <div style={{ display:'flex', gap:8, marginBottom:16 }}>
+        <div style={{ display:'flex', gap:8, marginBottom:16, overflowX:'auto', paddingBottom:4 }} className="periodes-scroll">
           {PERIODES.map(p => (
             <button key={p.key} onClick={() => appliquerPeriode(p.key)} style={{
               padding: '8px 18px', borderRadius: 22, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 700,
@@ -249,7 +250,7 @@ export default function Ventes() {
         </div>
 
         {/* Ligne date + recherches */}
-        <div style={{ display:'flex', gap:12, alignItems:'flex-end', flexWrap:'wrap' }}>
+        <div style={{ display:'flex', gap:12, alignItems:'flex-end', flexWrap:'wrap' }} className="dates-row">
           <div>
             <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Du</div>
             <input type="date" value={dateDebut} onChange={e => { setDateDebut(e.target.value); setPeriode('custom') }}
@@ -315,6 +316,7 @@ export default function Ventes() {
 
                 {/* Ligne principale */}
                 <div onClick={() => setOuverte(ouv ? null : v.id)}
+                  className="vente-card-main"
                   style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 18px', cursor:'pointer', userSelect:'none' }}>
 
                   {/* Numéro */}
@@ -401,7 +403,7 @@ export default function Ventes() {
 
                     {/* Actions admin */}
                     {estAdmin && !annulee && (
-                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:4 }}>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:4 }} className="vente-actions">
                         {/* Remettre en attente — seulement si encaissée */}
                         {v.statut === 'encaissee' && (
                           <button onClick={() => retourAttente(v)} style={{ background:'#fef9c3', color:'#713f12', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
@@ -558,6 +560,46 @@ export default function Ventes() {
           </div>
         </Modal>
       )}
+
+      <style>{`
+        /* ── Ventes page responsive ── */
+        .periodes-scroll { scrollbar-width: none; }
+        .periodes-scroll::-webkit-scrollbar { display: none; }
+        .periodes-scroll button { flex-shrink: 0; white-space: nowrap; }
+
+        @media (max-width: 768px) {
+          .ventes-page { padding: 12px 10px !important; }
+
+          /* Filtres */
+          .dates-row { flex-direction: column !important; gap: 8px !important; }
+          .dates-row > div { width: 100% !important; min-width: unset !important; }
+          .dates-row input[type="date"],
+          .dates-row input[type="text"] {
+            width: 100% !important; box-sizing: border-box !important;
+            padding: 10px 12px !important; font-size: 15px !important;
+          }
+
+          /* Carte vente */
+          .vente-card-main { gap: 10px !important; padding: 12px 14px !important; }
+
+          /* Actions */
+          .vente-actions { gap: 6px !important; }
+          .vente-actions button {
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            font-size: 11px !important;
+            padding: 8px 10px !important;
+            text-align: center !important;
+          }
+
+          /* Modales en bottom sheet */
+          .modal-ventes-overlay { align-items: flex-end !important; }
+          .modal-ventes-card {
+            border-radius: 18px 18px 0 0 !important;
+            max-height: 92vh !important;
+          }
+        }
+      `}</style>
     </div>
   )
 }
