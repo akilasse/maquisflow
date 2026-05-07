@@ -199,7 +199,6 @@ enum ModePaiement {
 enum StatutVente {
   en_attente
   encaissee
-  validee
   annulee
   credit_en_cours
 }
