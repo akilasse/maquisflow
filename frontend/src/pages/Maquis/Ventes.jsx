@@ -219,6 +219,47 @@ export default function Ventes() {
   const nbActives   = ventes.filter(v => v.statut !== 'annulee').length
   const couleur     = utilisateur?.maquis?.couleur_primaire || '#FF6B35'
 
+  const imprimerVentes = () => {
+    const MODES_LABEL = { especes:'Espèces', wave:'Wave', mtn_momo:'MTN MoMo', orange_money:'Orange Money', carte:'Carte', autre:'Autre' }
+    const STATUTS_LABEL = { encaissee:'Encaissée', en_attente:'En attente', credit_en_cours:'Crédit', annulee:'Annulée' }
+    const periode = `${dateDebut}${heureDebut ? ' ' + heureDebut : ''} → ${dateFin}${heureFin ? ' ' + heureFin : ''}`
+    const lignes = ventes.map(v => `
+      <tr style="border-bottom:1px solid #eee">
+        <td>${v.id}</td>
+        <td>${fmtDate(v.date_vente)}</td>
+        <td>${v.serveur_nom || '—'}</td>
+        <td>${v.lignes?.map(l => `${l.quantite}× ${l.produit?.nom || ''}`).join(', ') || '—'}</td>
+        <td style="text-align:right">${fmtNum(v.total_net)}</td>
+        <td>${MODES_LABEL[v.mode_paiement] || v.mode_paiement}</td>
+        <td style="color:${v.statut === 'annulee' ? '#dc2626' : v.statut === 'encaissee' ? '#16a34a' : '#d97706'}">${STATUTS_LABEL[v.statut] || v.statut}</td>
+      </tr>`).join('')
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <title>Ventes — ${periode}</title>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 20px; }
+        h2 { margin: 0 0 4px; font-size: 16px; }
+        p { margin: 0 0 12px; color: #555; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: ${couleur}; color: white; padding: 6px 8px; text-align: left; font-size: 11px; }
+        td { padding: 5px 8px; font-size: 11px; }
+        tr:nth-child(even) { background: #f9fafb; }
+        .total { text-align: right; margin-top: 12px; font-weight: bold; font-size: 13px; }
+        @media print { body { margin: 10px; } }
+      </style></head><body>
+      <h2>Historique des ventes — ${utilisateur?.maquis?.nom || ''}</h2>
+      <p>Période : ${periode} · ${nbActives} vente(s) encaissée(s)</p>
+      <table>
+        <thead><tr><th>#</th><th>Date</th><th>Serveur</th><th>Articles</th><th style="text-align:right">Total (FCFA)</th><th>Paiement</th><th>Statut</th></tr></thead>
+        <tbody>${lignes}</tbody>
+      </table>
+      <p class="total">Total encaissé : ${fmtNum(totalNet)} FCFA</p>
+      <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script>
+      </body></html>`
+    const w = window.open('', '_blank', 'width=900,height=700')
+    w.document.write(html)
+    w.document.close()
+  }
+
   return (
     <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }} className="ventes-page">
 
@@ -233,13 +274,13 @@ export default function Ventes() {
       )}
 
       {/* Titre */}
-      <div style={{ marginBottom: 20 }} className="no-print">
+      <div style={{ marginBottom: 20 }}>
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#111827' }}>Ventes & Factures</h2>
         <p style={{ margin: '4px 0 0', fontSize: 13, color: '#9ca3af' }}>Historique et gestion des encaissements</p>
       </div>
 
       {/* Filtres */}
-      <div style={{ background: '#fff', borderRadius: 14, padding: 20, marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }} className="no-print">
+      <div style={{ background: '#fff', borderRadius: 14, padding: 20, marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}>
 
         {/* Périodes rapides */}
         <div style={{ display:'flex', gap:8, marginBottom:16, overflowX:'auto', paddingBottom:4 }} className="periodes-scroll">
@@ -300,25 +341,13 @@ export default function Ventes() {
         </div>
       </div>
 
-      {/* En-tête impression uniquement */}
-      <div className="print-only" style={{ display:'none' }}>
-        <h2 style={{ margin:'0 0 4px', fontSize:18 }}>Historique des ventes</h2>
-        <p style={{ margin:'0 0 2px', fontSize:13, color:'#555' }}>
-          Période : {dateDebut} {heureDebut ? `à partir de ${heureDebut}` : ''} → {dateFin} {heureFin ? `jusqu'à ${heureFin}` : ''}
-        </p>
-        <p style={{ margin:'0 0 12px', fontSize:13, color:'#555' }}>
-          {nbActives} vente(s) · Total : {fmtNum(totalNet)} FCFA
-        </p>
-        <hr style={{ border:'none', borderTop:'1px solid #ccc', marginBottom:12 }} />
-      </div>
-
       {/* Résumé */}
-      <div style={{ background: '#fff', borderRadius: 14, padding: '14px 20px', marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)', display:'flex', justifyContent:'space-between', alignItems:'center' }} className="no-print">
+      <div style={{ background: '#fff', borderRadius: 14, padding: '14px 20px', marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{ fontSize:14, color:'#6b7280' }}>
           {chargement ? '...' : <><strong style={{ color:'#111827' }}>{nbActives}</strong> vente{nbActives > 1 ? 's' : ''} · {ventes.length - nbActives > 0 ? `${ventes.length - nbActives} annulée(s)` : 'aucune annulation'}</>}
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-          <button onClick={() => window.print()} style={{ padding:'7px 16px', border:`1.5px solid ${couleur}`, borderRadius:8, background:'white', color:couleur, fontSize:13, fontWeight:700, cursor:'pointer' }}>
+          <button onClick={imprimerVentes} style={{ padding:'7px 16px', border:`1.5px solid ${couleur}`, borderRadius:8, background:'white', color:couleur, fontSize:13, fontWeight:700, cursor:'pointer' }}>
             🖨 Imprimer
           </button>
           <div style={{ fontSize:20, fontWeight:800, color: couleur }}>
@@ -593,20 +622,6 @@ export default function Ventes() {
       )}
 
       <style>{`
-        /* ── Impression ── */
-        @media print {
-          body > * { display: none !important; }
-          #root > * { display: none !important; }
-          .ventes-page { display: block !important; padding: 0 !important; }
-          .no-print { display: none !important; }
-          .print-only { display: block !important; }
-          /* afficher uniquement la liste des ventes */
-          .ventes-page > *:not(.ventes-liste-print):not(.print-only) { display: none !important; }
-          .ventes-liste-print { display: block !important; }
-          .vente-card-main { border: 1px solid #ddd !important; border-radius: 4px !important; margin-bottom: 6px !important; box-shadow: none !important; }
-          button { display: none !important; }
-        }
-
         /* ── Ventes page responsive ── */
         .periodes-scroll { scrollbar-width: none; }
         .periodes-scroll::-webkit-scrollbar { display: none; }
