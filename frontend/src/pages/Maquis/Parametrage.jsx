@@ -352,7 +352,7 @@ const Parametrage = () => {
 
           {modal?.type === 'import_csv' && (
             <ImportCSV
-              couleur={couleur}
+              couleur={maquis?.couleur_primaire || 'var(--couleur-principale)'}
               onImporte={async (lignes) => {
                 await api.post('/api/parametrage/produits/import', { lignes })
                 afficherMessage('succes', `${lignes.length} produit(s) importé(s) !`)
