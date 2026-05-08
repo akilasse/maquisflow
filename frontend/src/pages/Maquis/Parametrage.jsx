@@ -10,17 +10,19 @@ function ImportCSV({ couleur, onImporte, onAnnuler }) {
   const [enCours,  setEnCours]  = useState(false)
 
   const parseCSV = (texte) => {
-    const rows = texte.trim().split(/\r?\n/)
+    const textePropre = texte.replace(/^﻿/, '').trim()
+    const rows = textePropre.split(/\r?\n/)
     if (rows.length < 2) { setErreur('Le fichier doit contenir au moins une ligne de données après l\'en-tête.'); return }
-    const entetes = rows[0].split(';').map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''))
+    const sep = rows[0].includes(';') ? ';' : ','
+    const entetes = rows[0].split(sep).map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''))
     const colonnesRequises = ['nom', 'prix_vente']
     for (const c of colonnesRequises) {
-      if (!entetes.includes(c)) { setErreur(`Colonne manquante : "${c}"`); return }
+      if (!entetes.includes(c)) { setErreur(`Colonne manquante : "${c}" — vérifiez que votre fichier utilise ; ou , comme séparateur`); return }
     }
     const data = []
     for (let i = 1; i < rows.length; i++) {
       if (!rows[i].trim()) continue
-      const vals = rows[i].split(';')
+      const vals = rows[i].split(sep)
       const obj = {}
       entetes.forEach((h, idx) => { obj[h] = (vals[idx] || '').trim() })
       if (!obj.nom) continue
