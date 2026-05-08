@@ -14,6 +14,8 @@ const Stock = () => {
   const [fournisseurId, setFournisseurId] = useState('')
   const [noteBon, setNoteBon] = useState('')
   const [lignesBon, setLignesBon] = useState([{ produit_id: '', quantite: '', prix_achat: '', nb_cond: '', qte_par_cond: '' }])
+  const [searchProduit, setSearchProduit] = useState('')
+  const [showSugg, setShowSugg]           = useState(false)
   const [lignesConfirmees, setLignesConfirmees] = useState([])
 
   // Sortie manuelle
@@ -80,6 +82,7 @@ const Stock = () => {
       afficherMessage('succes', "Bon d'approvisionnement enregistré !")
       setLignesConfirmees([])
       setLignesBon([{ produit_id: '', quantite: '', prix_achat: '', nb_cond: '', qte_par_cond: '' }])
+      setSearchProduit('')
       setFournisseurId('')
       setNoteBon('')
       chargerDonnees()
@@ -235,12 +238,34 @@ const Stock = () => {
           <div style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '20px', border: '1px solid #e5e7eb' }}>
             <p style={{ margin: '0 0 12px', fontSize: '13px', fontWeight: '600', color: '#374151' }}>Ajouter un produit</p>
             <div style={{ display: 'grid', gridTemplateColumns: '3fr 1fr 1fr auto', gap: '8px', alignItems: 'end' }}>
-              <div>
+              <div style={{ position: 'relative' }}>
                 <label style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Produit</label>
-                <select value={lignesBon[0].produit_id} onChange={e => modifierLigne(0, 'produit_id', e.target.value)} style={styleInput}>
-                  <option value="">Sélectionner un produit</option>
-                  {produits.map(p => <option key={p.id} value={p.id}>{p.nom} ({p.unite})</option>)}
-                </select>
+                <input
+                  placeholder="Rechercher un produit..."
+                  value={searchProduit}
+                  onChange={e => { setSearchProduit(e.target.value); setShowSugg(true); modifierLigne(0, 'produit_id', '') }}
+                  onFocus={() => setShowSugg(true)}
+                  onBlur={() => setTimeout(() => setShowSugg(false), 150)}
+                  style={styleInput}
+                />
+                {showSugg && searchProduit.length >= 1 && (
+                  <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: '8px', zIndex: 100, maxHeight: '220px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.12)' }}>
+                    {produits.filter(p => p.nom.toLowerCase().includes(searchProduit.toLowerCase())).slice(0, 12).map(p => (
+                      <div key={p.id}
+                        onMouseDown={() => { modifierLigne(0, 'produit_id', String(p.id)); setSearchProduit(p.nom); setShowSugg(false) }}
+                        style={{ padding: '9px 12px', cursor: 'pointer', fontSize: '13px', borderBottom: '1px solid #f3f4f6', display: 'flex', justifyContent: 'space-between' }}
+                        onMouseOver={e => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                        onMouseOut={e => e.currentTarget.style.backgroundColor = 'white'}
+                      >
+                        <span>{p.nom}</span>
+                        <span style={{ color: '#9ca3af', fontSize: '12px' }}>{p.unite}</span>
+                      </div>
+                    ))}
+                    {produits.filter(p => p.nom.toLowerCase().includes(searchProduit.toLowerCase())).length === 0 && (
+                      <div style={{ padding: '10px 12px', fontSize: '13px', color: '#9ca3af' }}>Aucun produit trouvé</div>
+                    )}
+                  </div>
+                )}
               </div>
               <div>
                 <label style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Quantité</label>
@@ -267,6 +292,7 @@ const Stock = () => {
                   }
                   setLignesConfirmees([...lignesConfirmees, { ...ligne }])
                   setLignesBon([{ produit_id: '', quantite: '', prix_achat: '', nb_cond: '', qte_par_cond: '' }])
+                  setSearchProduit('')
                 }}
                 style={{ padding: '10px 20px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}
               >

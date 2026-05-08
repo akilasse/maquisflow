@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import axios from 'axios'
 import api from '../utils/api'
 
 const AuthContext = createContext(null)
@@ -9,6 +10,22 @@ export const AuthProvider = ({ children }) => {
   const [selectionRequise, setSelectionRequise] = useState(false)
   const [etablissements, setEtablissements]     = useState([])
   const [utilisateurTemp, setUtilisateurTemp]   = useState(null)
+
+  // Refresh proactif toutes les 14 min (token expire à 15 min)
+  useEffect(() => {
+    if (!utilisateur) return
+    const rafraichir = async () => {
+      try {
+        const res = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/auth/refresh`, {},
+          { withCredentials: true }
+        )
+        localStorage.setItem('accessToken', res.data.data.accessToken)
+      } catch {}
+    }
+    const interval = setInterval(rafraichir, 14 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [utilisateur])
 
   useEffect(() => {
     const chargerSession = async () => {
