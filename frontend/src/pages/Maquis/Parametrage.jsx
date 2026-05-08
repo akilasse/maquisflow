@@ -4,6 +4,105 @@ import api from '../../utils/api'
 
 const WHATSAPP = '2250779127543'
 
+function ImportCSV({ couleur, onImporte, onAnnuler }) {
+  const [lignes,   setLignes]   = useState([])
+  const [erreur,   setErreur]   = useState('')
+  const [enCours,  setEnCours]  = useState(false)
+
+  const parseCSV = (texte) => {
+    const rows = texte.trim().split(/\r?\n/)
+    if (rows.length < 2) { setErreur('Le fichier doit contenir au moins une ligne de données après l\'en-tête.'); return }
+    const entetes = rows[0].split(';').map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''))
+    const colonnesRequises = ['nom', 'prix_vente']
+    for (const c of colonnesRequises) {
+      if (!entetes.includes(c)) { setErreur(`Colonne manquante : "${c}"`); return }
+    }
+    const data = []
+    for (let i = 1; i < rows.length; i++) {
+      if (!rows[i].trim()) continue
+      const vals = rows[i].split(';')
+      const obj = {}
+      entetes.forEach((h, idx) => { obj[h] = (vals[idx] || '').trim() })
+      if (!obj.nom) continue
+      data.push(obj)
+    }
+    if (data.length === 0) { setErreur('Aucune ligne valide trouvée.'); return }
+    setErreur('')
+    setLignes(data)
+  }
+
+  const lireFichier = (e) => {
+    const f = e.target.files[0]
+    if (!f) return
+    const reader = new FileReader()
+    reader.onload = (ev) => parseCSV(ev.target.result)
+    reader.readAsText(f, 'UTF-8')
+  }
+
+  const telechargerModele = () => {
+    const contenu = 'nom;categorie;prix_vente;prix_achat;stock_actuel;stock_min;unite;code_barre\nCoca Cola 33cl;Boissons;500;300;0;5;bouteille;\nEau minerale;Boissons;200;100;0;10;bouteille;\n'
+    const blob = new Blob([contenu], { type: 'text/csv;charset=utf-8;' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a'); a.href = url; a.download = 'modele_produits.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const importer = async () => {
+    setEnCours(true)
+    try { await onImporte(lignes) } catch (e) { setErreur(e.response?.data?.message || e.message) }
+    setEnCours(false)
+  }
+
+  const styleInput = { border: '1.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 12px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }
+
+  return (
+    <div style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #e5e7eb' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h3 style={{ margin: 0, fontSize: '15px' }}>Importer des produits (CSV)</h3>
+        <button onClick={telechargerModele} style={{ fontSize: '12px', color: couleur, background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600' }}>⬇ Télécharger le modèle</button>
+      </div>
+      <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 12px' }}>
+        Fichier CSV séparé par <strong>point-virgule (;)</strong> — colonnes : <code>nom</code>, <code>prix_vente</code> obligatoires, les autres optionnelles.
+      </p>
+      <input type="file" accept=".csv,text/csv" onChange={lireFichier} style={styleInput} />
+      {erreur && <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '8px' }}>{erreur}</p>}
+      {lignes.length > 0 && (
+        <div style={{ marginTop: '12px' }}>
+          <p style={{ fontSize: '13px', color: '#374151', marginBottom: '8px', fontWeight: '600' }}>{lignes.length} produit(s) détecté(s) — aperçu :</p>
+          <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+              <thead style={{ backgroundColor: '#f3f4f6', position: 'sticky', top: 0 }}>
+                <tr>{['Nom','Catégorie','Prix vente','Prix achat','Unité'].map(h => (
+                  <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>{h}</th>
+                ))}</tr>
+              </thead>
+              <tbody>
+                {lignes.slice(0, 50).map((l, i) => (
+                  <tr key={i} style={{ borderTop: '1px solid #f3f4f6' }}>
+                    <td style={{ padding: '5px 10px' }}>{l.nom}</td>
+                    <td style={{ padding: '5px 10px', color: '#6b7280' }}>{l.categorie || '—'}</td>
+                    <td style={{ padding: '5px 10px' }}>{l.prix_vente}</td>
+                    <td style={{ padding: '5px 10px', color: '#6b7280' }}>{l.prix_achat || '—'}</td>
+                    <td style={{ padding: '5px 10px', color: '#6b7280' }}>{l.unite || 'unité'}</td>
+                  </tr>
+                ))}
+                {lignes.length > 50 && <tr><td colSpan={5} style={{ padding: '6px 10px', color: '#9ca3af', textAlign: 'center' }}>... et {lignes.length - 50} autres</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
+        <button onClick={importer} disabled={lignes.length === 0 || enCours}
+          style={{ padding: '9px 20px', backgroundColor: lignes.length === 0 ? '#d1d5db' : couleur, color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: lignes.length === 0 ? 'default' : 'pointer' }}>
+          {enCours ? 'Import en cours...' : `Importer ${lignes.length > 0 ? lignes.length + ' produits' : ''}`}
+        </button>
+        <button onClick={onAnnuler} style={{ padding: '9px 20px', backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>Annuler</button>
+      </div>
+    </div>
+  )
+}
+
 const Parametrage = () => {
   const { mettreAJourMaquis } = useAuth()
   const [onglet, setOnglet] = useState('produits')
@@ -717,105 +816,6 @@ const Parametrage = () => {
           )}
         </div>
       )}
-    </div>
-  )
-}
-
-function ImportCSV({ couleur, onImporte, onAnnuler }) {
-  const [lignes,   setLignes]   = useState([])
-  const [erreur,   setErreur]   = useState('')
-  const [enCours,  setEnCours]  = useState(false)
-
-  const parseCSV = (texte) => {
-    const rows = texte.trim().split(/\r?\n/)
-    if (rows.length < 2) { setErreur('Le fichier doit contenir au moins une ligne de données après l\'en-tête.'); return }
-    const entetes = rows[0].split(';').map(h => h.trim().toLowerCase().replace(/[^a-z_]/g, ''))
-    const colonnesRequises = ['nom', 'prix_vente']
-    for (const c of colonnesRequises) {
-      if (!entetes.includes(c)) { setErreur(`Colonne manquante : "${c}"`); return }
-    }
-    const data = []
-    for (let i = 1; i < rows.length; i++) {
-      if (!rows[i].trim()) continue
-      const vals = rows[i].split(';')
-      const obj = {}
-      entetes.forEach((h, idx) => { obj[h] = (vals[idx] || '').trim() })
-      if (!obj.nom) continue
-      data.push(obj)
-    }
-    if (data.length === 0) { setErreur('Aucune ligne valide trouvée.'); return }
-    setErreur('')
-    setLignes(data)
-  }
-
-  const lireFichier = (e) => {
-    const f = e.target.files[0]
-    if (!f) return
-    const reader = new FileReader()
-    reader.onload = (ev) => parseCSV(ev.target.result)
-    reader.readAsText(f, 'UTF-8')
-  }
-
-  const telechargerModele = () => {
-    const contenu = 'nom;categorie;prix_vente;prix_achat;stock_actuel;stock_min;unite;code_barre\nCoca Cola 33cl;Boissons;500;300;0;5;bouteille;\nEau minérale;Boissons;200;100;0;10;bouteille;\n'
-    const blob = new Blob([contenu], { type: 'text/csv;charset=utf-8;' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a'); a.href = url; a.download = 'modele_produits.csv'; a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  const importer = async () => {
-    setEnCours(true)
-    try { await onImporte(lignes) } catch (e) { setErreur(e.response?.data?.message || e.message) }
-    setEnCours(false)
-  }
-
-  const styleInput = { border: '1.5px solid #e5e7eb', borderRadius: '8px', padding: '8px 12px', fontSize: '14px', width: '100%', boxSizing: 'border-box' }
-
-  return (
-    <div style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #e5e7eb' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-        <h3 style={{ margin: 0, fontSize: '15px' }}>Importer des produits (CSV)</h3>
-        <button onClick={telechargerModele} style={{ fontSize: '12px', color: couleur, background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600' }}>⬇ Télécharger le modèle</button>
-      </div>
-      <p style={{ fontSize: '12px', color: '#6b7280', margin: '0 0 12px' }}>
-        Fichier CSV séparé par <strong>point-virgule (;)</strong> — colonnes : <code>nom</code>, <code>prix_vente</code> obligatoires, les autres optionnelles.
-      </p>
-      <input type="file" accept=".csv,text/csv" onChange={lireFichier} style={styleInput} />
-      {erreur && <p style={{ color: '#ef4444', fontSize: '13px', marginTop: '8px' }}>{erreur}</p>}
-      {lignes.length > 0 && (
-        <div style={{ marginTop: '12px' }}>
-          <p style={{ fontSize: '13px', color: '#374151', marginBottom: '8px', fontWeight: '600' }}>{lignes.length} produit(s) détecté(s) — aperçu :</p>
-          <div style={{ maxHeight: '180px', overflowY: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
-              <thead style={{ backgroundColor: '#f3f4f6', position: 'sticky', top: 0 }}>
-                <tr>{['Nom','Catégorie','Prix vente','Prix achat','Unité'].map(h => (
-                  <th key={h} style={{ padding: '6px 10px', textAlign: 'left', fontWeight: '600', color: '#374151' }}>{h}</th>
-                ))}</tr>
-              </thead>
-              <tbody>
-                {lignes.slice(0, 50).map((l, i) => (
-                  <tr key={i} style={{ borderTop: '1px solid #f3f4f6' }}>
-                    <td style={{ padding: '5px 10px' }}>{l.nom}</td>
-                    <td style={{ padding: '5px 10px', color: '#6b7280' }}>{l.categorie || '—'}</td>
-                    <td style={{ padding: '5px 10px' }}>{l.prix_vente}</td>
-                    <td style={{ padding: '5px 10px', color: '#6b7280' }}>{l.prix_achat || '—'}</td>
-                    <td style={{ padding: '5px 10px', color: '#6b7280' }}>{l.unite || 'unité'}</td>
-                  </tr>
-                ))}
-                {lignes.length > 50 && <tr><td colSpan={5} style={{ padding: '6px 10px', color: '#9ca3af', textAlign: 'center' }}>... et {lignes.length - 50} autres</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-      <div style={{ display: 'flex', gap: '8px', marginTop: '14px' }}>
-        <button onClick={importer} disabled={lignes.length === 0 || enCours}
-          style={{ padding: '9px 20px', backgroundColor: lignes.length === 0 ? '#d1d5db' : couleur, color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: lignes.length === 0 ? 'default' : 'pointer' }}>
-          {enCours ? 'Import en cours...' : `Importer ${lignes.length > 0 ? lignes.length + ' produits' : ''}`}
-        </button>
-        <button onClick={onAnnuler} style={{ padding: '9px 20px', backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>Annuler</button>
-      </div>
     </div>
   )
 }
