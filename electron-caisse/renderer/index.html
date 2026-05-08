@@ -612,6 +612,43 @@ async function afficherCaisse() {
   await chargerCommandesTablette()
   pollInterval = setInterval(chargerCommandesTablette, 5000)
   window.addEventListener('focus', chargerCommandesTablette)
+
+  // Connexion socket pour impression automatique des bons de commande
+  connecterSocket()
+}
+
+function connecterSocket() {
+  if (window._socket) return // déjà connecté
+  const script = document.createElement('script')
+  script.src = `${API_URL}/socket.io/socket.io.js`
+  script.onload = () => {
+    const socket = io(API_URL, {
+      auth: { token: state.token },
+      transports: ['websocket']
+    })
+    window._socket = socket
+
+    socket.on('connect', () => {
+      socket.emit('join', `maquis_${state.utilisateur.maquis_id}`)
+    })
+
+    socket.on('commande:nouvelle', async (commande) => {
+      // Mise à jour file d'attente
+      chargerCommandesTablette()
+      // Impression automatique du bon
+      const bon = {
+        numero:  commande.numero,
+        table:   commande.table?.numero || null,
+        serveur: commande.serveur?.nom || '',
+        date:    new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        lignes:  commande.lignes.map(l => ({ nom: l.produit.nom, quantite: l.quantite, note: l.note || '' })),
+        note:    commande.note || null
+      }
+      const result = await window.electronAPI.printBon(bon)
+      if (!result.success) console.log('Impression bon échouée:', result.error)
+    })
+  }
+  document.head.appendChild(script)
 }
 
 // ═══════════════════════════════════════════════════════════

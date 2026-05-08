@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Impression
   printTicket: (ticketData) => ipcRenderer.invoke('print:ticket', ticketData),
+  printBon:    (bonData)    => ipcRenderer.invoke('print:bon', bonData),
 
   // Infos
   isElectron: true

@@ -127,3 +127,58 @@ ipcMain.handle('print:ticket', async (_, ticketData) => {
     return { success: false, error: error.message }
   }
 })
+
+// ── IPC — Impression Bon de Commande ──────────────────────
+ipcMain.handle('print:bon', async (_, bon) => {
+  try {
+    const { USB } = require('escpos-usb')
+    const escpos = require('escpos')
+    escpos.USB = USB
+
+    const device = new escpos.USB()
+    const printer = new escpos.Printer(device)
+
+    await new Promise((resolve, reject) => {
+      device.open((err) => {
+        if (err) return reject(err)
+
+        printer
+          .font('a')
+          .align('ct')
+          .style('bu')
+          .size(1, 1)
+          .text('BON DE COMMANDE')
+          .style('normal')
+          .size(0, 0)
+          .text('========================')
+          .text(`N° ${bon.numero}`)
+          .text(`${bon.table ? 'Table ' + bon.table : 'Comptoir'}`)
+          .text(`Serveur: ${bon.serveur}`)
+          .text(`${bon.date}`)
+          .text('------------------------')
+
+        bon.lignes.forEach(l => {
+          printer.tableCustom([
+            { text: `${l.quantite}x ${l.nom}`, align: 'LEFT', width: 0.75 },
+            { text: l.note || '', align: 'RIGHT', width: 0.25 }
+          ])
+        })
+
+        if (bon.note) {
+          printer.text('------------------------').text(`Note: ${bon.note}`)
+        }
+
+        printer
+          .text('========================')
+          .text(' ')
+          .cut()
+          .close(resolve)
+      })
+    })
+
+    return { success: true }
+  } catch (error) {
+    console.error('Erreur impression bon:', error)
+    return { success: false, error: error.message }
+  }
+})
