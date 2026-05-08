@@ -141,8 +141,17 @@ const uploadLogoMaquis = async (req, res) => {
   }
 }
 
+const importProduits = async (req, res) => {
+  try {
+    const data = await service.importProduits(req.prisma, req.utilisateur.maquis_id, req.body.lignes)
+    res.status(201).json({ success: true, message: `${data.importes} produit(s) importé(s)`, data })
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
 module.exports = {
-  getProduits, creerProduit, modifierProduit, uploadPhotoProduit,
+  getProduits, creerProduit, modifierProduit, uploadPhotoProduit, importProduits,
   getFournisseurs, creerFournisseur, modifierFournisseur,
   getUtilisateurs, creerUtilisateur, modifierUtilisateur, uploadPhotoUtilisateur,
   getMaquis, modifierMaquis, uploadLogoMaquis

@@ -226,8 +226,33 @@ const modifierMaquis = async (prisma, maquis_id, data) => {
   })
 }
 
+const importProduits = async (prisma, maquis_id, lignes) => {
+  if (!Array.isArray(lignes) || lignes.length === 0) throw new Error('Aucune ligne à importer')
+
+  const data = lignes.map((l, i) => {
+    const nom        = (l.nom || '').trim()
+    const prix_vente = parseFloat(l.prix_vente)
+    if (!nom)           throw new Error(`Ligne ${i + 2} : nom manquant`)
+    if (isNaN(prix_vente) || prix_vente < 0) throw new Error(`Ligne ${i + 2} : prix_vente invalide`)
+    return {
+      maquis_id,
+      nom,
+      categorie:    (l.categorie || '').trim() || null,
+      prix_vente,
+      prix_achat:   parseFloat(l.prix_achat) || null,
+      stock_actuel: parseFloat(l.stock_actuel) || 0,
+      stock_min:    parseFloat(l.stock_min)    || 0,
+      unite:        (l.unite || 'unité').trim(),
+      code_barre:   (l.code_barre || '').trim() || null,
+    }
+  })
+
+  await prisma.produit.createMany({ data, skipDuplicates: false })
+  return { importes: data.length }
+}
+
 module.exports = {
-  getProduits,     creerProduit,     modifierProduit,
+  getProduits,     creerProduit,     modifierProduit,  importProduits,
   getFournisseurs, creerFournisseur, modifierFournisseur,
   getUtilisateurs, creerUtilisateur, modifierUtilisateur,
   getMaquis,       modifierMaquis

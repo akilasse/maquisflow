@@ -9,6 +9,7 @@ router.get('/produits', verifierToken, autoriserRoles('gerant', 'patron'), ctrl.
 router.post('/produits', verifierToken, autoriserRoles('gerant', 'patron'), ctrl.creerProduit)
 router.put('/produits/:id', verifierToken, autoriserRoles('gerant', 'patron'), ctrl.modifierProduit)
 router.post('/produits/:id/photo', verifierToken, autoriserRoles('gerant', 'patron'), uploadProduit, ctrl.uploadPhotoProduit)
+router.post('/produits/import', verifierToken, autoriserRoles('gerant', 'patron'), ctrl.importProduits)
 
 // FOURNISSEURS
 router.get('/fournisseurs', verifierToken, autoriserRoles('gerant', 'patron'), ctrl.getFournisseurs)
