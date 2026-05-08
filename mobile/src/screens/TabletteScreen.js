@@ -236,11 +236,11 @@ export default function TabletteScreen({ onRetour }) {
                     <Text style={[s.panierItemSub, { color: couleur }]}>{(item.prix * item.quantite).toLocaleString('fr-FR')} XOF</Text>
                   </View>
                   <View style={s.qtyRow}>
-                    <TouchableOpacity style={s.qtyBtn} onPress={() => modifierQty(item._key, -1)}>
+                    <TouchableOpacity style={s.qtyBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => modifierQty(item._key, -1)}>
                       <Text style={s.qtyBtnTxt}>−</Text>
                     </TouchableOpacity>
                     <Text style={s.qtyVal}>{item.quantite}</Text>
-                    <TouchableOpacity style={s.qtyBtn} onPress={() => modifierQty(item._key, 1)}>
+                    <TouchableOpacity style={s.qtyBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }} onPress={() => modifierQty(item._key, 1)}>
                       <Text style={s.qtyBtnTxt}>+</Text>
                     </TouchableOpacity>
                   </View>
@@ -365,8 +365,8 @@ export default function TabletteScreen({ onRetour }) {
     <SafeAreaView style={s.container} edges={['top']}>
       {/* Header unique */}
       <View style={[s.header, { backgroundColor: couleur }]}>
-        <TouchableOpacity style={s.headerBtn} onPress={vue !== 'tables' ? () => setVue('tables') : onRetour}>
-          <Text style={s.headerBtnTxt}>{vue !== 'tables' ? '← Retour' : utilisateur?.role === 'serveur' ? '🚪 Sortir' : ''}</Text>
+        <TouchableOpacity style={s.headerBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} onPress={vue !== 'tables' ? () => setVue('tables') : onRetour}>
+          <Text style={s.headerBtnTxt}>{vue !== 'tables' ? '← Retour' : utilisateur?.role === 'serveur' ? '🚪 Sortir' : '← Menu'}</Text>
         </TouchableOpacity>
         <View style={{ alignItems: 'center' }}>
           <Text style={s.headerTitre}>{titreHeader}</Text>
@@ -374,7 +374,7 @@ export default function TabletteScreen({ onRetour }) {
             <Text style={s.headerSous}>{getTotal().toLocaleString('fr-FR')} XOF · {panier.length} article{panier.length > 1 ? 's' : ''}</Text>
           )}
         </View>
-        <TouchableOpacity style={s.headerBtn} onPress={vue === 'historique' ? () => chargerHistorique() : vue === 'tables' ? charger : undefined}>
+        <TouchableOpacity style={s.headerBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} onPress={vue === 'historique' ? () => chargerHistorique() : vue === 'tables' ? charger : undefined}>
           <Text style={s.headerBtnTxt}>{vue !== 'commande' ? '🔄' : ''}</Text>
         </TouchableOpacity>
       </View>

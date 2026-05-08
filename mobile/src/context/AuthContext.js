@@ -11,30 +11,8 @@ export const AuthProvider = ({ children }) => {
   const [etablissements, setEtablissements]     = useState([])
   const [utilisateurTemp, setUtilisateurTemp]   = useState(null)
 
-  useEffect(() => { chargerSession() }, [])
+  useEffect(() => { setChargement(false) }, [])
 
-  const chargerSession = async () => {
-    try {
-      const userData = await AsyncStorage.getItem('utilisateur')
-      const token    = await AsyncStorage.getItem('accessToken')
-      if (userData && token) {
-        const u = JSON.parse(userData)
-        setUtilisateur(u)
-        // Rafraîchir les données maquis pour avoir les derniers modules configurés
-        try {
-          const res = await api.get('/api/parametrage/maquis')
-          const maquisFrais = res.data.data
-          const mis_a_jour = { ...u, maquis: { ...u.maquis, ...maquisFrais } }
-          await AsyncStorage.setItem('utilisateur', JSON.stringify(mis_a_jour))
-          setUtilisateur(mis_a_jour)
-        } catch {}
-      }
-    } catch (error) {
-      console.error('Erreur chargement session:', error)
-    } finally {
-      setChargement(false)
-    }
-  }
 
   const login = async (email, mot_de_passe) => {
     const response = await api.post('/api/auth/login', { email, mot_de_passe })
