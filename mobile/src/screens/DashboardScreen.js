@@ -2,8 +2,9 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   View, Text, ScrollView, FlatList, StyleSheet,
   RefreshControl, TouchableOpacity, ActivityIndicator,
-  TextInput, SafeAreaView
+  TextInput
 } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../context/AuthContext'
 import api from '../utils/api'
 
@@ -147,8 +148,8 @@ const CarteFacture = ({ vente }) => {
 }
 
 // ─── Composant principal ────────────────────────────────────────────────────
-export default function DashboardScreen() {
-  const { utilisateur, logout } = useAuth()
+export default function DashboardScreen({ onRetour }) {
+  const { utilisateur } = useAuth()
 
   // Onglet actif
   const [onglet, setOnglet] = useState('dashboard')
@@ -275,8 +276,8 @@ export default function DashboardScreen() {
           <Text style={styles.headerTitre}>{data?.maquis?.nom}</Text>
           <Text style={styles.headerSous}>Bonjour {utilisateur?.nom} 👋</Text>
         </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-          <Text style={styles.logoutTexte}>Sortir</Text>
+        <TouchableOpacity onPress={onRetour} style={styles.logoutBtn}>
+          <Text style={styles.logoutTexte}>← Menu</Text>
         </TouchableOpacity>
       </View>
 

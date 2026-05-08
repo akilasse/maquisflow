@@ -94,12 +94,13 @@ const Navigation = () => {
           <>
             <Tab.Screen
               name="Dashboard"
-              component={DashboardScreen}
               options={{
                 tabBarLabel: 'Dashboard',
                 tabBarIcon: ({ color }) => <Text style={{ fontSize: 22, color }}>📊</Text>
               }}
-            />
+            >
+              {(props) => <DashboardScreen {...props} onRetour={() => setInterfaceChoisie(null)} />}
+            </Tab.Screen>
             <Tab.Screen
               name="Ventes"
               component={VentesScreen}
