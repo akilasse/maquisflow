@@ -63,6 +63,8 @@ export default function Ventes() {
   const [filtreStatut,   setFiltreStatut]   = useState('')
   const [dateDebut,      setDateDebut]      = useState(fmt(new Date()))
   const [dateFin,        setDateFin]        = useState(fmt(new Date()))
+  const [heureDebut,     setHeureDebut]     = useState('')
+  const [heureFin,       setHeureFin]       = useState('')
   const [rechercheNum,   setRechercheNum]   = useState('')
   const [rechercheServ,  setRechercheServ]  = useState('')
   const [periode,        setPeriode]        = useState('aujourd_hui')
@@ -96,14 +98,16 @@ export default function Ventes() {
     setChargement(true)
     try {
       const p = new URLSearchParams({ date_debut: dateDebut, date_fin: dateFin })
-      if (filtreStatut)       p.set('statut',          filtreStatut)
-      if (rechercheServ.trim()) p.set('serveur',        rechercheServ.trim())
-      if (rechercheNum.trim())  p.set('numero_facture', rechercheNum.trim())
+      if (heureDebut)             p.set('heure_debut',     heureDebut)
+      if (heureFin)               p.set('heure_fin',       heureFin)
+      if (filtreStatut)           p.set('statut',          filtreStatut)
+      if (rechercheServ.trim())   p.set('serveur',         rechercheServ.trim())
+      if (rechercheNum.trim())    p.set('numero_facture',  rechercheNum.trim())
       const r = await api.get(`/api/ventes?${p}`)
       setVentes(r.data.data || [])
     } catch { msg('erreur', 'Erreur chargement') }
     finally  { setChargement(false) }
-  }, [dateDebut, dateFin, filtreStatut, rechercheServ, rechercheNum])
+  }, [dateDebut, dateFin, heureDebut, heureFin, filtreStatut, rechercheServ, rechercheNum])
 
   useEffect(() => { charger() }, [charger])
 
@@ -260,6 +264,16 @@ export default function Ventes() {
             <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Au</div>
             <input type="date" value={dateFin} onChange={e => { setDateFin(e.target.value); setPeriode('custom') }}
               style={{ border:'1.5px solid #e5e7eb', borderRadius:8, padding:'7px 10px', fontSize:14, color:'#111827' }} />
+          </div>
+          <div>
+            <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>De</div>
+            <input type="time" value={heureDebut} onChange={e => setHeureDebut(e.target.value)}
+              style={{ border:'1.5px solid #e5e7eb', borderRadius:8, padding:'7px 10px', fontSize:14, color: heureDebut ? '#111827' : '#9ca3af' }} />
+          </div>
+          <div>
+            <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>À</div>
+            <input type="time" value={heureFin} onChange={e => setHeureFin(e.target.value)}
+              style={{ border:'1.5px solid #e5e7eb', borderRadius:8, padding:'7px 10px', fontSize:14, color: heureFin ? '#111827' : '#9ca3af' }} />
           </div>
           <div style={{ flex:1, minWidth:120 }}>
             <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>N° vente</div>
