@@ -233,13 +233,13 @@ export default function Ventes() {
       )}
 
       {/* Titre */}
-      <div style={{ marginBottom: 20 }}>
+      <div style={{ marginBottom: 20 }} className="no-print">
         <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: '#111827' }}>Ventes & Factures</h2>
         <p style={{ margin: '4px 0 0', fontSize: 13, color: '#9ca3af' }}>Historique et gestion des encaissements</p>
       </div>
 
       {/* Filtres */}
-      <div style={{ background: '#fff', borderRadius: 14, padding: 20, marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }}>
+      <div style={{ background: '#fff', borderRadius: 14, padding: 20, marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)' }} className="no-print">
 
         {/* Périodes rapides */}
         <div style={{ display:'flex', gap:8, marginBottom:16, overflowX:'auto', paddingBottom:4 }} className="periodes-scroll">
@@ -300,13 +300,30 @@ export default function Ventes() {
         </div>
       </div>
 
+      {/* En-tête impression uniquement */}
+      <div className="print-only" style={{ display:'none' }}>
+        <h2 style={{ margin:'0 0 4px', fontSize:18 }}>Historique des ventes</h2>
+        <p style={{ margin:'0 0 2px', fontSize:13, color:'#555' }}>
+          Période : {dateDebut} {heureDebut ? `à partir de ${heureDebut}` : ''} → {dateFin} {heureFin ? `jusqu'à ${heureFin}` : ''}
+        </p>
+        <p style={{ margin:'0 0 12px', fontSize:13, color:'#555' }}>
+          {nbActives} vente(s) · Total : {fmtNum(totalNet)} FCFA
+        </p>
+        <hr style={{ border:'none', borderTop:'1px solid #ccc', marginBottom:12 }} />
+      </div>
+
       {/* Résumé */}
-      <div style={{ background: '#fff', borderRadius: 14, padding: '14px 20px', marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+      <div style={{ background: '#fff', borderRadius: 14, padding: '14px 20px', marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)', display:'flex', justifyContent:'space-between', alignItems:'center' }} className="no-print">
         <div style={{ fontSize:14, color:'#6b7280' }}>
           {chargement ? '...' : <><strong style={{ color:'#111827' }}>{nbActives}</strong> vente{nbActives > 1 ? 's' : ''} · {ventes.length - nbActives > 0 ? `${ventes.length - nbActives} annulée(s)` : 'aucune annulation'}</>}
         </div>
-        <div style={{ fontSize:20, fontWeight:800, color: couleur }}>
-          {fmtNum(totalNet)} <span style={{ fontSize:14, fontWeight:600, color:'#9ca3af' }}>FCFA</span>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <button onClick={() => window.print()} style={{ padding:'7px 16px', border:`1.5px solid ${couleur}`, borderRadius:8, background:'white', color:couleur, fontSize:13, fontWeight:700, cursor:'pointer' }}>
+            🖨 Imprimer
+          </button>
+          <div style={{ fontSize:20, fontWeight:800, color: couleur }}>
+            {fmtNum(totalNet)} <span style={{ fontSize:14, fontWeight:600, color:'#9ca3af' }}>FCFA</span>
+          </div>
         </div>
       </div>
 
@@ -320,7 +337,7 @@ export default function Ventes() {
           <div style={{ fontSize:13, color:'#9ca3af' }}>Essayez une autre période ou vérifiez les filtres</div>
         </div>
       ) : (
-        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+        <div className="ventes-liste-print" style={{ display:'flex', flexDirection:'column', gap:8 }}>
           {ventes.map(v => {
             const mode    = MODES[v.mode_paiement] || { label: v.mode_paiement, icone:'💳', color:'#6b7280' }
             const ouv     = ouverte === v.id
@@ -576,6 +593,20 @@ export default function Ventes() {
       )}
 
       <style>{`
+        /* ── Impression ── */
+        @media print {
+          body > * { display: none !important; }
+          #root > * { display: none !important; }
+          .ventes-page { display: block !important; padding: 0 !important; }
+          .no-print { display: none !important; }
+          .print-only { display: block !important; }
+          /* afficher uniquement la liste des ventes */
+          .ventes-page > *:not(.ventes-liste-print):not(.print-only) { display: none !important; }
+          .ventes-liste-print { display: block !important; }
+          .vente-card-main { border: 1px solid #ddd !important; border-radius: 4px !important; margin-bottom: 6px !important; box-shadow: none !important; }
+          button { display: none !important; }
+        }
+
         /* ── Ventes page responsive ── */
         .periodes-scroll { scrollbar-width: none; }
         .periodes-scroll::-webkit-scrollbar { display: none; }
