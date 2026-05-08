@@ -21,7 +21,7 @@ const Parametrage = () => {
   })
   const [formFournisseur, setFormFournisseur] = useState({ nom: '', telephone: '', email: '', adresse: '' })
   const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', mot_de_passe: '', role: 'serveur' })
-  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false })
+  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false, heure_debut_journee: 0 })
   const [stations, setStations] = useState([])
   const [tables, setTables]     = useState([])
   const [formStation, setFormStation] = useState({ nom: '', couleur: '#6b7280', type: 'preparation' })
@@ -53,7 +53,8 @@ const Parametrage = () => {
         module_commandes_actif:  maquisData.module_commandes_actif  || false,
         module_kds_actif:        maquisData.module_kds_actif        || false,
         module_commandes_direct: maquisData.module_commandes_direct || false,
-        paiement_avant:          maquisData.paiement_avant          || false
+        paiement_avant:          maquisData.paiement_avant          || false,
+        heure_debut_journee:     maquisData.heure_debut_journee     ?? 0
       })
       mettreAJourMaquis(maquisData)
       // Charge stations et tables si module actif — isolé pour ne pas bloquer le reste
@@ -493,6 +494,25 @@ const Parametrage = () => {
             <option value="Africa/Lagos">Lagos (GMT+1)</option>
             <option value="Africa/Douala">Douala (GMT+1)</option>
           </select>
+
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
+              Début de journée
+              <span style={{ fontWeight: '400', color: '#9ca3af', marginLeft: '6px' }}>— pour les établissements qui travaillent la nuit</span>
+            </label>
+            <select value={formMaquis.heure_debut_journee} onChange={e => setFormMaquis({ ...formMaquis, heure_debut_journee: parseInt(e.target.value) })} style={styleInput}>
+              {Array.from({ length: 24 }, (_, h) => (
+                <option key={h} value={h}>
+                  {h === 0 ? '00h00 — Minuit (défaut)' : `${String(h).padStart(2, '0')}h00`}
+                </option>
+              ))}
+            </select>
+            {formMaquis.heure_debut_journee !== 0 && (
+              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+                La journée du dashboard va de {String(formMaquis.heure_debut_journee).padStart(2,'0')}h00 à {String((formMaquis.heure_debut_journee + 23) % 24).padStart(2,'0')}h59
+              </p>
+            )}
+          </div>
 
           {/* Modules — visibles seulement pour les activités de service */}
           {['maquis','restaurant','bar','fast_food'].includes(formMaquis.type) && (

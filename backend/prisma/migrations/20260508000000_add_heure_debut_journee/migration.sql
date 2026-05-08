@@ -1,0 +1,1 @@
+ALTER TABLE `Maquis` ADD COLUMN `heure_debut_journee` INT NOT NULL DEFAULT 0;

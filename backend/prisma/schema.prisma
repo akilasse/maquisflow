@@ -35,6 +35,7 @@ model Maquis {
   module_kds_actif        Boolean    @default(false)
   module_commandes_direct Boolean    @default(false)
   paiement_avant          Boolean    @default(false)
+  heure_debut_journee     Int        @default(0)
   created_at              DateTime   @default(now())
 
   utilisateurs    UtilisateurMaquis[]

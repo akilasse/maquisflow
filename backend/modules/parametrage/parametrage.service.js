@@ -220,6 +220,7 @@ const modifierMaquis = async (prisma, maquis_id, data) => {
       module_kds_actif:        data.module_kds_actif,
       module_commandes_direct: data.module_commandes_direct,
       paiement_avant:          data.paiement_avant,
+      heure_debut_journee:     data.heure_debut_journee !== undefined ? parseInt(data.heure_debut_journee) : undefined,
       type:                    data.type
     }
   })
