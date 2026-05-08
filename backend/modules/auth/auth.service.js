@@ -15,7 +15,9 @@ const genererAccessToken = (utilisateur) => {
 }
 
 const genererRefreshToken = (utilisateur) => {
-  return jwt.sign({ id: utilisateur.id }, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' })
+  const payload = { id: utilisateur.id }
+  if (utilisateur.maquis_id) payload.maquis_id = utilisateur.maquis_id
+  return jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: '7d' })
 }
 
 // ============================================================
@@ -75,7 +77,8 @@ const login = async (prisma, email, mot_de_passe) => {
     const maquis  = liaison.maquis
     verifierAbonnement(maquis)
     const { abonnement, ...maquisSansAbo } = maquis
-    const accessToken = genererAccessToken({ id: utilisateur.id, role: liaison.role, maquis_id: maquis.id, type: maquis.type })
+    const accessToken  = genererAccessToken({ id: utilisateur.id, role: liaison.role, maquis_id: maquis.id, type: maquis.type })
+    const refreshToken = genererRefreshToken({ id: utilisateur.id, maquis_id: maquis.id })
     return {
       accessToken, refreshToken, selection_requise: false,
       utilisateur: { id: utilisateur.id, nom: utilisateur.nom, email: utilisateur.email, role: liaison.role, maquis: maquisSansAbo }
@@ -120,10 +123,11 @@ const selectionnerEtablissement = async (prisma, utilisateur_id, maquis_id) => {
   verifierAbonnement(maquis)
 
   const { abonnement, ...maquisSansAbo } = maquis
-  const accessToken = genererAccessToken({ id: utilisateur_id, role: liaison.role, maquis_id: maquis.id, type: maquis.type })
+  const accessToken  = genererAccessToken({ id: utilisateur_id, role: liaison.role, maquis_id: maquis.id, type: maquis.type })
+  const refreshToken = genererRefreshToken({ id: utilisateur_id, maquis_id: maquis.id })
 
   return {
-    accessToken,
+    accessToken, refreshToken,
     utilisateur: { id: liaison.utilisateur.id, nom: liaison.utilisateur.nom, email: liaison.utilisateur.email, role: liaison.role, maquis: maquisSansAbo }
   }
 }
@@ -136,8 +140,10 @@ const refreshToken = async (prisma, token) => {
     const decoded = jwt.verify(token, process.env.JWT_REFRESH_SECRET)
     const utilisateur = await prisma.utilisateur.findUnique({ where: { id: decoded.id } })
     if (!utilisateur || !utilisateur.actif) throw new Error('Utilisateur introuvable ou désactivé')
+    const where = { utilisateur_id: utilisateur.id, actif: true }
+    if (decoded.maquis_id) where.maquis_id = decoded.maquis_id
     const liaison = await prisma.utilisateurMaquis.findFirst({
-      where: { utilisateur_id: utilisateur.id, actif: true },
+      where,
       include: { maquis: { select: { id: true, type: true } } }
     })
     if (!liaison) throw new Error('Aucun établissement accessible')

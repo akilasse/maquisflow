@@ -42,6 +42,11 @@ const selectionnerEtablissement = async (req, res) => {
       return res.status(400).json({ success: false, message: 'utilisateur_id et maquis_id requis' })
     }
     const resultat = await authService.selectionnerEtablissement(req.prisma, utilisateur_id, maquis_id)
+    res.cookie('refreshToken', resultat.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    })
     return res.status(200).json({
       success: true,
       message: 'Établissement sélectionné',
