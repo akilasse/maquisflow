@@ -13,7 +13,7 @@ const Stock = () => {
   // Approvisionnement
   const [fournisseurId, setFournisseurId] = useState('')
   const [noteBon, setNoteBon] = useState('')
-  const [lignesBon, setLignesBon] = useState([{ produit_id: '', quantite: '', prix_achat: '' }])
+  const [lignesBon, setLignesBon] = useState([{ produit_id: '', quantite: '', prix_achat: '', nb_cond: '', qte_par_cond: '' }])
   const [lignesConfirmees, setLignesConfirmees] = useState([])
 
   // Sortie manuelle
@@ -54,6 +54,11 @@ const Stock = () => {
       const produit = produits.find(p => p.id === parseInt(valeur))
       if (produit) nouvelles[index].prix_achat = produit.prix_achat
     }
+    if (champ === 'nb_cond' || champ === 'qte_par_cond') {
+      const nb  = parseFloat(champ === 'nb_cond'      ? valeur : nouvelles[index].nb_cond) || 0
+      const qte = parseFloat(champ === 'qte_par_cond' ? valeur : nouvelles[index].qte_par_cond) || 0
+      if (nb > 0 && qte > 0) nouvelles[index].quantite = String(nb * qte)
+    }
     setLignesBon(nouvelles)
   }
 
@@ -69,12 +74,12 @@ const Stock = () => {
         lignes: lignesConfirmees.map(l => ({
           produit_id: parseInt(l.produit_id),
           quantite: parseFloat(l.quantite),
-          prix_achat: parseFloat(l.prix_achat)
+          prix_achat: l.prix_achat ? parseFloat(l.prix_achat) : null
         }))
       })
       afficherMessage('succes', "Bon d'approvisionnement enregistré !")
       setLignesConfirmees([])
-      setLignesBon([{ produit_id: '', quantite: '', prix_achat: '' }])
+      setLignesBon([{ produit_id: '', quantite: '', prix_achat: '', nb_cond: '', qte_par_cond: '' }])
       setFournisseurId('')
       setNoteBon('')
       chargerDonnees()
@@ -240,6 +245,14 @@ const Stock = () => {
               <div>
                 <label style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Quantité</label>
                 <input type="number" placeholder="0" value={lignesBon[0].quantite} onChange={e => modifierLigne(0, 'quantite', e.target.value)} style={styleInput} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
+                  <input type="number" placeholder="nb" min="1" value={lignesBon[0].nb_cond} onChange={e => modifierLigne(0, 'nb_cond', e.target.value)} style={{ width: '42px', padding: '3px 5px', fontSize: '11px', border: '1px solid #e5e7eb', borderRadius: '6px', textAlign: 'center' }} />
+                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>×</span>
+                  <input type="number" placeholder="qté" min="1" value={lignesBon[0].qte_par_cond} onChange={e => modifierLigne(0, 'qte_par_cond', e.target.value)} style={{ width: '42px', padding: '3px 5px', fontSize: '11px', border: '1px solid #e5e7eb', borderRadius: '6px', textAlign: 'center' }} />
+                  {lignesBon[0].nb_cond && lignesBon[0].qte_par_cond && (
+                    <span style={{ fontSize: '11px', color: '#16a34a', fontWeight: '700' }}>= {parseFloat(lignesBon[0].nb_cond) * parseFloat(lignesBon[0].qte_par_cond)}</span>
+                  )}
+                </div>
               </div>
               <div>
                 <label style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Prix d'achat</label>
@@ -248,12 +261,12 @@ const Stock = () => {
               <button
                 onClick={() => {
                   const ligne = lignesBon[0]
-                  if (!ligne.produit_id || !ligne.quantite || !ligne.prix_achat) {
-                    afficherMessage('erreur', 'Remplissez tous les champs')
+                  if (!ligne.produit_id || !ligne.quantite) {
+                    afficherMessage('erreur', 'Sélectionnez un produit et une quantité')
                     return
                   }
                   setLignesConfirmees([...lignesConfirmees, { ...ligne }])
-                  setLignesBon([{ produit_id: '', quantite: '', prix_achat: '' }])
+                  setLignesBon([{ produit_id: '', quantite: '', prix_achat: '', nb_cond: '', qte_par_cond: '' }])
                 }}
                 style={{ padding: '10px 20px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', fontSize: '14px' }}
               >

@@ -21,8 +21,8 @@ const creerBon = async (prisma, io, data, utilisateur) => {
     for (const ligne of lignes) {
       const { produit_id, quantite, prix_achat } = ligne
 
-      if (!produit_id || !quantite || !prix_achat) {
-        throw new Error('Produit, quantité et prix d\'achat requis pour chaque ligne')
+      if (!produit_id || !quantite) {
+        throw new Error('Produit et quantité requis pour chaque ligne')
       }
 
       const produit = await tx.produit.findFirst({
@@ -31,13 +31,14 @@ const creerBon = async (prisma, io, data, utilisateur) => {
 
       if (!produit) throw new Error(`Produit introuvable : ID ${produit_id}`)
 
-      const total_ligne = parseFloat(prix_achat) * parseFloat(quantite)
+      const pa = prix_achat ? parseFloat(prix_achat) : 0
+      const total_ligne = pa * parseFloat(quantite)
       total_achat += total_ligne
 
       lignesPreparees.push({
         produit_id,
         quantite: parseFloat(quantite),
-        prix_achat: parseFloat(prix_achat),
+        prix_achat: pa,
         total_ligne: parseFloat(total_ligne.toFixed(2))
       })
     }
