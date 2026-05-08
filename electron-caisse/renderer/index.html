@@ -566,6 +566,50 @@ function showLoginError(msg) {
   el.style.display = 'block'
 }
 
+// ── Wrapper fetch : refresh token auto sur 401 ──────────────────────────────
+let _refreshPromise = null
+
+async function fetchAPI(url, options = {}) {
+  if (!options.headers) options.headers = {}
+  options.headers['Authorization'] = `Bearer ${state.token}`
+  options.credentials = 'include'
+
+  let res = await fetch(url, options)
+
+  if (res.status === 401 && state.token) {
+    if (!_refreshPromise) {
+      _refreshPromise = fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
+        .then(async r => {
+          if (!r.ok) throw new Error('expired')
+          const d = await r.json()
+          state.token = d.data.accessToken
+          await window.electronAPI.storeSet('token', state.token)
+        })
+        .catch(async () => { await logout() })
+        .finally(() => { _refreshPromise = null })
+    }
+    await _refreshPromise
+    if (!state.token) throw new Error('Session expirée — reconnexion requise')
+    options.headers['Authorization'] = `Bearer ${state.token}`
+    res = await fetch(url, options)
+  }
+
+  return res
+}
+
+// Rafraîchir proactivement toutes les 14 min (token expire à 15 min)
+setInterval(async () => {
+  if (!state.token) return
+  try {
+    const r = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
+    if (r.ok) {
+      const d = await r.json()
+      state.token = d.data.accessToken
+      await window.electronAPI.storeSet('token', state.token)
+    }
+  } catch {}
+}, 14 * 60 * 1000)
+
 async function logout() {
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
   window.removeEventListener('focus', chargerCommandesTablette)
@@ -656,9 +700,7 @@ function connecterSocket() {
 // ═══════════════════════════════════════════════════════════
 async function chargerProduits() {
   try {
-    const res = await fetch(`${API_URL}/api/stock/produits`, {
-      headers: { Authorization: `Bearer ${state.token}` }
-    })
+    const res = await fetchAPI(`${API_URL}/api/stock/produits`)
     const data = await res.json()
     state.produits = data.data || []
     await window.electronAPI.storeSet('produits_cache', state.produits)
@@ -899,9 +941,9 @@ async function validerVente() {
 
     if (state.venteActive) {
       // Ré-encaissement d'une vente remise en attente
-      const res = await fetch(`${API_URL}/api/ventes/${state.venteActive.id}/encaisser`, {
+      const res = await fetchAPI(`${API_URL}/api/ventes/${state.venteActive.id}/encaisser`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode_paiement: state.modePaiement })
       })
       const data = await res.json()
@@ -911,9 +953,9 @@ async function validerVente() {
       chargerCommandesTablette()
     } else if (state.commandeActive) {
       // Encaissement d'une commande tablette
-      const res = await fetch(`${API_URL}/api/commandes/${state.commandeActive.id}/encaisser`, {
+      const res = await fetchAPI(`${API_URL}/api/commandes/${state.commandeActive.id}/encaisser`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode_paiement: state.modePaiement, note })
       })
       const data = await res.json()
@@ -922,9 +964,9 @@ async function validerVente() {
       state.commandeActive = null
       chargerCommandesTablette()
     } else {
-      const res = await fetch(`${API_URL}/api/ventes`, {
+      const res = await fetchAPI(`${API_URL}/api/ventes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(venteData)
       })
       const data = await res.json()
@@ -1101,9 +1143,9 @@ async function syncVentes() {
 
   for (const vente of pending) {
     try {
-      const res = await fetch(`${API_URL}/api/ventes`, {
+      const res = await fetchAPI(`${API_URL}/api/ventes`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${state.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode_paiement: vente.mode_paiement, note: vente.note, lignes: vente.lignes })
       })
       if ((await res.json()).success) synced++
@@ -1140,9 +1182,7 @@ async function updatePendingBadge() {
 // ═══════════════════════════════════════════════════════════
 async function chargerStations() {
   try {
-    const res = await fetch(`${API_URL}/api/commandes/stations`, {
-      headers: { Authorization: `Bearer ${state.token}` }
-    })
+    const res = await fetchAPI(`${API_URL}/api/commandes/stations`)
     const data = await res.json()
     const toutes = data.data || []
     // Afficher seulement les stations de type caisse (ou toutes si aucune caisse définie)
@@ -1162,13 +1202,13 @@ async function chargerCommandesTablette() {
     if (state.utilisateur?.maquis?.module_commandes_actif) {
       const params = state.stationFiltre ? `?caisse_id=${state.stationFiltre}` : ''
       promises.push(
-        fetch(`${API_URL}/api/commandes${params}`, { headers: { Authorization: `Bearer ${state.token}` } })
+        fetchAPI(`${API_URL}/api/commandes${params}`)
           .then(r => r.json()).then(d => (d.data || []).map(c => ({ ...c, _type: 'commande' })))
       )
     }
     // Ventes remises en attente par le gérant (sans filtre date)
     promises.push(
-      fetch(`${API_URL}/api/ventes?statut=en_attente&date_debut=2020-01-01`, { headers: { Authorization: `Bearer ${state.token}` } })
+      fetchAPI(`${API_URL}/api/ventes?statut=en_attente&date_debut=2020-01-01`)
         .then(r => r.json()).then(d => (d.data || []).map(v => ({ ...v, _type: 'vente' })))
     )
     const results = await Promise.all(promises)
