@@ -606,6 +606,7 @@ setInterval(async () => {
       const d = await r.json()
       state.token = d.data.accessToken
       await window.electronAPI.storeSet('token', state.token)
+      if (window._socket) window._socket.auth.token = state.token
     }
   } catch {}
 }, 14 * 60 * 1000)
@@ -674,6 +675,11 @@ function connecterSocket() {
 
     socket.on('connect', () => {
       socket.emit('join', `maquis_${state.utilisateur.maquis_id}`)
+    })
+
+    // Mettre à jour le token avant chaque tentative de reconnexion
+    socket.io.on('reconnect_attempt', () => {
+      socket.auth.token = state.token
     })
 
     socket.on('commande:nouvelle', async (commande) => {
