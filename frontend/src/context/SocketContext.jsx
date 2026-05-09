@@ -29,12 +29,15 @@ export const SocketProvider = ({ children }) => {
     nouveauSocket.on('connect', () => {
       setConnecte(true)
       nouveauSocket.emit('join:maquis', utilisateur.maquis.id)
-      console.log('Socket connecté au maquis:', utilisateur.maquis.id)
+    })
+
+    // Met à jour le token avant chaque reconnexion
+    nouveauSocket.io.on('reconnect_attempt', () => {
+      nouveauSocket.auth.token = localStorage.getItem('accessToken')
     })
 
     nouveauSocket.on('disconnect', () => {
       setConnecte(false)
-      console.log('Socket déconnecté')
     })
 
     setSocket(nouveauSocket)

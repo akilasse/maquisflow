@@ -81,10 +81,9 @@ const Caisse = () => {
     try {
       const promises = []
       if (utilisateur?.maquis?.module_commandes_actif) {
+        // Tous statuts ouverts (ouverte, en_cours, en_attente, prete, servie)
         promises.push(
-          api.get('/api/commandes?statut=en_attente').then(r => (r.data.data || []).map(c => ({ ...c, _type: 'commande' }))),
-          api.get('/api/commandes?statut=servie').then(r => (r.data.data || []).map(c => ({ ...c, _type: 'commande' }))),
-          api.get('/api/commandes?statut=prete').then(r => (r.data.data || []).map(c => ({ ...c, _type: 'commande' }))),
+          api.get('/api/commandes').then(r => (r.data.data || []).map(c => ({ ...c, _type: 'commande' })))
         )
       }
       // Ventes remises en attente par le gérant — sans filtre date (peut être d'un autre jour)
@@ -713,7 +712,7 @@ const Caisse = () => {
 
       <style>{`
         .caisse-tabs-mobile { display: none; }
-        @media (max-width: 768px) {
+        @media (max-width: 1024px) {
           .caisse-page { height: auto !important; min-height: calc(100vh - 76px); }
           .caisse-tabs-mobile {
             display: flex; background: white; border-radius: 10px;

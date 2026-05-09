@@ -205,7 +205,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
       quantite:      parseFloat(l.quantite) || 1,
       prix_unitaire: parseFloat(produit.prix_vente),
       note:          l.note || null,
-      statut:        direct ? 'prete' : 'en_attente'
+      statut:        'en_attente'
     }
   }))
 
@@ -215,7 +215,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
       table_id:      table_id || null,
       serveur_id:    utilisateur.id,
       type_commande: type_commande || 'sur_place',
-      statut:        direct ? 'en_attente' : 'en_cours',
+      statut:        'en_attente',
       caisse_id:     caisse_id ? parseInt(caisse_id) : null,
       numero,
       note:          note || null,

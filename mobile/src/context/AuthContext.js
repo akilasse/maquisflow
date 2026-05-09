@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import api from '../utils/api'
+import axios from 'axios'
+import api, { BASE_URL } from '../utils/api'
 
 const AuthContext = createContext(null)
 
@@ -11,7 +12,33 @@ export const AuthProvider = ({ children }) => {
   const [etablissements, setEtablissements]     = useState([])
   const [utilisateurTemp, setUtilisateurTemp]   = useState(null)
 
-  useEffect(() => { setChargement(false) }, [])
+  // Restaurer la session sauvegardée au démarrage
+  useEffect(() => {
+    const chargerSession = async () => {
+      try {
+        const userData = await AsyncStorage.getItem('utilisateur')
+        const token    = await AsyncStorage.getItem('accessToken')
+        if (userData && token) {
+          setUtilisateur(JSON.parse(userData))
+        }
+      } catch {}
+      setChargement(false)
+    }
+    chargerSession()
+  }, [])
+
+  // Refresh proactif toutes les 14 min (token expire à 15 min)
+  useEffect(() => {
+    if (!utilisateur) return
+    const rafraichir = async () => {
+      try {
+        const res = await axios.post(`${BASE_URL}/api/auth/refresh`, {}, { withCredentials: true })
+        await AsyncStorage.setItem('accessToken', res.data.data.accessToken)
+      } catch {}
+    }
+    const interval = setInterval(rafraichir, 14 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [utilisateur])
 
 
   const login = async (email, mot_de_passe) => {

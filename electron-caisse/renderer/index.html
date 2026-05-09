@@ -674,7 +674,7 @@ function connecterSocket() {
     window._socket = socket
 
     socket.on('connect', () => {
-      socket.emit('join', `maquis_${state.utilisateur.maquis_id}`)
+      socket.emit('join:maquis', state.utilisateur.maquis_id)
     })
 
     // Mettre à jour le token avant chaque tentative de reconnexion
@@ -1087,47 +1087,52 @@ function fermerModal() {
 }
 
 async function imprimerTicket() {
-  const r1 = await window.electronAPI.printTicket(buildTicketData(false))
-  if (r1.success) {
-    await window.electronAPI.printTicket(buildTicketData(true))
-    return
-  }
-  // Fallback impression navigateur (deux pages : client + caissier)
-  const r = state.dernierRecu
-  const genRecu = (titre) => `
-    <div style="page-break-after:always">
-      ${r.logo_url ? `<div style="text-align:center;margin-bottom:6px"><img src="${API_URL}${r.logo_url}" style="max-width:72px;max-height:72px;border-radius:8px"></div>` : ''}
-      <h2 style="text-align:center;font-size:15px;margin:0 0 2px">${r.maquis}</h2>
-      <p style="text-align:center;font-weight:bold;margin:0 0 6px">${titre}</p>
-      ${r.offline ? '<p style="text-align:center;font-weight:bold">⚠️ VENTE HORS LIGNE</p>' : ''}
-      <div class="sep"></div>
-      <p style="text-align:center">${r.date.toLocaleString('fr-FR')}</p>
-      <p style="text-align:center">Caissier: ${r.caissier}</p>
-      <div class="sep"></div>
-      ${r.lignes.map(l => `
-        <div class="row"><span>${l.nom} x${l.quantite}</span><span>${(l.prix_applique * l.quantite).toLocaleString()} XOF</span></div>
-      `).join('')}
-      <div class="sep"></div>
-      <div class="row total"><span>TOTAL</span><span>${r.total.toLocaleString()} XOF</span></div>
-      ${r.monnaie ? `<div class="row total"><span>Monnaie</span><span>${r.monnaie.toLocaleString()} XOF</span></div>` : ''}
-      <div class="sep"></div>
-      <p style="text-align:center">${titre === 'COPIE CLIENT' ? 'Merci pour votre visite !' : ''}</p>
-    </div>`
+  try {
+    const r1 = await window.electronAPI.printTicket(buildTicketData(false))
+    if (r1.success) {
+      await window.electronAPI.printTicket(buildTicketData(true))
+      return
+    }
+    // Fallback impression navigateur (deux pages : client + caissier)
+    const r = state.dernierRecu
+    const genRecu = (titre) => `
+      <div style="page-break-after:always">
+        ${r.logo_url ? `<div style="text-align:center;margin-bottom:6px"><img src="${API_URL}${r.logo_url}" style="max-width:72px;max-height:72px;border-radius:8px"></div>` : ''}
+        <h2 style="text-align:center;font-size:15px;margin:0 0 2px">${r.maquis}</h2>
+        <p style="text-align:center;font-weight:bold;margin:0 0 6px">${titre}</p>
+        ${r.offline ? '<p style="text-align:center;font-weight:bold">⚠️ VENTE HORS LIGNE</p>' : ''}
+        <div class="sep"></div>
+        <p style="text-align:center">${r.date.toLocaleString('fr-FR')}</p>
+        <p style="text-align:center">Caissier: ${r.caissier}</p>
+        <div class="sep"></div>
+        ${r.lignes.map(l => `
+          <div class="row"><span>${l.nom} x${l.quantite}</span><span>${(l.prix_applique * l.quantite).toLocaleString()} XOF</span></div>
+        `).join('')}
+        <div class="sep"></div>
+        <div class="row total"><span>TOTAL</span><span>${r.total.toLocaleString()} XOF</span></div>
+        ${r.monnaie ? `<div class="row total"><span>Monnaie</span><span>${r.monnaie.toLocaleString()} XOF</span></div>` : ''}
+        <div class="sep"></div>
+        <p style="text-align:center">${titre === 'COPIE CLIENT' ? 'Merci pour votre visite !' : ''}</p>
+      </div>`
 
-  const contenu = `<html><head><style>
-    body{font-family:monospace;max-width:280px;margin:0 auto;padding:10px;font-size:12px}
-    h2{text-align:center;font-size:14px} .sep{border-top:1px dashed #000;margin:6px 0}
-    .row{display:flex;justify-content:space-between;margin:3px 0}
-    .total{font-weight:bold;font-size:13px}
-    @media print{div{page-break-after:always}}
-  </style></head><body>
-    ${genRecu('COPIE CLIENT')}
-    ${genRecu('COPIE CAISSIER')}
-  </body></html>`
-  const w = window.open('', '_blank', 'width=320,height=600')
-  w.document.write(contenu)
-  w.document.close()
-  w.print()
+    const contenu = `<html><head><style>
+      body{font-family:monospace;max-width:280px;margin:0 auto;padding:10px;font-size:12px}
+      h2{text-align:center;font-size:14px} .sep{border-top:1px dashed #000;margin:6px 0}
+      .row{display:flex;justify-content:space-between;margin:3px 0}
+      .total{font-weight:bold;font-size:13px}
+      @media print{div{page-break-after:always}}
+    </style></head><body>
+      ${genRecu('COPIE CLIENT')}
+      ${genRecu('COPIE CAISSIER')}
+    </body></html>`
+    const w = window.open('', '_blank', 'width=320,height=600')
+    if (!w) { showMessage('Impression échouée — vérifiez votre imprimante par défaut', 'erreur'); return }
+    w.document.write(contenu)
+    w.document.close()
+    w.print()
+  } catch (err) {
+    showMessage('Erreur impression : ' + (err.message || 'Erreur inconnue'), 'erreur')
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
