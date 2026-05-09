@@ -81,9 +81,9 @@ const Caisse = () => {
     try {
       const promises = []
       if (utilisateur?.maquis?.module_commandes_actif) {
-        // Tous statuts ouverts (ouverte, en_cours, en_attente, prete, servie)
+        // Caisse : uniquement les commandes envoyées en attente de paiement
         promises.push(
-          api.get('/api/commandes').then(r => (r.data.data || []).map(c => ({ ...c, _type: 'commande' })))
+          api.get('/api/commandes?statut=en_attente').then(r => (r.data.data || []).map(c => ({ ...c, _type: 'commande' })))
         )
       }
       // Ventes remises en attente par le gérant — sans filtre date (peut être d'un autre jour)

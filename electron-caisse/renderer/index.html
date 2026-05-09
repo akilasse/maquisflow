@@ -1211,9 +1211,9 @@ async function chargerCommandesTablette() {
   try {
     const promises = []
     if (state.utilisateur?.maquis?.module_commandes_actif) {
-      const params = state.stationFiltre ? `?caisse_id=${state.stationFiltre}` : ''
+      const filtre = state.stationFiltre ? `&caisse_id=${state.stationFiltre}` : ''
       promises.push(
-        fetchAPI(`${API_URL}/api/commandes${params}`)
+        fetchAPI(`${API_URL}/api/commandes?statut=en_attente${filtre}`)
           .then(r => r.json()).then(d => (d.data || []).map(c => ({ ...c, _type: 'commande' })))
       )
     }
