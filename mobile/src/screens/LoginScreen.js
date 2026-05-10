@@ -19,7 +19,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !motDePasse) {
-      Alert.alert('Erreur', 'Email et mot de passe requis')
+      Alert.alert('Erreur', 'Email/login et mot de passe requis')
       return
     }
     setChargement(true)
@@ -108,10 +108,10 @@ export default function LoginScreen() {
 
         <TextInput
           style={styles.input}
-          placeholder="Email"
+          placeholder="Email ou login"
           value={email}
           onChangeText={setEmail}
-          keyboardType="email-address"
+          keyboardType="default"
           autoCapitalize="none"
           placeholderTextColor="#9ca3af"
         />

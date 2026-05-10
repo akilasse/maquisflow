@@ -30,6 +30,12 @@ api.interceptors.response.use(
       return Promise.reject(error)
     }
 
+    // Ne pas intercepter les 401 du login (mauvais identifiants = erreur normale)
+    const url = requeteOriginale.url || ''
+    if (url.includes('/auth/login') || url.includes('/auth/selectionner')) {
+      return Promise.reject(error)
+    }
+
     if (enCoursDeRefresh) {
       return new Promise((resolve, reject) => {
         fileAttente.push({ resolve, reject })
@@ -43,7 +49,8 @@ api.interceptors.response.use(
     enCoursDeRefresh = true
 
     try {
-      const response = await axios.post(`${BASE_URL}/api/auth/refresh`, {}, { withCredentials: true })
+      const refreshToken = await AsyncStorage.getItem('refreshToken')
+      const response = await axios.post(`${BASE_URL}/api/auth/refresh`, { refreshToken })
       const { accessToken } = response.data.data
       await AsyncStorage.setItem('accessToken', accessToken)
       api.defaults.headers.common.Authorization = `Bearer ${accessToken}`
@@ -54,8 +61,7 @@ api.interceptors.response.use(
     } catch {
       fileAttente.forEach(({ reject }) => reject(error))
       fileAttente = []
-      await AsyncStorage.removeItem('accessToken')
-      await AsyncStorage.removeItem('utilisateur')
+      await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'utilisateur'])
       return Promise.reject(error)
     } finally {
       enCoursDeRefresh = false

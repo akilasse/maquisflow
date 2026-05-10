@@ -73,7 +73,8 @@ ssh root@31.220.81.96
 cd /var/www/maquisflow
 git pull
 npm install --prefix backend
-cd frontend && npm run build
+cd backend && npx prisma db push && cd ..
+cd frontend && npm run build && cd ..
 pm2 restart maquisflow-backend
 ```
 

@@ -6,6 +6,7 @@
 
 import { createContext, useContext, useEffect, useState } from 'react'
 import { io } from 'socket.io-client'
+import axios from 'axios'
 import { useAuth } from './AuthContext'
 
 const SocketContext = createContext(null)
@@ -42,8 +43,27 @@ export const SocketProvider = ({ children }) => {
 
     setSocket(nouveauSocket)
 
+    // Rafraîchit le token et reconnecte le socket quand l'onglet redevient visible
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') return
+      try {
+        const res = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/auth/refresh`,
+          {}, { withCredentials: true }
+        )
+        const token = res.data.data.accessToken
+        localStorage.setItem('accessToken', token)
+        nouveauSocket.auth.token = token
+      } catch {}
+      if (!nouveauSocket.connected) {
+        nouveauSocket.connect()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     // Nettoie la connexion quand l'utilisateur se déconnecte
     return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       nouveauSocket.disconnect()
     }
   }, [utilisateur])

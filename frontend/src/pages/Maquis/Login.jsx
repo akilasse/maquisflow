@@ -126,10 +126,10 @@ const Login = () => {
 
         <form onSubmit={handleSubmit}>
           <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Email</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 8 }}>Email ou login</label>
             <input
-              type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="votre@email.com" required
+              type="text" value={email} onChange={e => setEmail(e.target.value)}
+              placeholder="Email ou identifiant" required autoCapitalize="none"
               style={{ width: '100%', padding: '13px 16px', fontSize: 15, border: '2px solid #f3f4f6', borderRadius: 12, boxSizing: 'border-box', outline: 'none', backgroundColor: '#f9fafb', transition: 'all 0.2s' }}
               onFocus={e => { e.target.style.borderColor = '#FF6B35'; e.target.style.backgroundColor = 'white' }}
               onBlur={e => { e.target.style.borderColor = '#f3f4f6'; e.target.style.backgroundColor = '#f9fafb' }}

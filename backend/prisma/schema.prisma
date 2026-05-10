@@ -111,10 +111,21 @@ model UtilisateurMaquis {
   @@unique([utilisateur_id, maquis_id])
 }
 
+model ProduitVariante {
+  id          Int     @id @default(autoincrement())
+  produit_id  Int
+  produit     Produit @relation(fields: [produit_id], references: [id])
+  nom         String  @db.VarChar(50)
+  coefficient Decimal @db.Decimal(10,4)
+  prix_vente  Decimal @db.Decimal(10,2)
+  actif       Boolean @default(true)
+}
+
 model Utilisateur {
   id           Int       @id @default(autoincrement())
   nom          String    @db.VarChar(100)
   email        String    @unique @db.VarChar(150)
+  login        String?   @unique @db.VarChar(50)
   mot_de_passe String    @db.VarChar(255)
   photo_url    String?   @db.VarChar(255)
   actif        Boolean   @default(true)
@@ -159,6 +170,7 @@ model Produit {
   inventaires      InventaireLigne[]
   lignes_livraison BonLivraisonLigne[]
   lignes_commande  CommandeLigne[]
+  variantes        ProduitVariante[]
 }
 
 model Vente {
@@ -205,17 +217,19 @@ enum StatutVente {
 }
 
 model VenteLigne {
-  id              Int     @id @default(autoincrement())
+  id              Int      @id @default(autoincrement())
   vente_id        Int
-  vente           Vente   @relation(fields: [vente_id], references: [id])
+  vente           Vente    @relation(fields: [vente_id], references: [id])
   produit_id      Int
-  produit         Produit @relation(fields: [produit_id], references: [id])
-  quantite        Decimal @db.Decimal(10,3)
-  prix_unitaire   Decimal @db.Decimal(10,2)
-  prix_catalogue  Decimal @db.Decimal(10,2)
-  economie_client Decimal @default(0) @db.Decimal(10,2)
-  remise_ligne    Decimal @default(0) @db.Decimal(5,2)
-  total_ligne     Decimal @db.Decimal(10,2)
+  produit         Produit  @relation(fields: [produit_id], references: [id])
+  quantite        Decimal  @db.Decimal(10,3)
+  variante_nom    String?  @db.VarChar(50)
+  coefficient     Decimal? @db.Decimal(10,4)
+  prix_unitaire   Decimal  @db.Decimal(10,2)
+  prix_catalogue  Decimal  @db.Decimal(10,2)
+  economie_client Decimal  @default(0) @db.Decimal(10,2)
+  remise_ligne    Decimal  @default(0) @db.Decimal(5,2)
+  total_ligne     Decimal  @db.Decimal(10,2)
 }
 
 model StockMouvement {

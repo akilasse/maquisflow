@@ -35,10 +35,10 @@ const verifierAbonnement = (maquis) => {
 // ============================================================
 // LOGIN - Retourne tous les établissements de l'utilisateur
 // ============================================================
-const login = async (prisma, email, mot_de_passe) => {
+const login = async (prisma, identifiant, mot_de_passe) => {
 
-  const utilisateur = await prisma.utilisateur.findUnique({
-    where: { email },
+  const utilisateur = await prisma.utilisateur.findFirst({
+    where: { OR: [{ email: identifiant }, { login: identifiant }] },
     include: {
       etablissements: {
         where: { actif: true },
@@ -57,11 +57,11 @@ const login = async (prisma, email, mot_de_passe) => {
     }
   })
 
-  if (!utilisateur) throw new Error('Email ou mot de passe incorrect')
+  if (!utilisateur) throw new Error('Identifiant ou mot de passe incorrect')
   if (!utilisateur.actif) throw new Error('Ce compte a été désactivé')
 
   const motDePasseValide = await bcrypt.compare(mot_de_passe, utilisateur.mot_de_passe)
-  if (!motDePasseValide) throw new Error('Email ou mot de passe incorrect')
+  if (!motDePasseValide) throw new Error('Identifiant ou mot de passe incorrect')
 
   const etablissementsActifs = utilisateur.etablissements.filter(e => e.maquis?.actif)
 

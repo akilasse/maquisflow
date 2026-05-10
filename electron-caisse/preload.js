@@ -11,8 +11,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   storeDelete: (key)        => ipcRenderer.invoke('store:delete', key),
 
   // Impression
-  printTicket: (ticketData) => ipcRenderer.invoke('print:ticket', ticketData),
-  printBon:    (bonData)    => ipcRenderer.invoke('print:bon', bonData),
+  printTicket:    (ticketData) => ipcRenderer.invoke('print:ticket', ticketData),
+  printBon:       (bonData)    => ipcRenderer.invoke('print:bon', bonData),
+  getPrinters:    ()           => ipcRenderer.invoke('print:get-printers'),
+  setPrinter:     (name)       => ipcRenderer.invoke('print:set-printer', name),
 
   // Infos
   isElectron: true

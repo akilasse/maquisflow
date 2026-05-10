@@ -30,53 +30,49 @@ const creerVente = async (prisma, io, data, utilisateur) => {
     let necessite_validation = false
 
     for (const ligne of lignes) {
-      const { produit_id, quantite, prix_applique } = ligne
+      const { produit_id, quantite, prix_applique, variante_nom, coefficient } = ligne
+      const coeff    = parseFloat(coefficient ?? 1)
+      const qteBase  = parseFloat(quantite) * coeff
 
       // Récupère le produit
       const produit = await tx.produit.findFirst({
-        where: {
-          id: produit_id,
-          maquis_id: utilisateur.maquis_id,
-          actif: true
-        }
+        where: { id: produit_id, maquis_id: utilisateur.maquis_id, actif: true }
       })
 
       if (!produit) {
         throw new Error(`Produit introuvable : ID ${produit_id}`)
       }
 
-      // Vérifie le stock
-      if (parseFloat(produit.stock_actuel) < quantite) {
+      // Vérifie le stock en unité de base
+      if (parseFloat(produit.stock_actuel) < qteBase) {
         throw new Error(
           `Stock insuffisant pour "${produit.nom}" - Disponible : ${produit.stock_actuel} ${produit.unite}`
         )
       }
 
-      // Prix final : prix saisi par le caissier ou prix catalogue si rien saisi
+      // Prix catalogue : prix de la variante ou du produit
       const prix_catalogue = parseFloat(produit.prix_vente)
-      const prix_final = prix_applique ? parseFloat(prix_applique) : prix_catalogue
+      const prix_final     = prix_applique ? parseFloat(prix_applique) : prix_catalogue
 
-      // Vérifie si le prix est trop bas → validation gérant requise
       if (prix_final < prix_catalogue * SEUIL_VALIDATION) {
         necessite_validation = true
       }
 
-      // Calcul du total ligne
-      const total_ligne = prix_final * quantite
-
-      // Calcul de l'écart par rapport au prix catalogue (pour le rapport patron)
-      const economie_client = (prix_catalogue - prix_final) * quantite
-
+      const total_ligne    = prix_final * parseFloat(quantite)
+      const economie_client = (prix_catalogue - prix_final) * parseFloat(quantite)
       total_net += total_ligne
 
       lignesPreparees.push({
         produit_id,
-        quantite,
-        prix_unitaire: prix_final,        // Prix réellement appliqué
-        prix_catalogue,                    // Prix normal du catalogue
-        economie_client,                   // Écart visible uniquement par le patron
-        remise_ligne: 0,                   // Conservé pour compatibilité
-        total_ligne: parseFloat(total_ligne.toFixed(2)),
+        quantite:      parseFloat(quantite),
+        qteBase,
+        variante_nom:  variante_nom || null,
+        coefficient:   coeff !== 1 ? coeff : null,
+        prix_unitaire: prix_final,
+        prix_catalogue,
+        economie_client,
+        remise_ligne:  0,
+        total_ligne:   parseFloat(total_ligne.toFixed(2)),
         produit
       })
     }
@@ -101,13 +97,15 @@ const creerVente = async (prisma, io, data, utilisateur) => {
         note,
         lignes: {
   create: lignesPreparees.map(l => ({
-    produit_id: l.produit_id,
-    quantite: l.quantite,
-    prix_unitaire: l.prix_unitaire,
-    prix_catalogue: l.prix_catalogue,
+    produit_id:      l.produit_id,
+    quantite:        l.quantite,
+    variante_nom:    l.variante_nom,
+    coefficient:     l.coefficient,
+    prix_unitaire:   l.prix_unitaire,
+    prix_catalogue:  l.prix_catalogue,
     economie_client: parseFloat(l.economie_client.toFixed(2)),
-    remise_ligne: l.remise_ligne,
-    total_ligne: l.total_ligne
+    remise_ligne:    l.remise_ligne,
+    total_ligne:     l.total_ligne
   }))
 }
       },
@@ -124,17 +122,17 @@ const creerVente = async (prisma, io, data, utilisateur) => {
     for (const ligne of lignesPreparees) {
       const produitMisAJour = await tx.produit.update({
         where: { id: ligne.produit_id },
-        data: { stock_actuel: { decrement: ligne.quantite } }
+        data: { stock_actuel: { decrement: ligne.qteBase } }
       })
 
       // Mouvement de stock
       await tx.stockMouvement.create({
         data: {
-          maquis_id: utilisateur.maquis_id,
-          produit_id: ligne.produit_id,
+          maquis_id:      utilisateur.maquis_id,
+          produit_id:     ligne.produit_id,
           type_mouvement: 'sortie_vente',
-          quantite: ligne.quantite,
-          raison: `Vente #${nouvelleVente.id} - Prix appliqué : ${ligne.prix_unitaire} XOF`,
+          quantite:       ligne.qteBase,
+          raison:         `Vente #${nouvelleVente.id}${ligne.variante_nom ? ` (${ligne.variante_nom})` : ''} — ${ligne.prix_unitaire} XOF`,
           utilisateur_id: utilisateur.id
         }
       })
@@ -276,16 +274,17 @@ const annulerVente = async (prisma, io, venteId, motif, utilisateur) => {
 
     // Restock pour chaque ligne
     for (const ligne of vente.lignes) {
+      const qteBase = parseFloat(ligne.quantite) * parseFloat(ligne.coefficient ?? 1)
       await tx.produit.update({
         where: { id: ligne.produit_id },
-        data: { stock_actuel: { increment: ligne.quantite } }
+        data: { stock_actuel: { increment: qteBase } }
       })
       await tx.stockMouvement.create({
         data: {
           maquis_id:      utilisateur.maquis_id,
           produit_id:     ligne.produit_id,
           type_mouvement: 'ajustement',
-          quantite:       parseFloat(ligne.quantite),
+          quantite:       qteBase,
           raison:         `Annulation vente #${venteId} — ${motif}`,
           utilisateur_id: utilisateur.id
         }
@@ -335,9 +334,10 @@ const modifierLignes = async (prisma, io, venteId, lignes, utilisateur) => {
   const venteMaj = await prisma.$transaction(async (tx) => {
     // Restituer le stock des anciennes lignes
     for (const oldL of vente.lignes) {
+      const qteBase = parseFloat(oldL.quantite) * parseFloat(oldL.coefficient ?? 1)
       await tx.produit.update({
         where: { id: oldL.produit_id },
-        data: { stock_actuel: { increment: oldL.quantite } }
+        data: { stock_actuel: { increment: qteBase } }
       })
     }
 
@@ -347,32 +347,38 @@ const modifierLignes = async (prisma, io, venteId, lignes, utilisateur) => {
     // Créer les nouvelles lignes
     let total_net = 0
     for (const ligne of lignes) {
+      const { produit_id, quantite, prix_applique, variante_nom, coefficient } = ligne
+      const coeff   = parseFloat(coefficient ?? 1)
+      const qteBase = parseFloat(quantite) * coeff
+
       const produit = await tx.produit.findFirst({
-        where: { id: ligne.produit_id, maquis_id: utilisateur.maquis_id, actif: true }
+        where: { id: produit_id, maquis_id: utilisateur.maquis_id, actif: true }
       })
-      if (!produit) throw new Error(`Produit introuvable : ID ${ligne.produit_id}`)
-      if (parseFloat(produit.stock_actuel) < ligne.quantite) {
+      if (!produit) throw new Error(`Produit introuvable : ID ${produit_id}`)
+      if (parseFloat(produit.stock_actuel) < qteBase) {
         throw new Error(`Stock insuffisant pour "${produit.nom}" — disponible : ${produit.stock_actuel}`)
       }
 
-      const prix = parseFloat(ligne.prix_applique ?? produit.prix_vente)
-      const total_ligne = parseFloat((prix * ligne.quantite).toFixed(2))
+      const prix = parseFloat(prix_applique ?? produit.prix_vente)
+      const total_ligne = parseFloat((prix * parseFloat(quantite)).toFixed(2))
       total_net += total_ligne
 
       await tx.produit.update({
-        where: { id: ligne.produit_id },
-        data: { stock_actuel: { decrement: ligne.quantite } }
+        where: { id: produit_id },
+        data: { stock_actuel: { decrement: qteBase } }
       })
 
       await tx.venteLigne.create({
         data: {
-          vente_id:       venteId,
-          produit_id:     ligne.produit_id,
-          quantite:       ligne.quantite,
-          prix_unitaire:  prix,
-          prix_catalogue: parseFloat(produit.prix_vente),
-          economie_client: parseFloat(((parseFloat(produit.prix_vente) - prix) * ligne.quantite).toFixed(2)),
-          remise_ligne:   0,
+          vente_id:        venteId,
+          produit_id,
+          quantite:        parseFloat(quantite),
+          variante_nom:    variante_nom || null,
+          coefficient:     coeff !== 1 ? coeff : null,
+          prix_unitaire:   prix,
+          prix_catalogue:  parseFloat(produit.prix_vente),
+          economie_client: parseFloat(((parseFloat(produit.prix_vente) - prix) * parseFloat(quantite)).toFixed(2)),
+          remise_ligne:    0,
           total_ligne
         }
       })

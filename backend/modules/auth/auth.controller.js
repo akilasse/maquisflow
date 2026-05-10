@@ -3,11 +3,12 @@ const authService = require('./auth.service')
 // POST /api/auth/login
 const login = async (req, res) => {
   try {
-    const { email, mot_de_passe } = req.body
-    if (!email || !mot_de_passe) {
-      return res.status(400).json({ success: false, message: 'Email et mot de passe requis' })
+    const { email, identifiant, mot_de_passe } = req.body
+    const id = identifiant || email
+    if (!id || !mot_de_passe) {
+      return res.status(400).json({ success: false, message: 'Email/login et mot de passe requis' })
     }
-    const resultat = await authService.login(req.prisma, email, mot_de_passe)
+    const resultat = await authService.login(req.prisma, id, mot_de_passe)
 
     res.cookie('refreshToken', resultat.refreshToken, {
       httpOnly: true,
@@ -19,7 +20,7 @@ const login = async (req, res) => {
       return res.status(200).json({
         success: true,
         selection_requise: true,
-        data: { utilisateur: resultat.utilisateur, etablissements: resultat.etablissements }
+        data: { refreshToken: resultat.refreshToken, utilisateur: resultat.utilisateur, etablissements: resultat.etablissements }
       })
     }
 
@@ -27,7 +28,7 @@ const login = async (req, res) => {
       success: true,
       selection_requise: false,
       message: 'Connexion réussie',
-      data: { accessToken: resultat.accessToken, utilisateur: resultat.utilisateur }
+      data: { accessToken: resultat.accessToken, refreshToken: resultat.refreshToken, utilisateur: resultat.utilisateur }
     })
   } catch (error) {
     return res.status(401).json({ success: false, message: error.message })
@@ -50,7 +51,7 @@ const selectionnerEtablissement = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: 'Établissement sélectionné',
-      data: { accessToken: resultat.accessToken, utilisateur: resultat.utilisateur }
+      data: { accessToken: resultat.accessToken, refreshToken: resultat.refreshToken, utilisateur: resultat.utilisateur }
     })
   } catch (error) {
     return res.status(401).json({ success: false, message: error.message })
@@ -60,7 +61,7 @@ const selectionnerEtablissement = async (req, res) => {
 // POST /api/auth/refresh
 const refresh = async (req, res) => {
   try {
-    const token = req.cookies?.refreshToken
+    const token = req.cookies?.refreshToken || req.body?.refreshToken
     if (!token) return res.status(401).json({ success: false, message: 'Refresh token manquant' })
     const resultat = await authService.refreshToken(req.prisma, token)
     return res.status(200).json({ success: true, data: resultat })

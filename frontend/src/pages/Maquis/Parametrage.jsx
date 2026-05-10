@@ -118,10 +118,12 @@ const Parametrage = () => {
 
   const [formProduit, setFormProduit] = useState({
     nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '',
-    conditionnement: '', nb_par_cond: '', prix_cond: ''
+    conditionnement: '', nb_par_cond: '', prix_cond: '', variantes: []
   })
+
+  const NOMS_VARIANTES_SUGGERES = ['Casier', 'Carton', 'Bouteille', 'Verre', 'Demi', 'Coupe', 'Dose', 'Portion', 'Litre', '50cl', '33cl', 'Pack']
   const [formFournisseur, setFormFournisseur] = useState({ nom: '', telephone: '', email: '', adresse: '' })
-  const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', mot_de_passe: '', role: 'serveur' })
+  const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', login: '', mot_de_passe: '', role: 'serveur' })
   const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false, heure_debut_journee: 0 })
   const [stations, setStations] = useState([])
   const [tables, setTables]     = useState([])
@@ -205,7 +207,7 @@ const Parametrage = () => {
         afficherMessage('succes', 'Produit créé !')
       }
       setModal(null)
-      setFormProduit({ nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '', conditionnement: '', nb_par_cond: '', prix_cond: '' })
+      setFormProduit({ nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '', conditionnement: '', nb_par_cond: '', prix_cond: '', variantes: [] })
       await chargerDonnees()
     } catch (error) { afficherMessage('erreur', error.response?.data?.message || 'Erreur') }
   }
@@ -274,7 +276,7 @@ const Parametrage = () => {
       await api.put(`/api/parametrage/utilisateurs/${modal.id}`, formUtilisateur)
       afficherMessage('succes', 'Utilisateur modifié !')
       setModal(null)
-      setFormUtilisateur({ nom: '', email: '', mot_de_passe: '', role: 'serveur' })
+      setFormUtilisateur({ nom: '', email: '', login: '', mot_de_passe: '', role: 'serveur' })
       await chargerDonnees()
     } catch (error) { afficherMessage('erreur', error.response?.data?.message || 'Erreur') }
   }
@@ -380,6 +382,49 @@ const Parametrage = () => {
                 <input type="number" placeholder="Nb unités par cond. (ex: 24)" value={formProduit.nb_par_cond} onChange={e => setFormProduit({ ...formProduit, nb_par_cond: e.target.value })} style={styleInput} />
                 <input type="number" placeholder="Prix du conditionnement" value={formProduit.prix_cond} onChange={e => setFormProduit({ ...formProduit, prix_cond: e.target.value })} style={styleInput} />
               </div>
+
+              {/* Section variantes de vente */}
+              <div style={{ marginTop: '4px', marginBottom: '10px', padding: '14px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <div>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#374151' }}>Variantes de vente</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>Ex : Casier (24 btle), Verre (0.2 btle)... Le stock se décrémente en unité de base.</p>
+                  </div>
+                  <button onClick={() => setFormProduit({ ...formProduit, variantes: [...formProduit.variantes, { nom: '', coefficient: '', prix_vente: '' }] })}
+                    style={{ padding: '6px 14px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', flexShrink: 0 }}>
+                    + Ajouter
+                  </button>
+                </div>
+
+                <datalist id="noms-variantes">
+                  {NOMS_VARIANTES_SUGGERES.map(n => <option key={n} value={n} />)}
+                </datalist>
+
+                {formProduit.variantes.length === 0 && (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '10px 0' }}>Aucune variante — le produit se vend à l'unité de base</p>
+                )}
+                {formProduit.variantes.map((v, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                    <input list="noms-variantes" placeholder="Nom (ex: Casier, Verre)" value={v.nom}
+                      onChange={e => { const vv = [...formProduit.variantes]; vv[i] = { ...vv[i], nom: e.target.value }; setFormProduit({ ...formProduit, variantes: vv }) }}
+                      style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }} />
+                    <input type="number" placeholder="Coeff (ex: 24)" value={v.coefficient} min="0.01" step="0.01"
+                      onChange={e => { const vv = [...formProduit.variantes]; vv[i] = { ...vv[i], coefficient: e.target.value }; setFormProduit({ ...formProduit, variantes: vv }) }}
+                      style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }} />
+                    <input type="number" placeholder="Prix XOF" value={v.prix_vente}
+                      onChange={e => { const vv = [...formProduit.variantes]; vv[i] = { ...vv[i], prix_vente: e.target.value }; setFormProduit({ ...formProduit, variantes: vv }) }}
+                      style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }} />
+                    <button onClick={() => { const vv = formProduit.variantes.filter((_, j) => j !== i); setFormProduit({ ...formProduit, variantes: vv }) }}
+                      style={{ width: 30, height: 30, backgroundColor: '#fef2f2', border: 'none', borderRadius: '7px', cursor: 'pointer', color: '#dc2626', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
+                  </div>
+                ))}
+                {formProduit.variantes.length > 0 && (
+                  <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#9ca3af' }}>
+                    Coeff = nombre d'unités de base consommées — ex: Verre = 0.33 bouteille
+                  </p>
+                )}
+              </div>
+
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={soumettreProdukt} style={styleBouton()}>Enregistrer</button>
                 <button onClick={() => setModal(null)} style={styleBouton('#6b7280')}>Annuler</button>
@@ -414,6 +459,11 @@ const Parametrage = () => {
                   <td style={{ padding: '10px', fontSize: '14px', fontWeight: '500' }}>
                     {p.nom}
                     {p.code_barre && <span style={{ display: 'block', fontSize: '11px', color: '#9ca3af' }}>📊 {p.code_barre}</span>}
+                    {p.variantes?.length > 0 && (
+                      <span style={{ display: 'inline-block', marginTop: 3, fontSize: '11px', color: 'var(--couleur-principale)', fontWeight: '600', backgroundColor: 'var(--couleur-principale-light)', padding: '1px 7px', borderRadius: '10px' }}>
+                        {p.variantes.length} variante{p.variantes.length > 1 ? 's' : ''}
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{p.categorie || '-'}</td>
                   <td style={{ padding: '10px', fontSize: '13px', color: 'var(--couleur-principale)', fontWeight: '600' }}>{parseFloat(p.prix_vente).toLocaleString()} XOF</td>
@@ -425,7 +475,7 @@ const Parametrage = () => {
                   </td>
                   <td style={{ padding: '10px' }}>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button onClick={() => { setModal({ type: 'produit', id: p.id }); setFormProduit({ nom: p.nom, categorie: p.categorie || '', prix_vente: p.prix_vente, prix_achat: p.prix_achat || '', stock_min: p.stock_min, unite: p.unite, code_barre: p.code_barre || '', conditionnement: p.conditionnement || '', nb_par_cond: p.nb_par_cond || '', prix_cond: p.prix_cond || '' }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
+                      <button onClick={() => { setModal({ type: 'produit', id: p.id }); setFormProduit({ nom: p.nom, categorie: p.categorie || '', prix_vente: p.prix_vente, prix_achat: p.prix_achat || '', stock_min: p.stock_min, unite: p.unite, code_barre: p.code_barre || '', conditionnement: p.conditionnement || '', nb_par_cond: p.nb_par_cond || '', prix_cond: p.prix_cond || '', variantes: (p.variantes || []).map(v => ({ nom: v.nom, coefficient: v.coefficient, prix_vente: v.prix_vente })) }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
                       <button onClick={() => toggleActifProduit(p)} style={{ padding: '4px 10px', backgroundColor: p.actif ? '#fef2f2' : '#f0fdf4', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: p.actif ? '#dc2626' : '#16a34a' }}>{p.actif ? 'Désactiver' : 'Activer'}</button>
                     </div>
                   </td>
@@ -486,6 +536,8 @@ const Parametrage = () => {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                 <input placeholder="Nom complet *" value={formUtilisateur.nom} onChange={e => setFormUtilisateur({ ...formUtilisateur, nom: e.target.value })} style={styleInput} />
                 <input type="email" placeholder="Email *" value={formUtilisateur.email} onChange={e => setFormUtilisateur({ ...formUtilisateur, email: e.target.value })} style={styleInput} />
+                <input placeholder="Login (optionnel)" value={formUtilisateur.login} onChange={e => setFormUtilisateur({ ...formUtilisateur, login: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                  style={styleInput} autoComplete="off" />
                 <input type="password" placeholder="Nouveau mot de passe (optionnel)" value={formUtilisateur.mot_de_passe} onChange={e => setFormUtilisateur({ ...formUtilisateur, mot_de_passe: e.target.value })} style={styleInput} />
                 <select value={formUtilisateur.role} onChange={e => setFormUtilisateur({ ...formUtilisateur, role: e.target.value })} style={styleInput}>
                   <option value="serveur">Serveur / Station</option>
@@ -527,7 +579,10 @@ const Parametrage = () => {
                     </div>
                   </td>
                   <td style={{ padding: '10px', fontSize: '14px', fontWeight: '500' }}>{u.nom}</td>
-                  <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{u.email}</td>
+                  <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>
+                    {u.email}
+                    {u.login && <span style={{ display: 'block', fontSize: '11px', color: '#9ca3af' }}>login: {u.login}</span>}
+                  </td>
                   <td style={{ padding: '10px' }}>
                     <span style={{ padding: '3px 10px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', backgroundColor: u.role === 'patron' ? '#fef3c7' : u.role === 'gerant' ? '#e0f2fe' : '#f3f4f6', color: u.role === 'patron' ? '#92400e' : u.role === 'gerant' ? '#0369a1' : '#374151' }}>
                       {u.role}
@@ -540,7 +595,7 @@ const Parametrage = () => {
                   </td>
                   <td style={{ padding: '10px' }}>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button onClick={() => { setModal({ type: 'utilisateur', id: u.id }); setFormUtilisateur({ nom: u.nom, email: u.email, mot_de_passe: '', role: u.role }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
+                      <button onClick={() => { setModal({ type: 'utilisateur', id: u.id }); setFormUtilisateur({ nom: u.nom, email: u.email, login: u.login || '', mot_de_passe: '', role: u.role }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
                       <button onClick={() => toggleActifUtilisateur(u)} style={{ padding: '4px 10px', backgroundColor: u.actif ? '#fef2f2' : '#f0fdf4', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: u.actif ? '#dc2626' : '#16a34a' }}>{u.actif ? 'Désactiver' : 'Activer'}</button>
                     </div>
                   </td>

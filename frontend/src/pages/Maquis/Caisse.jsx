@@ -35,6 +35,7 @@ const Caisse = () => {
   const [commandeActive, setCommandeActive]       = useState(null)
   const [venteActive, setVenteActive]             = useState(null)
   const [voirCommandes, setVoirCommandes]         = useState(false)
+  const [modalVariantes, setModalVariantes]       = useState(null) // produit dont on choisit la variante
 
 
   // Surveiller connexion
@@ -122,13 +123,16 @@ const Caisse = () => {
   const selectionnerCommande = (commande) => {
     const lignesActives = commande.lignes.filter(l => l.statut !== 'annulee')
     const panierCommande = lignesActives.map(l => ({
+      panier_key:     `loaded_${l.id}`,
       produit_id:     l.produit_id,
       nom:            l.produit?.nom || `Produit #${l.produit_id}`,
       quantite:       parseFloat(l.quantite),
       prix_catalogue: parseFloat(l.prix_unitaire),
       prix_applique:  parseFloat(l.prix_unitaire),
       unite:          l.produit?.unite || 'unité',
-      stock_max:      9999
+      stock_max:      9999,
+      variante_nom:   null,
+      coefficient:    null
     }))
     setPanier(panierCommande)
     setCommandeActive(commande)
@@ -139,13 +143,16 @@ const Caisse = () => {
 
   const selectionnerVente = (vente) => {
     const lignes = vente.lignes.map(l => ({
+      panier_key:     `loaded_${l.id}`,
       produit_id:     l.produit_id,
       nom:            l.produit?.nom || `Produit #${l.produit_id}`,
       quantite:       parseFloat(l.quantite),
       prix_catalogue: parseFloat(l.prix_catalogue || l.prix_unitaire),
       prix_applique:  parseFloat(l.prix_unitaire),
-      unite:          l.produit?.unite || 'unité',
-      stock_max:      9999
+      unite:          l.variante_nom || l.produit?.unite || 'unité',
+      stock_max:      9999,
+      variante_nom:   l.variante_nom || null,
+      coefficient:    l.coefficient ? parseFloat(l.coefficient) : null
     }))
     setPanier(lignes)
     setVenteActive(vente)
@@ -197,43 +204,87 @@ const Caisse = () => {
   )
 
   const ajouterAuPanier = (produit) => {
-    const existe = panier.find(p => p.produit_id === produit.id)
+    // Si le produit a des variantes, afficher le sélecteur de variante
+    if (produit.variantes && produit.variantes.length > 0) {
+      setModalVariantes(produit)
+      return
+    }
+    const panier_key = String(produit.id)
+    const existe = panier.find(p => p.panier_key === panier_key)
     if (existe) {
       if (existe.quantite >= parseFloat(produit.stock_actuel)) {
         setMessage({ type: 'erreur', texte: `Stock insuffisant pour ${produit.nom}` })
         return
       }
-      setPanier(panier.map(p => p.produit_id === produit.id ? { ...p, quantite: p.quantite + 1 } : p))
+      setPanier(panier.map(p => p.panier_key === panier_key ? { ...p, quantite: p.quantite + 1 } : p))
     } else {
       setPanier([...panier, {
+        panier_key,
         produit_id:     produit.id,
         nom:            produit.nom,
         quantite:       1,
         prix_catalogue: parseFloat(produit.prix_vente),
         prix_applique:  parseFloat(produit.prix_vente),
         unite:          produit.unite,
-        stock_max:      parseFloat(produit.stock_actuel)
+        stock_max:      parseFloat(produit.stock_actuel),
+        variante_nom:   null,
+        coefficient:    null
       }])
     }
     setMessage(null)
   }
 
-  const modifierQuantite = (produit_id, nouvelleQuantite) => {
-    if (nouvelleQuantite <= 0) { retirerDuPanier(produit_id); return }
-    const item = panier.find(p => p.produit_id === produit_id)
+  const ajouterVarianteAuPanier = (produit, variante) => {
+    const panier_key = `${produit.id}_${variante.nom}`
+    const coeff = parseFloat(variante.coefficient)
+    const stockDispoVariantes = Math.floor(parseFloat(produit.stock_actuel) / coeff)
+    const existe = panier.find(p => p.panier_key === panier_key)
+    if (existe) {
+      if (existe.quantite >= stockDispoVariantes) {
+        setMessage({ type: 'erreur', texte: `Stock insuffisant pour ${produit.nom} — ${variante.nom}` })
+        setModalVariantes(null)
+        return
+      }
+      setPanier(panier.map(p => p.panier_key === panier_key ? { ...p, quantite: p.quantite + 1 } : p))
+    } else {
+      if (stockDispoVariantes <= 0) {
+        setMessage({ type: 'erreur', texte: `Stock insuffisant pour ${produit.nom} — ${variante.nom}` })
+        setModalVariantes(null)
+        return
+      }
+      setPanier([...panier, {
+        panier_key,
+        produit_id:     produit.id,
+        nom:            produit.nom,
+        quantite:       1,
+        prix_catalogue: parseFloat(variante.prix_vente),
+        prix_applique:  parseFloat(variante.prix_vente),
+        unite:          variante.nom,
+        stock_max:      stockDispoVariantes,
+        variante_nom:   variante.nom,
+        coefficient:    coeff
+      }])
+    }
+    setModalVariantes(null)
+    setMessage(null)
+  }
+
+  const modifierQuantite = (panier_key, nouvelleQuantite) => {
+    if (nouvelleQuantite <= 0) { retirerDuPanier(panier_key); return }
+    const item = panier.find(p => p.panier_key === panier_key)
     if (nouvelleQuantite > item.stock_max) {
       setMessage({ type: 'erreur', texte: 'Quantité dépasse le stock disponible' })
       return
     }
-    setPanier(panier.map(p => p.produit_id === produit_id ? { ...p, quantite: nouvelleQuantite } : p))
+    setPanier(panier.map(p => p.panier_key === panier_key ? { ...p, quantite: nouvelleQuantite } : p))
   }
 
-  const modifierPrix = (produit_id, nouveauPrix) => {
-    setPanier(panier.map(p => p.produit_id === produit_id ? { ...p, prix_applique: parseFloat(nouveauPrix) || 0 } : p))
+  const modifierPrix = (panier_key, nouveauPrix) => {
+    setPanier(panier.map(p => p.panier_key === panier_key ? { ...p, prix_applique: parseFloat(nouveauPrix) || 0 } : p))
   }
 
-  const retirerDuPanier = (produit_id) => {
-    setPanier(panier.filter(p => p.produit_id !== produit_id))
+  const retirerDuPanier = (panier_key) => {
+    setPanier(panier.filter(p => p.panier_key !== panier_key))
   }
 
   const totalPanier = panier.reduce((total, item) => total + (item.prix_applique * item.quantite), 0)
@@ -260,7 +311,9 @@ const Caisse = () => {
       lignes: panier.map(item => ({
         produit_id:    item.produit_id,
         quantite:      item.quantite,
-        prix_applique: item.prix_applique
+        prix_applique: item.prix_applique,
+        ...(item.variante_nom  ? { variante_nom:  item.variante_nom  } : {}),
+        ...(item.coefficient   ? { coefficient:   item.coefficient   } : {})
       }))
     }
 
@@ -313,10 +366,13 @@ const Caisse = () => {
         const nb = await compterVentesPending()
         setVentesEnAttente(nb)
 
-        // Mettre à jour le stock localement
+        // Mettre à jour le stock localement (respecte les coefficients)
         const produitsUpdates = produits.map(p => {
-          const ligne = panier.find(l => l.produit_id === p.id)
-          if (ligne) return { ...p, stock_actuel: String(parseFloat(p.stock_actuel) - ligne.quantite) }
+          const lignesProduit = panier.filter(l => l.produit_id === p.id)
+          if (lignesProduit.length > 0) {
+            const deduction = lignesProduit.reduce((s, l) => s + l.quantite * (l.coefficient || 1), 0)
+            return { ...p, stock_actuel: String(parseFloat(p.stock_actuel) - deduction) }
+          }
           return p
         })
         setProduits(produitsUpdates)
@@ -367,7 +423,7 @@ const Caisse = () => {
         <p class="centre">Caissier: ${dernierRecu?.caissier}</p>
         <div class="sep"></div>
         ${dernierRecu?.lignes?.map(l => `
-          <div class="ligne"><span>${l.nom} x${l.quantite}</span><span>${(l.quantite * l.prix_applique).toLocaleString()} XOF</span></div>
+          <div class="ligne"><span>${l.nom}${l.variante_nom ? ` — ${l.variante_nom}` : ''} x${l.quantite}</span><span>${(l.quantite * l.prix_applique).toLocaleString()} XOF</span></div>
         `).join('')}
         <div class="sep"></div>
         <div class="ligne total"><span>TOTAL</span><span>${dernierRecu?.total?.toLocaleString()} XOF</span></div>
@@ -456,7 +512,7 @@ const Caisse = () => {
               <div style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '16px' }}>
                 {dernierRecu.lignes.map((l, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '15px' }}>
-                    <span>{l.nom} × {l.quantite}</span>
+                    <span>{l.nom}{l.variante_nom ? ` — ${l.variante_nom}` : ''} × {l.quantite}</span>
                     <span style={{ fontWeight: '600' }}>{(l.quantite * l.prix_applique).toLocaleString()} XOF</span>
                   </div>
                 ))}
@@ -484,6 +540,47 @@ const Caisse = () => {
                   style={{ flex: 1, padding: '14px', backgroundColor: '#f3f4f6', color: '#374151', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                   Fermer
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL SÉLECTEUR DE VARIANTES */}
+        {modalVariantes && (
+          <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+            <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '24px', width: '360px', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: '700', color: '#111827' }}>{modalVariantes.nom}</h3>
+                  <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#9ca3af' }}>Stock : {modalVariantes.stock_actuel} {modalVariantes.unite}</p>
+                </div>
+                <button onClick={() => setModalVariantes(null)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#6b7280' }}>✕</button>
+              </div>
+              <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>Choisir la variante :</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {/* Option unité de base */}
+                <button onClick={() => {
+                  setModalVariantes(null)
+                  ajouterAuPanier({ ...modalVariantes, variantes: [] })
+                }} style={{ padding: '14px 16px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--couleur-principale)'; e.currentTarget.style.backgroundColor = '#fff7ed' }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.backgroundColor = 'white' }}>
+                  <span style={{ fontWeight: '600', fontSize: '14px', color: '#374151' }}>1 {modalVariantes.unite}</span>
+                  <span style={{ fontWeight: '700', color: 'var(--couleur-principale)', fontSize: '15px' }}>{parseFloat(modalVariantes.prix_vente).toLocaleString()} XOF</span>
+                </button>
+                {/* Variantes configurées */}
+                {modalVariantes.variantes.map(v => (
+                  <button key={v.id} onClick={() => ajouterVarianteAuPanier(modalVariantes, v)}
+                    style={{ padding: '14px 16px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--couleur-principale)'; e.currentTarget.style.backgroundColor = '#fff7ed' }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.backgroundColor = 'white' }}>
+                    <div>
+                      <span style={{ fontWeight: '600', fontSize: '14px', color: '#374151' }}>{v.nom}</span>
+                      <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '8px' }}>= {v.coefficient} {modalVariantes.unite}</span>
+                    </div>
+                    <span style={{ fontWeight: '700', color: 'var(--couleur-principale)', fontSize: '15px' }}>{parseFloat(v.prix_vente).toLocaleString()} XOF</span>
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -591,6 +688,11 @@ const Caisse = () => {
                   <div style={{ flex: 1 }}>
                     <p style={{ margin: 0, fontWeight: '600', fontSize: '15px', color: '#111827' }}>{produit.nom}</p>
                     <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>Stock : {produit.stock_actuel} {produit.unite}</p>
+                    {produit.variantes?.length > 0 && (
+                      <span style={{ fontSize: '11px', color: 'var(--couleur-principale)', fontWeight: '600' }}>
+                        {produit.variantes.length} variante{produit.variantes.length > 1 ? 's' : ''} →
+                      </span>
+                    )}
                   </div>
                   <p style={{ margin: 0, fontWeight: '700', color: 'var(--couleur-principale)', fontSize: '15px' }}>{parseFloat(produit.prix_vente).toLocaleString()} XOF</p>
                 </div>
@@ -639,19 +741,26 @@ const Caisse = () => {
               <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 20px', fontSize: '15px' }}>Cliquez sur un produit pour l'ajouter</p>
             ) : (
               panier.map(item => (
-                <div key={item.produit_id} style={{ padding: '12px', borderRadius: '10px', marginBottom: '8px', backgroundColor: '#f9fafb', border: '1px solid #f3f4f6' }}>
+                <div key={item.panier_key} style={{ padding: '12px', borderRadius: '10px', marginBottom: '8px', backgroundColor: '#f9fafb', border: '1px solid #f3f4f6' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                    <p style={{ margin: 0, fontWeight: '600', fontSize: '15px', color: '#111827' }}>{item.nom}</p>
-                    <button onClick={() => retirerDuPanier(item.produit_id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px' }}>×</button>
+                    <div>
+                      <p style={{ margin: 0, fontWeight: '600', fontSize: '15px', color: '#111827' }}>{item.nom}</p>
+                      {item.variante_nom && (
+                        <span style={{ fontSize: '12px', color: 'var(--couleur-principale)', fontWeight: '600', backgroundColor: 'var(--couleur-principale-light)', padding: '2px 8px', borderRadius: '20px' }}>
+                          {item.variante_nom}
+                        </span>
+                      )}
+                    </div>
+                    <button onClick={() => retirerDuPanier(item.panier_key)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: '18px' }}>×</button>
                   </div>
                   <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <button onClick={() => modifierQuantite(item.produit_id, item.quantite - 1)} style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: '18px', fontWeight: '600' }}>-</button>
+                      <button onClick={() => modifierQuantite(item.panier_key, item.quantite - 1)} style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: '18px', fontWeight: '600' }}>-</button>
                       <span style={{ minWidth: '32px', textAlign: 'center', fontSize: '16px', fontWeight: '600' }}>{item.quantite}</span>
-                      <button onClick={() => modifierQuantite(item.produit_id, item.quantite + 1)} style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: '18px', fontWeight: '600' }}>+</button>
+                      <button onClick={() => modifierQuantite(item.panier_key, item.quantite + 1)} style={{ width: '36px', height: '36px', borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: '18px', fontWeight: '600' }}>+</button>
                     </div>
                     <div style={{ flex: 1 }}>
-                      <input type="number" value={item.prix_applique} onChange={(e) => modifierPrix(item.produit_id, e.target.value)}
+                      <input type="number" value={item.prix_applique} onChange={(e) => modifierPrix(item.panier_key, e.target.value)}
                         style={{ width: '100%', padding: '8px 10px', fontSize: '15px', boxSizing: 'border-box', border: item.prix_applique < item.prix_catalogue * 0.8 ? '1px solid #f97316' : '1px solid #e5e7eb', borderRadius: '8px' }}
                       />
                     </div>

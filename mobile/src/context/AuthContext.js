@@ -16,12 +16,17 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     const chargerSession = async () => {
       try {
-        const userData = await AsyncStorage.getItem('utilisateur')
-        const token    = await AsyncStorage.getItem('accessToken')
-        if (userData && token) {
+        const userData     = await AsyncStorage.getItem('utilisateur')
+        const refreshToken = await AsyncStorage.getItem('refreshToken')
+        if (userData && refreshToken) {
+          const res = await axios.post(`${BASE_URL}/api/auth/refresh`, { refreshToken })
+          const nouveauToken = res.data.data.accessToken
+          await AsyncStorage.setItem('accessToken', nouveauToken)
           setUtilisateur(JSON.parse(userData))
         }
-      } catch {}
+      } catch {
+        await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'utilisateur'])
+      }
       setChargement(false)
     }
     chargerSession()
@@ -32,7 +37,9 @@ export const AuthProvider = ({ children }) => {
     if (!utilisateur) return
     const rafraichir = async () => {
       try {
-        const res = await axios.post(`${BASE_URL}/api/auth/refresh`, {}, { withCredentials: true })
+        const refreshToken = await AsyncStorage.getItem('refreshToken')
+        if (!refreshToken) return
+        const res = await axios.post(`${BASE_URL}/api/auth/refresh`, { refreshToken })
         await AsyncStorage.setItem('accessToken', res.data.data.accessToken)
       } catch {}
     }
@@ -52,8 +59,9 @@ export const AuthProvider = ({ children }) => {
       return { selection_requise: true }
     }
 
-    const { accessToken, utilisateur } = data.data
+    const { accessToken, refreshToken, utilisateur } = data.data
     await AsyncStorage.setItem('accessToken', accessToken)
+    await AsyncStorage.setItem('refreshToken', refreshToken)
     await AsyncStorage.setItem('utilisateur', JSON.stringify(utilisateur))
     setUtilisateur(utilisateur)
     return utilisateur
@@ -64,8 +72,9 @@ export const AuthProvider = ({ children }) => {
       utilisateur_id: utilisateurTemp.id,
       maquis_id
     })
-    const { accessToken, utilisateur } = response.data.data
+    const { accessToken, refreshToken, utilisateur } = response.data.data
     await AsyncStorage.setItem('accessToken', accessToken)
+    await AsyncStorage.setItem('refreshToken', refreshToken)
     await AsyncStorage.setItem('utilisateur', JSON.stringify(utilisateur))
     setUtilisateur(utilisateur)
     setSelectionRequise(false)
@@ -75,8 +84,7 @@ export const AuthProvider = ({ children }) => {
   }
 
   const logout = async () => {
-    await AsyncStorage.removeItem('accessToken')
-    await AsyncStorage.removeItem('utilisateur')
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'utilisateur'])
     setUtilisateur(null)
     setSelectionRequise(false)
     setEtablissements([])

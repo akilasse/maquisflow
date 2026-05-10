@@ -33,6 +33,12 @@ api.interceptors.response.use(
     const requeteOriginale = error.config
 
     if (error.response?.status === 401 && !requeteOriginale._retry) {
+      // Ne pas intercepter les 401 du login/sélection (mauvais identifiants = erreur normale)
+      const url = requeteOriginale.url || ''
+      if (url.includes('/auth/login') || url.includes('/auth/selectionner')) {
+        return Promise.reject(error)
+      }
+
       requeteOriginale._retry = true
 
       try {

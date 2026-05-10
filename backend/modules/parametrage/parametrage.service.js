@@ -13,19 +13,22 @@ const bcrypt = require('bcryptjs')
 const getProduits = async (prisma, maquis_id) => {
   return await prisma.produit.findMany({
     where: { maquis_id },
-    include: { station: { select: { id: true, nom: true, couleur: true } } },
+    include: {
+      station:   { select: { id: true, nom: true, couleur: true } },
+      variantes: { where: { actif: true }, orderBy: { coefficient: 'desc' } }
+    },
     orderBy: { nom: 'asc' }
   })
 }
 
 const creerProduit = async (prisma, maquis_id, data) => {
-  const { nom, categorie, prix_vente, prix_achat, stock_actuel, stock_min, unite, station_id } = data
+  const { nom, categorie, prix_vente, prix_achat, stock_actuel, stock_min, unite, station_id, variantes } = data
 
   if (!nom || !prix_vente || !prix_achat) {
     throw new Error('Nom, prix de vente et prix d\'achat requis')
   }
 
-  return await prisma.produit.create({
+  const produit = await prisma.produit.create({
     data: {
       maquis_id,
       nom,
@@ -39,6 +42,23 @@ const creerProduit = async (prisma, maquis_id, data) => {
     },
     include: { station: { select: { id: true, nom: true, couleur: true } } }
   })
+
+  if (variantes && variantes.length > 0) {
+    const variantesValides = variantes.filter(v => v.nom && v.coefficient && v.prix_vente)
+    if (variantesValides.length > 0) {
+      await prisma.produitVariante.createMany({
+        data: variantesValides.map(v => ({
+          produit_id:  produit.id,
+          nom:         v.nom,
+          coefficient: parseFloat(v.coefficient),
+          prix_vente:  parseFloat(v.prix_vente),
+          actif:       true
+        }))
+      })
+    }
+  }
+
+  return { ...produit, variantes: await prisma.produitVariante.findMany({ where: { produit_id: produit.id, actif: true } }) }
 }
 
 const modifierProduit = async (prisma, produit_id, maquis_id, data) => {
@@ -48,7 +68,7 @@ const modifierProduit = async (prisma, produit_id, maquis_id, data) => {
 
   if (!produit) throw new Error('Produit introuvable')
 
-  return await prisma.produit.update({
+  const produitMaj = await prisma.produit.update({
     where: { id: produit_id },
     data: {
       nom:        data.nom,
@@ -62,6 +82,24 @@ const modifierProduit = async (prisma, produit_id, maquis_id, data) => {
     },
     include: { station: { select: { id: true, nom: true, couleur: true } } }
   })
+
+  if (data.variantes !== undefined) {
+    await prisma.produitVariante.deleteMany({ where: { produit_id } })
+    const variantesValides = (data.variantes || []).filter(v => v.nom && v.coefficient && v.prix_vente)
+    if (variantesValides.length > 0) {
+      await prisma.produitVariante.createMany({
+        data: variantesValides.map(v => ({
+          produit_id,
+          nom:         v.nom,
+          coefficient: parseFloat(v.coefficient),
+          prix_vente:  parseFloat(v.prix_vente),
+          actif:       true
+        }))
+      })
+    }
+  }
+
+  return { ...produitMaj, variantes: await prisma.produitVariante.findMany({ where: { produit_id, actif: true } }) }
 }
 
 // ============================================================
@@ -109,7 +147,7 @@ const getUtilisateurs = async (prisma, maquis_id) => {
     where: { maquis_id },
     include: {
       utilisateur: {
-        select: { id: true, nom: true, email: true, actif: true, created_at: true }
+        select: { id: true, nom: true, email: true, login: true, actif: true, created_at: true }
       }
     },
     orderBy: { utilisateur: { nom: 'asc' } }
@@ -119,6 +157,7 @@ const getUtilisateurs = async (prisma, maquis_id) => {
     id:         l.utilisateur.id,
     nom:        l.utilisateur.nom,
     email:      l.utilisateur.email,
+    login:      l.utilisateur.login,
     role:       l.role,
     actif:      l.actif,
     created_at: l.utilisateur.created_at
@@ -126,10 +165,15 @@ const getUtilisateurs = async (prisma, maquis_id) => {
 }
 
 const creerUtilisateur = async (prisma, maquis_id, data) => {
-  const { nom, email, mot_de_passe, role } = data
+  const { nom, email, mot_de_passe, role, login } = data
 
   if (!nom || !email || !mot_de_passe || !role) {
     throw new Error('Nom, email, mot de passe et rôle requis')
+  }
+
+  if (login) {
+    const loginExiste = await prisma.utilisateur.findUnique({ where: { login } })
+    if (loginExiste) throw new Error(`Le login "${login}" est déjà utilisé`)
   }
 
   const hash = await bcrypt.hash(mot_de_passe, 10)
@@ -137,7 +181,7 @@ const creerUtilisateur = async (prisma, maquis_id, data) => {
 
   if (!utilisateur) {
     utilisateur = await prisma.utilisateur.create({
-      data: { nom, email, mot_de_passe: hash, actif: true }
+      data: { nom, email, login: login || null, mot_de_passe: hash, actif: true }
     })
   }
 
@@ -151,7 +195,7 @@ const creerUtilisateur = async (prisma, maquis_id, data) => {
     data: { utilisateur_id: utilisateur.id, maquis_id, role, actif: true }
   })
 
-  return { id: utilisateur.id, nom: utilisateur.nom, email: utilisateur.email, role, actif: true }
+  return { id: utilisateur.id, nom: utilisateur.nom, email: utilisateur.email, login: utilisateur.login, role, actif: true }
 }
 
 const modifierUtilisateur = async (prisma, utilisateur_id, maquis_id, data) => {
@@ -176,6 +220,17 @@ const modifierUtilisateur = async (prisma, utilisateur_id, maquis_id, data) => {
   if (data.mot_de_passe) {
     updateData.mot_de_passe = await bcrypt.hash(data.mot_de_passe, 10)
   }
+  if (data.login !== undefined) {
+    if (data.login) {
+      const loginExiste = await prisma.utilisateur.findFirst({
+        where: { login: data.login, id: { not: utilisateur_id } }
+      })
+      if (loginExiste) throw new Error(`Le login "${data.login}" est déjà utilisé`)
+      updateData.login = data.login
+    } else {
+      updateData.login = null
+    }
+  }
 
   if (Object.keys(updateData).length > 0) {
     await prisma.utilisateur.update({ where: { id: utilisateur_id }, data: updateData })
@@ -183,7 +238,7 @@ const modifierUtilisateur = async (prisma, utilisateur_id, maquis_id, data) => {
 
   const utilisateur = await prisma.utilisateur.findUnique({
     where: { id: utilisateur_id },
-    select: { id: true, nom: true, email: true, actif: true }
+    select: { id: true, nom: true, email: true, login: true, actif: true }
   })
 
   return {
