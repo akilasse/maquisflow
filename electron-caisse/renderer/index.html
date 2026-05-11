@@ -696,10 +696,8 @@ async function afficherCaisse() {
 
   await chargerProduits()
 
-  // Toujours charger la file d'attente (commandes + ventes remises en attente)
-  if (u?.maquis?.module_commandes_actif) {
-    await chargerStations()
-  }
+  // Toujours charger stations + file d'attente (settings maquis peuvent être mis à jour sans reconnexion)
+  await chargerStations()
   await chargerCommandesTablette()
   pollInterval = setInterval(chargerCommandesTablette, 5000)
   window.addEventListener('focus', chargerCommandesTablette)
@@ -1347,13 +1345,12 @@ async function chargerStations() {
 async function chargerCommandesTablette() {
   try {
     const promises = []
-    if (state.utilisateur?.maquis?.module_commandes_actif) {
-      const filtre = state.stationFiltre ? `&caisse_id=${state.stationFiltre}` : ''
-      promises.push(
-        fetchAPI(`${API_URL}/api/commandes?statut=en_attente${filtre}`)
-          .then(r => r.json()).then(d => (d.data || []).map(c => ({ ...c, _type: 'commande' })))
-      )
-    }
+    const filtre = state.stationFiltre ? `&caisse_id=${state.stationFiltre}` : ''
+    promises.push(
+      fetchAPI(`${API_URL}/api/commandes?statut=en_attente${filtre}`)
+        .then(r => r.json()).then(d => (d.data || []).map(c => ({ ...c, _type: 'commande' })))
+        .catch(() => [])
+    )
     // Ventes remises en attente par le gérant (sans filtre date)
     promises.push(
       fetchAPI(`${API_URL}/api/ventes?statut=en_attente&date_debut=2020-01-01`)
