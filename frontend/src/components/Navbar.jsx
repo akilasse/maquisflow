@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const LIENS = [
-  { path: '/commandes',   label: 'Commandes',   icone: '📝', roles: ['serveur', 'gerant', 'patron'] },
+  { path: '/commandes',   label: 'Commandes',   icone: '📝', roles: ['serveur', 'gerant', 'patron'], moduleCommandes: true },
   { path: '/caisse',      label: 'Caisse',      icone: '🧾', roles: ['caissier', 'gerant', 'patron'] },
   { path: '/ventes',      label: 'Ventes',      icone: '📄', roles: ['caissier', 'gerant', 'patron'] },
   { path: '/dashboard',   label: 'Dashboard',   icone: '📊', roles: ['gerant', 'patron'] },
@@ -21,7 +21,7 @@ const Navbar = ({ menuOuvert, setMenuOuvert }) => {
 
   const liensAutorises = LIENS.filter(l => {
     if (!l.roles.includes(utilisateur?.role)) return false
-    if (l.path === '/commandes' && !utilisateur?.maquis?.module_commandes_actif) return false
+    if (l.moduleCommandes && !utilisateur?.maquis?.module_commandes_actif) return false
     return true
   })
 
