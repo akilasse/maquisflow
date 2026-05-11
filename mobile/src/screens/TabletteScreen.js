@@ -33,6 +33,7 @@ export default function TabletteScreen({ onRetour }) {
   const [envoi,            setEnvoi]            = useState(false)
   const [vue,              setVue]              = useState('tables') // 'tables' | 'commande' | 'historique'
   const [showCaisseModal,  setShowCaisseModal]  = useState(false)
+  const [categorie,        setCategorie]        = useState('Tout')
 
   // Historique
   const [historique,         setHistorique]         = useState([])
@@ -121,7 +122,7 @@ export default function TabletteScreen({ onRetour }) {
           lignes, direct, caisse_id: caisseFinale
         })
       }
-      Alert.alert('✅ Envoyé !', direct ? 'Commande envoyée en caisse !' : 'Commande envoyée en cuisine !', [
+      Alert.alert('✅ Envoyé !', direct ? 'Commande envoyée en caisse !' : 'Commande envoyée !', [
         { text: 'OK', onPress: () => { setVue('tables'); charger() } }
       ])
     } catch (e) {
@@ -197,7 +198,12 @@ export default function TabletteScreen({ onRetour }) {
   }
 
   // ── RENDER COMMANDE ────────────────────────────
-  const produitsFiltres = produits.filter(p => p.nom.toLowerCase().includes(recherche.toLowerCase()))
+  const categories = ['Tout', ...new Set(produits.map(p => p.categorie).filter(Boolean))]
+  const produitsFiltres = produits.filter(p => {
+    const matchCat  = categorie === 'Tout' || p.categorie === categorie
+    const matchRech = !recherche || p.nom.toLowerCase().includes(recherche.toLowerCase())
+    return matchCat && matchRech
+  })
   const moduleKds = utilisateur?.maquis?.module_kds_actif
   const disabled = envoi || !panier.length
 
@@ -208,6 +214,17 @@ export default function TabletteScreen({ onRetour }) {
         <View style={s.colProduits}>
           <TextInput style={s.searchInput} placeholder="Rechercher…" value={recherche}
             onChangeText={setRecherche} placeholderTextColor="#9ca3af" />
+          {categories.length > 1 && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false}
+              style={{ marginBottom: 8 }} contentContainerStyle={{ gap: 6, paddingRight: 4 }}>
+              {categories.map(cat => (
+                <TouchableOpacity key={cat} onPress={() => setCategorie(cat)}
+                  style={[s.catChip, categorie === cat && { backgroundColor: couleur, borderColor: couleur }]}>
+                  <Text style={[s.catChipTxt, categorie === cat && { color: 'white' }]}>{cat}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          )}
           <FlatList data={produitsFiltres} keyExtractor={p => String(p.id)}
             renderItem={({ item: p }) => (
               <TouchableOpacity style={s.produitItem} onPress={() => ajouterProduit(p)}>
@@ -433,6 +450,9 @@ const s = StyleSheet.create({
   produitItem:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 10, marginBottom: 6, borderWidth: 1, borderColor: '#f3f4f6', backgroundColor: '#fafafa' },
   produitNom:   { fontSize: 13, fontWeight: '600', color: '#111827', flex: 1, marginRight: 6 },
   produitPrix:  { fontSize: 12, fontWeight: '700' },
+
+  catChip:      { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: 'white' },
+  catChipTxt:   { fontSize: 12, fontWeight: '600', color: '#374151' },
 
   colPanier:    { flex: 1.1, backgroundColor: 'white', padding: 10, flexDirection: 'column' },
   panierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderColor: '#f3f4f6' },
