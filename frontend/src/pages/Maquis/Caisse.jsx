@@ -30,6 +30,7 @@ const Caisse = () => {
   const [isOnline, setIsOnline]               = useState(navigator.onLine)
   const [ventesEnAttente, setVentesEnAttente] = useState(0)
   const [syncEnCours, setSyncEnCours]         = useState(false)
+  const [categorie,        setCategorie]        = useState('Tout')
   const [ongletMobile,     setOngletMobile]     = useState('produits')
   const [commandesTablette, setCommandesTablette] = useState([])
   const [commandeActive, setCommandeActive]       = useState(null)
@@ -198,9 +199,11 @@ const Caisse = () => {
     }
   }, [chargerProduits])
 
+  const categories = ['Tout', ...new Set(produits.filter(p => p.categorie).map(p => p.categorie))]
   const produitsFiltres = produits.filter(p =>
+    parseFloat(p.stock_actuel) > 0 &&
     p.nom.toLowerCase().includes(recherche.toLowerCase()) &&
-    parseFloat(p.stock_actuel) > 0
+    (categorie === 'Tout' || p.categorie === categorie)
   )
 
   const ajouterAuPanier = (produit) => {
@@ -659,44 +662,60 @@ const Caisse = () => {
             )}
           </button>
           <h2 style={{ margin: '0 0 14px 0', fontSize: '18px', fontWeight: '600', color: '#374151' }}>Produits disponibles</h2>
-          <input type="text" placeholder="Rechercher un produit..." value={recherche} onChange={(e) => setRecherche(e.target.value)}
-            style={{ width: '100%', padding: '12px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '15px', marginBottom: '14px', boxSizing: 'border-box', outline: 'none' }}
+          <input type="text" placeholder="🔍 Rechercher un produit..." value={recherche} onChange={(e) => setRecherche(e.target.value)}
+            style={{ width: '100%', padding: '10px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', marginBottom: '10px', boxSizing: 'border-box', outline: 'none' }}
           />
+          {categories.length > 1 && (
+            <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 8, marginBottom: 8, scrollbarWidth: 'none' }}>
+              {categories.map(cat => (
+                <button key={cat} onClick={() => setCategorie(cat)} style={{
+                  padding: '5px 12px', borderRadius: 16, border: `1.5px solid ${categorie === cat ? 'var(--couleur-principale)' : '#e5e7eb'}`,
+                  cursor: 'pointer', whiteSpace: 'nowrap', fontSize: 12, fontWeight: 600,
+                  backgroundColor: categorie === cat ? 'var(--couleur-principale)' : 'white',
+                  color: categorie === cat ? 'white' : '#374151', flexShrink: 0
+                }}>{cat}</button>
+              ))}
+            </div>
+          )}
           <div style={{ flex: 1, overflowY: 'auto' }}>
             {chargementProduits ? (
               <p style={{ color: '#9ca3af', textAlign: 'center', padding: '20px' }}>Chargement...</p>
             ) : produitsFiltres.length === 0 ? (
               <p style={{ color: '#9ca3af', textAlign: 'center', padding: '20px' }}>Aucun produit trouvé</p>
             ) : (
-              produitsFiltres.map(produit => (
-                <div key={produit.id} onClick={() => ajouterAuPanier(produit)}
-                  style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px', borderRadius: '10px', marginBottom: '8px', cursor: 'pointer', border: '1px solid #f3f4f6' }}
-                  onMouseEnter={e => e.currentTarget.style.backgroundColor = '#fff7ed'}
-                  onMouseLeave={e => e.currentTarget.style.backgroundColor = 'white'}
-                >
-                  {produit.photo_url ? (
-                    <img src={produit.photo_url} alt={produit.nom}
-                      style={{ width: 44, height: 44, borderRadius: 8, objectFit: 'cover', flexShrink: 0 }} />
-                  ) : (
-                    <div style={{
-                      width: 44, height: 44, borderRadius: 8, flexShrink: 0,
-                      backgroundColor: 'var(--couleur-principale-light)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 18, fontWeight: 'bold', color: 'var(--couleur-principale)'
-                    }}>{produit.nom.charAt(0).toUpperCase()}</div>
-                  )}
-                  <div style={{ flex: 1 }}>
-                    <p style={{ margin: 0, fontWeight: '600', fontSize: '15px', color: '#111827' }}>{produit.nom}</p>
-                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>Stock : {produit.stock_actuel} {produit.unite}</p>
-                    {produit.variantes?.length > 0 && (
-                      <span style={{ fontSize: '11px', color: 'var(--couleur-principale)', fontWeight: '600' }}>
-                        {produit.variantes.length} variante{produit.variantes.length > 1 ? 's' : ''} →
-                      </span>
-                    )}
-                  </div>
-                  <p style={{ margin: 0, fontWeight: '700', color: 'var(--couleur-principale)', fontSize: '15px' }}>{parseFloat(produit.prix_vente).toLocaleString()} XOF</p>
-                </div>
-              ))
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 8 }}>
+                {produitsFiltres.map(produit => {
+                  const enPanier = panier.find(p => p.produit_id === produit.id)
+                  return (
+                    <div key={produit.id} onClick={() => ajouterAuPanier(produit)}
+                      style={{ borderRadius: 10, padding: '10px 8px', cursor: 'pointer',
+                        border: `1.5px solid ${enPanier ? 'var(--couleur-principale)' : '#f3f4f6'}`,
+                        backgroundColor: enPanier ? 'var(--couleur-principale-light)' : 'white',
+                        transition: 'all 0.15s' }}
+                      onMouseEnter={e => { if (!enPanier) e.currentTarget.style.backgroundColor = '#fff7ed' }}
+                      onMouseLeave={e => { if (!enPanier) e.currentTarget.style.backgroundColor = 'white' }}
+                    >
+                      {produit.photo_url && (
+                        <img src={produit.photo_url} alt={produit.nom}
+                          style={{ width: '100%', height: 60, objectFit: 'cover', borderRadius: 6, marginBottom: 6 }} />
+                      )}
+                      <p style={{ margin: '0 0 2px', fontWeight: 700, fontSize: 12, color: '#111827', lineHeight: 1.3 }}>{produit.nom}</p>
+                      {produit.categorie && <p style={{ margin: '0 0 4px', fontSize: 10, color: '#9ca3af' }}>{produit.categorie}</p>}
+                      <p style={{ margin: 0, fontWeight: 700, color: 'var(--couleur-principale)', fontSize: 12 }}>{parseFloat(produit.prix_vente).toLocaleString()} XOF</p>
+                      {produit.variantes?.length > 0 && (
+                        <p style={{ margin: '3px 0 0', fontSize: 10, color: 'var(--couleur-principale)', fontWeight: 600 }}>
+                          {produit.variantes.length} variante{produit.variantes.length > 1 ? 's' : ''} →
+                        </p>
+                      )}
+                      {enPanier && (
+                        <div style={{ marginTop: 4, backgroundColor: 'var(--couleur-principale)', color: 'white', borderRadius: 5, padding: '1px 6px', fontSize: 11, fontWeight: 700, textAlign: 'center' }}>
+                          × {enPanier.quantite}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
             )}
           </div>
         </div>
