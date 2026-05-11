@@ -488,7 +488,7 @@ const Parametrage = () => {
           )}
 
           {modal?.type === 'produit' && (
-            <div style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #e5e7eb' }}>
+            <div id="form-produit" style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #e5e7eb' }}>
               <h3 style={{ margin: '0 0 12px', fontSize: '15px' }}>{modal.id ? 'Modifier' : 'Nouveau'} produit</h3>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', overflow: 'visible' }}>
@@ -618,7 +618,7 @@ const Parametrage = () => {
                   </td>
                   <td style={{ padding: '10px' }}>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button onClick={() => { setModal({ type: 'produit', id: p.id }); setFormProduit({ nom: p.nom, categorie: p.categorie || '', prix_vente: p.prix_vente, prix_achat: p.prix_achat || '', stock_min: p.stock_min, unite: p.unite, code_barre: p.code_barre || '', conditionnement: p.conditionnement || '', nb_par_cond: p.nb_par_cond || '', prix_cond: p.prix_cond || '', variantes: (p.variantes || []).map(v => ({ nom: v.nom, coefficient: v.coefficient, prix_vente: v.prix_vente })) }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
+                      <button onClick={() => { setModal({ type: 'produit', id: p.id }); setFormProduit({ nom: p.nom, categorie: p.categorie || '', prix_vente: p.prix_vente, prix_achat: p.prix_achat || '', stock_min: p.stock_min, unite: p.unite, code_barre: p.code_barre || '', conditionnement: p.conditionnement || '', nb_par_cond: p.nb_par_cond || '', prix_cond: p.prix_cond || '', variantes: (p.variantes || []).map(v => ({ nom: v.nom, coefficient: v.coefficient, prix_vente: v.prix_vente })) }); setTimeout(() => document.getElementById('form-produit')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
                       <button onClick={() => toggleActifProduit(p)} style={{ padding: '4px 10px', backgroundColor: p.actif ? '#fef2f2' : '#f0fdf4', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: p.actif ? '#dc2626' : '#16a34a' }}>{p.actif ? 'Désactiver' : 'Activer'}</button>
                     </div>
                   </td>
