@@ -162,7 +162,7 @@ const Commandes = () => {
 
 
   return (
-    <div style={{ maxWidth: 600, margin: '0 auto', paddingBottom: 16 }}>
+    <div style={{ paddingBottom: 16 }}>
 
       {/* Message flash */}
       {message && (
@@ -242,7 +242,7 @@ const Commandes = () => {
           )}
 
           {/* Grille produits */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 80 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, marginBottom: 80 }}>
             {produitsFiltres.map(p => {
               const enPanier = panier.find(l => l.produit_id === p.id)
               return (
