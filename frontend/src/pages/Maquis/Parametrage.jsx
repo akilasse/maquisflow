@@ -148,6 +148,8 @@ const Parametrage = () => {
   const { mettreAJourMaquis } = useAuth()
   const [onglet, setOnglet] = useState('produits')
   const [produits, setProduits] = useState([])
+  const [filtreCat, setFiltreCat] = useState('')
+  const [rechercheP, setRechercheP] = useState('')
   const [fournisseurs, setFournisseurs] = useState([])
   const [utilisateurs, setUtilisateurs] = useState([])
   const [maquis, setMaquis] = useState(null)
@@ -575,6 +577,42 @@ const Parametrage = () => {
             </div>
           )}
 
+          {/* Barre filtre catégorie + recherche */}
+          {(() => {
+            const cats = [...new Set(produits.map(p => p.categorie).filter(Boolean))].sort()
+            return (
+              <div style={{ marginBottom: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Recherche */}
+                <input
+                  placeholder="🔍 Rechercher un produit..."
+                  value={rechercheP}
+                  onChange={e => setRechercheP(e.target.value)}
+                  style={{ border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', fontSize: 14, outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                />
+                {/* Chips catégories */}
+                {cats.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {['Tous', ...cats].map(c => (
+                      <button key={c} onClick={() => setFiltreCat(c === 'Tous' ? '' : c)}
+                        style={{ padding: '4px 12px', borderRadius: 20, fontSize: 13, border: 'none', cursor: 'pointer', fontWeight: (filtreCat === c || (c === 'Tous' && !filtreCat)) ? 700 : 400, backgroundColor: (filtreCat === c || (c === 'Tous' && !filtreCat)) ? 'var(--couleur-principale)' : '#f3f4f6', color: (filtreCat === c || (c === 'Tous' && !filtreCat)) ? 'white' : '#374151' }}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Tableau */}
+          {(() => {
+            const produitsFiltres = produits.filter(p => {
+              const matchCat = !filtreCat || p.categorie === filtreCat
+              const q = rechercheP.toLowerCase()
+              const matchSearch = !q || p.nom.toLowerCase().includes(q) || (p.categorie || '').toLowerCase().includes(q) || (p.code_barre || '').toLowerCase().includes(q)
+              return matchCat && matchSearch
+            })
+            return (
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
@@ -584,7 +622,7 @@ const Parametrage = () => {
               </tr>
             </thead>
             <tbody>
-              {produits.map(p => (
+              {produitsFiltres.map(p => (
                 <tr key={p.id} style={{ borderBottom: '1px solid #f9fafb', opacity: p.actif ? 1 : 0.5 }}>
                   <td style={{ padding: '10px' }}>
                     <div style={{ position: 'relative', width: 40, height: 40 }}>
@@ -626,6 +664,8 @@ const Parametrage = () => {
               ))}
             </tbody>
           </table>
+            )
+          })()}
         </div>
       )}
 
