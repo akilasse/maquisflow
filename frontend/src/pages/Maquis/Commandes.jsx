@@ -388,7 +388,7 @@ const Commandes = () => {
             ))}
 
             {/* Note */}
-            <input placeholder="Note pour la cuisine (optionnel)" value={note} onChange={e => setNote(e.target.value)}
+            <input placeholder="Note (optionnel)" value={note} onChange={e => setNote(e.target.value)}
               style={{ width: '100%', margin: '12px 0', padding: '10px 12px', border: '1.5px solid #e5e7eb', borderRadius: 10, fontSize: 14, boxSizing: 'border-box' }} />
 
             {/* Total + envoyer */}
