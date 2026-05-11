@@ -111,7 +111,7 @@ const selectionnerEtablissement = async (prisma, utilisateur_id, maquis_id) => {
     where: { utilisateur_id, maquis_id, actif: true },
     include: {
       maquis: {
-        select: { id: true, nom: true, type: true, activite: true, logo_url: true, couleur_primaire: true, devise: true, actif: true, abonnement: true }
+        select: { id: true, nom: true, type: true, activite: true, logo_url: true, couleur_primaire: true, devise: true, actif: true, abonnement: true, module_commandes_actif: true, module_kds_actif: true, module_commandes_direct: true, paiement_avant: true }
       },
       utilisateur: { select: { id: true, nom: true, email: true } }
     }
