@@ -533,18 +533,34 @@ const Parametrage = () => {
           {modal?.type === 'utilisateur' && modal.id && (
             <div style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #e5e7eb' }}>
               <h3 style={{ margin: '0 0 12px', fontSize: '15px' }}>Modifier utilisateur</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                <input placeholder="Nom complet *" value={formUtilisateur.nom} onChange={e => setFormUtilisateur({ ...formUtilisateur, nom: e.target.value })} style={styleInput} />
-                <input type="email" placeholder="Email *" value={formUtilisateur.email} onChange={e => setFormUtilisateur({ ...formUtilisateur, email: e.target.value })} style={styleInput} />
-                <input placeholder="Login (optionnel)" value={formUtilisateur.login} onChange={e => setFormUtilisateur({ ...formUtilisateur, login: e.target.value.toLowerCase().replace(/\s/g, '') })}
-                  style={styleInput} autoComplete="off" />
-                <input type="password" placeholder="Nouveau mot de passe (optionnel)" value={formUtilisateur.mot_de_passe} onChange={e => setFormUtilisateur({ ...formUtilisateur, mot_de_passe: e.target.value })} style={styleInput} />
-                <select value={formUtilisateur.role} onChange={e => setFormUtilisateur({ ...formUtilisateur, role: e.target.value })} style={styleInput}>
-                  <option value="serveur">Serveur / Station</option>
-                  <option value="caissier">Caissier</option>
-                  <option value="gerant">Gérant</option>
-                  <option value="patron">Patron</option>
-                </select>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Nom complet *</label>
+                  <input value={formUtilisateur.nom} onChange={e => setFormUtilisateur({ ...formUtilisateur, nom: e.target.value })} style={styleInput} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Email *</label>
+                  <input type="email" value={formUtilisateur.email} onChange={e => setFormUtilisateur({ ...formUtilisateur, email: e.target.value })} style={styleInput} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Login court <span style={{ fontWeight: '400', color: '#9ca3af' }}>(optionnel — pour se connecter sans email)</span></label>
+                  <input placeholder="ex: lamine, vivian..." value={formUtilisateur.login} onChange={e => setFormUtilisateur({ ...formUtilisateur, login: e.target.value.toLowerCase().replace(/\s/g, '') })}
+                    style={styleInput} autoComplete="off" />
+                  {formUtilisateur.login && <p style={{ fontSize: '11px', color: '#6b7280', margin: '3px 0 0' }}>Laisser vide pour supprimer le login</p>}
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Nouveau mot de passe <span style={{ fontWeight: '400', color: '#9ca3af' }}>(laisser vide = inchangé)</span></label>
+                  <input type="password" placeholder="••••••••" value={formUtilisateur.mot_de_passe} onChange={e => setFormUtilisateur({ ...formUtilisateur, mot_de_passe: e.target.value })} style={styleInput} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Rôle</label>
+                  <select value={formUtilisateur.role} onChange={e => setFormUtilisateur({ ...formUtilisateur, role: e.target.value })} style={styleInput}>
+                    <option value="serveur">Serveur / Station</option>
+                    <option value="caissier">Caissier</option>
+                    <option value="gerant">Gérant</option>
+                    <option value="patron">Patron</option>
+                  </select>
+                </div>
               </div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button onClick={soumettreUtilisateur} style={styleBouton()}>Enregistrer</button>
