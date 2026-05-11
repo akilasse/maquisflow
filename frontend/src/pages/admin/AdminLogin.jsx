@@ -19,7 +19,7 @@ const AdminLogin = () => {
     setErreur('')
     setChargement(true)
     try {
-      const response = await axios.post('http://localhost:3000/api/admin/login', {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/admin/login`, {
         email, mot_de_passe: motDePasse
       })
       const { token, admin } = response.data.data
