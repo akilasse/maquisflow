@@ -114,7 +114,7 @@ const Commandes = () => {
       setNote('')
       setTableId('')
       setPanierOuvert(false)
-      flash('succes', 'Commande envoyée en cuisine !')
+      flash('succes', 'Commande envoyée !')
       setOnglet('mes_commandes')
       chargerCommandes()
       chargerTables()
@@ -401,7 +401,7 @@ const Commandes = () => {
               color: 'white', border: 'none', borderRadius: 12, fontSize: 15, fontWeight: 700,
               cursor: envoi ? 'default' : 'pointer', boxShadow: `0 4px 12px ${couleur}55`
             }}>
-              {envoi ? 'Envoi...' : '✅ Envoyer en cuisine'}
+              {envoi ? 'Envoi...' : '✅ Envoyer à la caisse'}
             </button>
           </div>
         </>
