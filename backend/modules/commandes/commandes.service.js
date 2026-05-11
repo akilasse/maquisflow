@@ -203,7 +203,9 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
       produit_id:    l.produit_id,
       station_id:    l.station_id || produit.station_id || null,
       quantite:      parseFloat(l.quantite) || 1,
-      prix_unitaire: parseFloat(produit.prix_vente),
+      prix_unitaire: l.prix_unitaire ? parseFloat(l.prix_unitaire) : parseFloat(produit.prix_vente),
+      variante_nom:  l.variante_nom || null,
+      coefficient:   l.coefficient ? parseFloat(l.coefficient) : null,
       note:          l.note || null,
       statut:        'en_attente'
     }
@@ -265,7 +267,9 @@ const ajouterLignes = async (prisma, io, commandeId, lignes, utilisateur, direct
       produit_id:    l.produit_id,
       station_id:    l.station_id || produit.station_id || null,
       quantite:      parseFloat(l.quantite) || 1,
-      prix_unitaire: parseFloat(produit.prix_vente),
+      prix_unitaire: l.prix_unitaire ? parseFloat(l.prix_unitaire) : parseFloat(produit.prix_vente),
+      variante_nom:  l.variante_nom || null,
+      coefficient:   l.coefficient ? parseFloat(l.coefficient) : null,
       note:          l.note || null,
       statut:        direct ? 'prete' : 'en_attente'
     }
@@ -423,13 +427,15 @@ const encaisserCommande = async (prisma, io, commandeId, data, utilisateur) => {
         serveur_nom:   commande.serveur?.nom || null,
         lignes: {
           create: lignesActives.map(l => ({
-            produit_id:    l.produit_id,
-            quantite:      l.quantite,
-            prix_unitaire: l.prix_unitaire,
+            produit_id:     l.produit_id,
+            quantite:       l.quantite,
+            variante_nom:   l.variante_nom || null,
+            coefficient:    l.coefficient || null,
+            prix_unitaire:  l.prix_unitaire,
             prix_catalogue: l.prix_unitaire,
             economie_client: 0,
-            remise_ligne:  0,
-            total_ligne:   parseFloat((parseFloat(l.prix_unitaire) * parseFloat(l.quantite)).toFixed(2))
+            remise_ligne:   0,
+            total_ligne:    parseFloat((parseFloat(l.prix_unitaire) * parseFloat(l.quantite)).toFixed(2))
           }))
         }
       }

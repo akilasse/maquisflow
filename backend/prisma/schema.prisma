@@ -36,6 +36,9 @@ model Maquis {
   module_commandes_direct Boolean    @default(false)
   paiement_avant          Boolean    @default(false)
   heure_debut_journee     Int        @default(0)
+  categories_custom       Json?
+  unites_custom           Json?
+  variantes_gabarits      Json?
   created_at              DateTime   @default(now())
 
   utilisateurs    UtilisateurMaquis[]
@@ -431,6 +434,8 @@ model CommandeLigne {
   station       Station?    @relation(fields: [station_id], references: [id])
   quantite      Decimal     @db.Decimal(10,3)
   prix_unitaire Decimal     @db.Decimal(10,2)
+  variante_nom  String?     @db.VarChar(50)
+  coefficient   Decimal?    @db.Decimal(10,4)
   note          String?     @db.VarChar(255)
   statut        StatutLigne @default(en_attente)
   created_at    DateTime    @default(now())

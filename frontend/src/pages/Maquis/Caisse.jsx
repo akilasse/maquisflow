@@ -132,8 +132,8 @@ const Caisse = () => {
       prix_applique:  parseFloat(l.prix_unitaire),
       unite:          l.produit?.unite || 'unité',
       stock_max:      9999,
-      variante_nom:   null,
-      coefficient:    null
+      variante_nom:   l.variante_nom || null,
+      coefficient:    l.coefficient ? parseFloat(l.coefficient) : null
     }))
     setPanier(panierCommande)
     setCommandeActive(commande)

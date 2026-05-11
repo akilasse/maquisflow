@@ -320,6 +320,30 @@
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 4px; }
+
+    /* Modal variantes */
+    .modal-variantes-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+      display: none; align-items: center; justify-content: center; z-index: 1002;
+    }
+    .modal-variantes-overlay.visible { display: flex; }
+    .modal-variantes-card {
+      background: white; border-radius: 16px; padding: 24px;
+      width: 380px; box-shadow: 0 20px 40px rgba(0,0,0,0.2); max-height: 70vh; overflow-y: auto;
+    }
+    .variante-option {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 14px; border-radius: 10px; border: 1.5px solid #e5e7eb;
+      margin-bottom: 8px; cursor: pointer; transition: all 0.15s;
+    }
+    .variante-option:hover { background: #f9fafb; border-color: #d1d5db; }
+    .variante-option-nom { font-size: 14px; font-weight: 600; color: #111827; }
+    .variante-option-prix { font-size: 14px; font-weight: 700; color: #FF6B35; }
+    .btn-fermer-variantes {
+      width: 100%; padding: 12px; border: none; background: #f3f4f6;
+      border-radius: 10px; font-size: 14px; font-weight: 600; color: #6b7280; cursor: pointer; margin-top: 4px;
+    }
+    .panier-item-variante { font-size: 11px; color: #6b7280; margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -430,6 +454,17 @@
   </div>
 </div>
 
+<!-- Modal variantes -->
+<div class="modal-variantes-overlay" id="modal-variantes">
+  <div class="modal-variantes-card">
+    <div class="modal-icon" style="font-size:32px;text-align:center;margin-bottom:8px">🔀</div>
+    <div class="modal-title" id="modal-variantes-titre" style="font-size:17px;text-align:center;margin-bottom:4px"></div>
+    <div class="modal-sub" style="text-align:center;margin-bottom:16px;color:#9ca3af;font-size:13px">Choisir une variante</div>
+    <div id="modal-variantes-liste"></div>
+    <button class="btn-fermer-variantes" onclick="fermerModalVariantes()">Annuler</button>
+  </div>
+</div>
+
 <!-- Modal reçu -->
 <div class="modal-overlay" id="modal-recu">
   <div class="modal-card">
@@ -492,7 +527,8 @@ let state = {
   venteActive: null,
   stations: [],
   stationFiltre: '',
-  categorieFiltre: ''
+  categorieFiltre: '',
+  modalVariantes: null
 }
 let pollInterval = null
 
@@ -784,7 +820,12 @@ function ajouterAuPanier(produitId) {
   const produit = state.produits.find(p => p.id === produitId)
   if (!produit) return
 
-  const existe = state.panier.find(p => p.produit_id === produitId)
+  if (produit.variantes && produit.variantes.length > 0) {
+    ouvrirModalVariantes(produit); return
+  }
+
+  const _key  = String(produitId)
+  const existe = state.panier.find(p => p._key === _key)
   if (existe) {
     if (existe.quantite >= parseFloat(produit.stock_actuel)) {
       showMessage(`Stock insuffisant pour ${produit.nom}`, 'erreur'); return
@@ -792,13 +833,16 @@ function ajouterAuPanier(produitId) {
     existe.quantite++
   } else {
     state.panier.push({
+      _key,
       produit_id:     produit.id,
       nom:            produit.nom,
       quantite:       1,
       prix_catalogue: parseFloat(produit.prix_vente),
       prix_applique:  parseFloat(produit.prix_vente),
       unite:          produit.unite,
-      stock_max:      parseFloat(produit.stock_actuel)
+      stock_max:      parseFloat(produit.stock_actuel),
+      variante_nom:   null,
+      coefficient:    null
     })
   }
   hideMessage()
@@ -806,23 +850,81 @@ function ajouterAuPanier(produitId) {
   renderProduits()
 }
 
-function modifierQuantite(produitId, delta) {
-  const item = state.panier.find(p => p.produit_id === produitId)
+function ouvrirModalVariantes(produit) {
+  state.modalVariantes = produit
+  document.getElementById('modal-variantes-titre').textContent = produit.nom
+  const liste = document.getElementById('modal-variantes-liste')
+  liste.innerHTML = `
+    <div class="variante-option" onclick="ajouterVarianteAuPanier(${produit.id}, null)">
+      <span class="variante-option-nom">${produit.unite || 'Unité de base'}</span>
+      <span class="variante-option-prix">${parseFloat(produit.prix_vente).toLocaleString('fr-FR')} XOF</span>
+    </div>
+    ${produit.variantes.map((v, i) => `
+      <div class="variante-option" onclick="ajouterVarianteAuPanier(${produit.id}, ${i})">
+        <span class="variante-option-nom">${v.nom}</span>
+        <span class="variante-option-prix">${parseFloat(v.prix_vente).toLocaleString('fr-FR')} XOF</span>
+      </div>
+    `).join('')}
+  `
+  document.getElementById('modal-variantes').classList.add('visible')
+}
+
+function ajouterVarianteAuPanier(produitId, varianteIdx) {
+  const produit = state.produits.find(p => p.id === produitId)
+  if (!produit) return
+  fermerModalVariantes()
+
+  let nom, prix_applique, prix_catalogue, variante_nom, coefficient, stock_max
+  if (varianteIdx === null) {
+    nom          = produit.nom
+    prix_applique = parseFloat(produit.prix_vente)
+    prix_catalogue = prix_applique
+    variante_nom = null
+    coefficient  = null
+    stock_max    = parseFloat(produit.stock_actuel)
+  } else {
+    const v      = produit.variantes[varianteIdx]
+    nom          = produit.nom
+    prix_applique = parseFloat(v.prix_vente)
+    prix_catalogue = prix_applique
+    variante_nom = v.nom
+    coefficient  = parseFloat(v.coefficient)
+    stock_max    = parseFloat(produit.stock_actuel)
+  }
+
+  const _key  = variante_nom ? `${produitId}_${variante_nom}` : String(produitId)
+  const existe = state.panier.find(p => p._key === _key)
+  if (existe) {
+    existe.quantite++
+  } else {
+    state.panier.push({ _key, produit_id: produitId, nom, quantite: 1, prix_catalogue, prix_applique, variante_nom, coefficient, stock_max })
+  }
+  renderPanier()
+  renderProduits()
+}
+
+function fermerModalVariantes() {
+  state.modalVariantes = null
+  document.getElementById('modal-variantes').classList.remove('visible')
+}
+
+function modifierQuantite(key, delta) {
+  const item = state.panier.find(p => p._key === key)
   if (!item) return
   const nv = item.quantite + delta
-  if (nv <= 0) { retirerDuPanier(produitId); return }
+  if (nv <= 0) { retirerDuPanier(key); return }
   if (nv > item.stock_max) { showMessage('Stock insuffisant', 'erreur'); return }
   item.quantite = nv
   renderPanier()
 }
 
-function modifierPrix(produitId, val) {
-  const item = state.panier.find(p => p.produit_id === produitId)
+function modifierPrix(key, val) {
+  const item = state.panier.find(p => p._key === key)
   if (item) { item.prix_applique = parseFloat(val) || 0; renderPanier() }
 }
 
-function retirerDuPanier(produitId) {
-  state.panier = state.panier.filter(p => p.produit_id !== produitId)
+function retirerDuPanier(key) {
+  state.panier = state.panier.filter(p => p._key !== key)
   renderPanier()
   renderProduits()
 }
@@ -883,15 +985,18 @@ function renderPanier() {
   items.innerHTML = state.panier.map(item => `
     <div class="panier-item">
       <div class="panier-item-header">
-        <span class="panier-item-nom">${item.nom}</span>
-        <button class="btn-retirer" onclick="retirerDuPanier(${item.produit_id})">×</button>
+        <div>
+          <span class="panier-item-nom">${item.nom}</span>
+          ${item.variante_nom ? `<div class="panier-item-variante">${item.variante_nom}</div>` : ''}
+        </div>
+        <button class="btn-retirer" onclick="retirerDuPanier('${item._key}')">×</button>
       </div>
       <div class="panier-item-controls">
-        <button class="qty-btn" onclick="modifierQuantite(${item.produit_id}, -1)">−</button>
+        <button class="qty-btn" onclick="modifierQuantite('${item._key}', -1)">−</button>
         <span class="qty-val">${item.quantite}</span>
-        <button class="qty-btn" onclick="modifierQuantite(${item.produit_id}, 1)">+</button>
+        <button class="qty-btn" onclick="modifierQuantite('${item._key}', 1)">+</button>
         <input class="prix-input" type="number" value="${item.prix_applique}"
-          onchange="modifierPrix(${item.produit_id}, this.value)" />
+          onchange="modifierPrix('${item._key}', this.value)" />
         <span class="item-total">${(item.prix_applique * item.quantite).toLocaleString('fr-FR')} XOF</span>
       </div>
     </div>
@@ -963,9 +1068,11 @@ async function validerVente() {
     mode_paiement: state.modePaiement,
     note,
     lignes: state.panier.map(i => ({
-      produit_id:    i.produit_id,
-      quantite:      i.quantite,
-      prix_applique: i.prix_applique
+      produit_id:   i.produit_id,
+      quantite:     i.quantite,
+      prix_applique: i.prix_applique,
+      variante_nom: i.variante_nom || null,
+      coefficient:  i.coefficient || null
     }))
   }
 
@@ -1070,7 +1177,7 @@ function buildTicketData(copie = false) {
     logo_url:      r.logo_url,
     date:          r.date.toLocaleString('fr-FR'),
     caissier:      r.caissier,
-    lignes:        r.lignes.map(l => ({ nom: l.nom, quantite: l.quantite, total: l.prix_applique * l.quantite })),
+    lignes:        r.lignes.map(l => ({ nom: l.variante_nom ? `${l.nom} (${l.variante_nom})` : l.nom, quantite: l.quantite, total: l.prix_applique * l.quantite })),
     total:         r.total,
     mode_paiement: r.mode_paiement.replace('_', ' '),
     montant_recu:  r.montant_recu,
@@ -1093,7 +1200,7 @@ function afficherModal() {
   details.innerHTML = `
     ${r.lignes.map(l => `
       <div class="recu-ligne">
-        <span>${l.nom} × ${l.quantite}</span>
+        <span>${l.variante_nom ? `${l.nom} (${l.variante_nom})` : l.nom} × ${l.quantite}</span>
         <span>${(l.prix_applique * l.quantite).toLocaleString('fr-FR')} XOF</span>
       </div>
     `).join('')}
@@ -1384,15 +1491,22 @@ function selectionnerVente(venteId) {
   if (!vente) return
   state.venteActive  = vente
   state.commandeActive = null
-  state.panier = (vente.lignes || []).map(l => ({
-    produit_id:     l.produit_id,
-    nom:            l.produit?.nom || 'Produit',
-    quantite:       parseFloat(l.quantite),
-    prix_catalogue: parseFloat(l.prix_catalogue || l.prix_unitaire),
-    prix_applique:  parseFloat(l.prix_unitaire),
-    unite:          l.produit?.unite || 'unité',
-    stock_max:      9999
-  }))
+  state.panier = (vente.lignes || []).map(l => {
+    const varianteNom = l.variante_nom || null
+    const _key = varianteNom ? `${l.produit_id}_${varianteNom}_${l.id}` : String(l.produit_id)
+    return {
+      _key,
+      produit_id:     l.produit_id,
+      nom:            l.produit?.nom || 'Produit',
+      quantite:       parseFloat(l.quantite),
+      prix_catalogue: parseFloat(l.prix_catalogue || l.prix_unitaire),
+      prix_applique:  parseFloat(l.prix_unitaire),
+      unite:          l.produit?.unite || 'unité',
+      stock_max:      9999,
+      variante_nom:   varianteNom,
+      coefficient:    l.coefficient ? parseFloat(l.coefficient) : null
+    }
+  })
   document.getElementById('note-input').value = vente.note || `Vente #${vente.id}`
   fermerCommandesPanel()
   hideMessage()
@@ -1404,15 +1518,22 @@ function selectionnerCommande(cmdId) {
   if (!cmd) return
   state.commandeActive = cmd
   state.venteActive    = null
-  state.panier = (cmd.lignes || []).map(l => ({
-    produit_id:     l.produit_id,
-    nom:            l.produit?.nom || 'Produit',
-    quantite:       l.quantite,
-    prix_catalogue: l.prix_unitaire,
-    prix_applique:  l.prix_unitaire,
-    unite:          'unité',
-    stock_max:      9999
-  }))
+  state.panier = (cmd.lignes || []).map(l => {
+    const varianteNom = l.variante_nom || null
+    const _key = varianteNom ? `${l.produit_id}_${varianteNom}_${l.id}` : String(l.produit_id)
+    return {
+      _key,
+      produit_id:     l.produit_id,
+      nom:            l.produit?.nom || 'Produit',
+      quantite:       parseFloat(l.quantite),
+      prix_catalogue: parseFloat(l.prix_unitaire),
+      prix_applique:  parseFloat(l.prix_unitaire),
+      unite:          l.produit?.unite || 'unité',
+      stock_max:      9999,
+      variante_nom:   varianteNom,
+      coefficient:    l.coefficient ? parseFloat(l.coefficient) : null
+    }
+  })
   document.getElementById('note-input').value = `Table ${cmd.table?.numero || ''}`
   fermerCommandesPanel()
   hideMessage()

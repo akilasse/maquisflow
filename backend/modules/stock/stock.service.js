@@ -177,12 +177,11 @@ const getHistorique = async (prisma, maquis_id, filtres = {}) => {
 
 // Liste des produits avec leurs stocks
 const getProduits = async (prisma, maquis_id) => {
-  const produits = await prisma.produit.findMany({
+  return await prisma.produit.findMany({
     where: { maquis_id, actif: true },
+    include: { variantes: { where: { actif: true }, orderBy: { coefficient: 'desc' } } },
     orderBy: { nom: 'asc' }
   })
-
-  return produits
 }
 
 module.exports = {

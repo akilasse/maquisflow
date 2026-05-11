@@ -24,8 +24,8 @@ const getProduits = async (prisma, maquis_id) => {
 const creerProduit = async (prisma, maquis_id, data) => {
   const { nom, categorie, prix_vente, prix_achat, stock_actuel, stock_min, unite, station_id, variantes } = data
 
-  if (!nom || !prix_vente || !prix_achat) {
-    throw new Error('Nom, prix de vente et prix d\'achat requis')
+  if (!nom || !prix_vente) {
+    throw new Error('Nom et prix de vente requis')
   }
 
   const produit = await prisma.produit.create({
@@ -34,7 +34,7 @@ const creerProduit = async (prisma, maquis_id, data) => {
       nom,
       categorie,
       prix_vente:   parseFloat(prix_vente),
-      prix_achat:   parseFloat(prix_achat),
+      prix_achat:   prix_achat ? parseFloat(prix_achat) : null,
       stock_actuel: parseFloat(stock_actuel || 0),
       stock_min:    parseFloat(stock_min || 0),
       unite:        unite || 'unité',
@@ -276,7 +276,10 @@ const modifierMaquis = async (prisma, maquis_id, data) => {
       module_commandes_direct: data.module_commandes_direct,
       paiement_avant:          data.paiement_avant,
       heure_debut_journee:     data.heure_debut_journee !== undefined ? parseInt(data.heure_debut_journee) : undefined,
-      type:                    data.type
+      type:                    data.type,
+      categories_custom:       data.categories_custom  !== undefined ? data.categories_custom  : undefined,
+      unites_custom:           data.unites_custom      !== undefined ? data.unites_custom      : undefined,
+      variantes_gabarits:      data.variantes_gabarits !== undefined ? data.variantes_gabarits : undefined,
     }
   })
 }

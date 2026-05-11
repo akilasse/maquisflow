@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Couleur principale MaquisFlow
+        // Couleur principale Flowix
         primary: '#FF6B35',
       }
     },

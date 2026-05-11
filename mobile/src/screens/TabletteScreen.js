@@ -32,8 +32,9 @@ export default function TabletteScreen({ onRetour }) {
   const [chargement,       setChargement]       = useState(true)
   const [envoi,            setEnvoi]            = useState(false)
   const [vue,              setVue]              = useState('tables') // 'tables' | 'commande' | 'historique'
-  const [showCaisseModal,  setShowCaisseModal]  = useState(false)
-  const [categorie,        setCategorie]        = useState('Tout')
+  const [showCaisseModal,    setShowCaisseModal]    = useState(false)
+  const [categorie,          setCategorie]          = useState('Tout')
+  const [modalVariantesTabl, setModalVariantesTabl] = useState(null)
 
   // Historique
   const [historique,         setHistorique]         = useState([])
@@ -75,9 +76,11 @@ export default function TabletteScreen({ onRetour }) {
       if (cmd) {
         setCommandeEnCours(cmd)
         setPanier((cmd.lignes || []).map(l => ({
-          produit_id: l.produit_id, nom: l.produit?.nom || '',
-          quantite: l.quantite, prix: l.prix_unitaire,
-          station_id: l.station_id || null, _key: l.id
+          produit_id:  l.produit_id, nom: l.produit?.nom || '',
+          quantite:    l.quantite, prix: parseFloat(l.prix_unitaire),
+          station_id:  l.station_id || null, _key: l.id,
+          variante_nom: l.variante_nom || null,
+          coefficient:  l.coefficient ? parseFloat(l.coefficient) : null
         })))
       }
     } catch {}
@@ -90,10 +93,32 @@ export default function TabletteScreen({ onRetour }) {
 
   // ── Panier ─────────────────────────────────────
   const ajouterProduit = (p) => {
+    if (p.variantes && p.variantes.length > 0) {
+      setModalVariantesTabl(p)
+      return
+    }
     setPanier(prev => {
-      const existe = prev.find(x => x.produit_id === p.id && !x.station_id)
-      if (existe) return prev.map(x => x.produit_id === p.id && !x.station_id ? { ...x, quantite: x.quantite + 1 } : x)
-      return [...prev, { produit_id: p.id, nom: p.nom, quantite: 1, prix: parseFloat(p.prix_vente), station_id: null, _key: Date.now() }]
+      const existe = prev.find(x => x.produit_id === p.id && !x.variante_nom)
+      if (existe) return prev.map(x => x.produit_id === p.id && !x.variante_nom ? { ...x, quantite: x.quantite + 1 } : x)
+      return [...prev, { produit_id: p.id, nom: p.nom, quantite: 1, prix: parseFloat(p.prix_vente), station_id: null, _key: Date.now(), variante_nom: null, coefficient: null }]
+    })
+  }
+
+  const ajouterVarianteTabl = (produit, variante) => {
+    setModalVariantesTabl(null)
+    setPanier(prev => {
+      const existe = prev.find(x => x.produit_id === produit.id && x.variante_nom === variante.nom)
+      if (existe) return prev.map(x => x.produit_id === produit.id && x.variante_nom === variante.nom ? { ...x, quantite: x.quantite + 1 } : x)
+      return [...prev, {
+        produit_id:  produit.id,
+        nom:         produit.nom,
+        quantite:    1,
+        prix:        parseFloat(variante.prix_vente),
+        station_id:  null,
+        _key:        Date.now() + Math.random(),
+        variante_nom: variante.nom,
+        coefficient:  parseFloat(variante.coefficient)
+      }]
     })
   }
 
@@ -112,7 +137,14 @@ export default function TabletteScreen({ onRetour }) {
     const caisseFinale = caisse_id || (direct && caisses.length === 1 ? caisses[0].id : null)
     setEnvoi(true)
     try {
-      const lignes = panier.map(p => ({ produit_id: p.produit_id, quantite: p.quantite, station_id: p.station_id || null }))
+      const lignes = panier.map(p => ({
+        produit_id:   p.produit_id,
+        quantite:     p.quantite,
+        station_id:   p.station_id || null,
+        variante_nom: p.variante_nom || null,
+        coefficient:  p.coefficient || null,
+        prix_unitaire: p.prix
+      }))
       if (commandeEnCours) {
         await api.post(`/api/commandes/${commandeEnCours.id}/lignes`, { lignes, direct, caisse_id: caisseFinale })
       } else {
@@ -261,7 +293,10 @@ export default function TabletteScreen({ onRetour }) {
               {panier.map(item => (
                 <View key={item._key || item.produit_id} style={s.panierItem}>
                   <View style={s.panierItemTop}>
-                    <Text style={s.panierItemNom} numberOfLines={1}>{item.nom}</Text>
+                    <View style={{ flex: 1, marginRight: 4 }}>
+                      <Text style={s.panierItemNom} numberOfLines={1}>{item.nom}</Text>
+                      {item.variante_nom && <Text style={{ fontSize: 11, color: '#6b7280', marginTop: 1 }}>{item.variante_nom}</Text>}
+                    </View>
                     <Text style={[s.panierItemSub, { color: couleur }]}>{(item.prix * item.quantite).toLocaleString('fr-FR')} XOF</Text>
                   </View>
                   <View style={s.qtyRow}>
@@ -305,6 +340,45 @@ export default function TabletteScreen({ onRetour }) {
           </View>
         </View>
       </View>
+
+      {/* Modal variantes */}
+      <Modal visible={!!modalVariantesTabl} transparent animationType="slide" onRequestClose={() => setModalVariantesTabl(null)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <Text style={s.modalTitre}>{modalVariantesTabl?.nom}</Text>
+            <Text style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', marginBottom: 16 }}>Choisir une variante</Text>
+            <TouchableOpacity
+              style={[s.caisseOption, { borderColor: couleur }]}
+              onPress={() => {
+                if (!modalVariantesTabl) return
+                setModalVariantesTabl(null)
+                setPanier(prev => {
+                  const existe = prev.find(x => x.produit_id === modalVariantesTabl.id && !x.variante_nom)
+                  if (existe) return prev.map(x => x.produit_id === modalVariantesTabl.id && !x.variante_nom ? { ...x, quantite: x.quantite + 1 } : x)
+                  return [...prev, { produit_id: modalVariantesTabl.id, nom: modalVariantesTabl.nom, quantite: 1, prix: parseFloat(modalVariantesTabl.prix_vente), station_id: null, _key: Date.now(), variante_nom: null, coefficient: null }]
+                })
+              }}>
+              <View style={[s.caisseDot, { backgroundColor: couleur }]} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.caisseNom}>{modalVariantesTabl?.unite || 'Unité de base'}</Text>
+                <Text style={{ fontSize: 13, color: '#6b7280' }}>{modalVariantesTabl ? parseFloat(modalVariantesTabl.prix_vente).toLocaleString('fr-FR') : 0} XOF</Text>
+              </View>
+            </TouchableOpacity>
+            {(modalVariantesTabl?.variantes || []).map(v => (
+              <TouchableOpacity key={v.id} style={[s.caisseOption, { borderColor: '#e5e7eb' }]} onPress={() => ajouterVarianteTabl(modalVariantesTabl, v)}>
+                <View style={[s.caisseDot, { backgroundColor: '#e5e7eb' }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={s.caisseNom}>{v.nom}</Text>
+                  <Text style={{ fontSize: 13, color: '#6b7280' }}>{parseFloat(v.prix_vente).toLocaleString('fr-FR')} XOF</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => setModalVariantesTabl(null)} style={{ alignItems: 'center', padding: 14 }}>
+              <Text style={{ color: '#9ca3af', fontWeight: '600' }}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Modal caisses */}
       <Modal visible={showCaisseModal} transparent animationType="slide">

@@ -4,6 +4,45 @@ import api from '../../utils/api'
 
 const WHATSAPP = '2250779127543'
 
+function SelectRecherche({ valeur, onChange, options, placeholder, style }) {
+  const [ouvert, setOuvert] = useState(false)
+  const [recherche, setRecherche] = useState('')
+  const filtres = options.filter(o => o.toLowerCase().includes(recherche.toLowerCase()))
+  const fermer = () => { setOuvert(false); setRecherche('') }
+  return (
+    <div style={{ position: 'relative', marginBottom: 0 }}>
+      <div onClick={() => setOuvert(o => !o)}
+        style={{ ...style, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none', marginBottom: 0 }}>
+        <span style={{ color: valeur ? '#111827' : '#9ca3af', fontSize: 14 }}>{valeur || placeholder}</span>
+        <span style={{ color: '#9ca3af', fontSize: 11, marginLeft: 4 }}>{ouvert ? '▴' : '▾'}</span>
+      </div>
+      {ouvert && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 199 }} onClick={fermer} />
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, backgroundColor: 'white', border: '1px solid #e5e7eb', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.12)', display: 'flex', flexDirection: 'column', overflow: 'hidden', marginTop: 2 }}>
+            {options.length > 4 && (
+              <input autoFocus placeholder="Rechercher..." value={recherche} onChange={e => setRecherche(e.target.value)}
+                onClick={e => e.stopPropagation()}
+                style={{ padding: '8px 12px', border: 'none', borderBottom: '1px solid #f3f4f6', fontSize: 13, outline: 'none' }} />
+            )}
+            <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+              {filtres.map(o => (
+                <div key={o} onClick={() => { onChange(o); fermer() }}
+                  style={{ padding: '9px 14px', fontSize: 13, cursor: 'pointer', fontWeight: o === valeur ? 700 : 400, color: o === valeur ? 'var(--couleur-principale)' : '#111827', backgroundColor: o === valeur ? 'var(--couleur-principale-light, #fff7ed)' : 'white' }}
+                  onMouseEnter={e => { if (o !== valeur) e.currentTarget.style.backgroundColor = '#f9fafb' }}
+                  onMouseLeave={e => { if (o !== valeur) e.currentTarget.style.backgroundColor = 'white' }}>
+                  {o}
+                </div>
+              ))}
+              {filtres.length === 0 && <p style={{ padding: '10px 14px', fontSize: 13, color: '#9ca3af', margin: 0 }}>Aucun résultat</p>}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function ImportCSV({ couleur, onImporte, onAnnuler }) {
   const [lignes,   setLignes]   = useState([])
   const [erreur,   setErreur]   = useState('')
@@ -124,11 +163,22 @@ const Parametrage = () => {
   const NOMS_VARIANTES_SUGGERES = ['Casier', 'Carton', 'Bouteille', 'Verre', 'Demi', 'Coupe', 'Dose', 'Portion', 'Litre', '50cl', '33cl', 'Pack']
   const [formFournisseur, setFormFournisseur] = useState({ nom: '', telephone: '', email: '', adresse: '' })
   const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', login: '', mot_de_passe: '', role: 'serveur' })
-  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false, heure_debut_journee: 0 })
+  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false, heure_debut_journee: 0, categories_custom: [], unites_custom: [], variantes_gabarits: [] })
   const [stations, setStations] = useState([])
   const [tables, setTables]     = useState([])
   const [formStation, setFormStation] = useState({ nom: '', couleur: '#6b7280', type: 'preparation' })
   const [formTable, setFormTable]     = useState({ numero: '', nom: '', capacite: '' })
+  const [catalogueOnglet, setCatalogueOnglet] = useState('categories')
+  const [ajoutCatalogue, setAjoutCatalogue]   = useState(false)
+  const [nouvelleCategorie, setNouvelleCategorie] = useState('')
+  const [nouvelleUnite, setNouvelleUnite]         = useState('')
+  const [nouveauGabarit, setNouveauGabarit]       = useState({ nom: '', coefficient: '' })
+  const [editCatIdx,  setEditCatIdx]  = useState(null)
+  const [editCatVal,  setEditCatVal]  = useState('')
+  const [editUniteIdx, setEditUniteIdx] = useState(null)
+  const [editUniteVal, setEditUniteVal] = useState('')
+  const [editGabIdx,  setEditGabIdx]  = useState(null)
+  const [editGabVal,  setEditGabVal]  = useState({ nom: '', coefficient: '' })
 
   useEffect(() => { chargerDonnees() }, [])
 
@@ -157,7 +207,10 @@ const Parametrage = () => {
         module_kds_actif:        maquisData.module_kds_actif        || false,
         module_commandes_direct: maquisData.module_commandes_direct || false,
         paiement_avant:          maquisData.paiement_avant          || false,
-        heure_debut_journee:     maquisData.heure_debut_journee     ?? 0
+        heure_debut_journee:     maquisData.heure_debut_journee     ?? 0,
+        categories_custom:       Array.isArray(maquisData.categories_custom)  ? maquisData.categories_custom  : [],
+        unites_custom:           Array.isArray(maquisData.unites_custom)      ? maquisData.unites_custom      : [],
+        variantes_gabarits:      Array.isArray(maquisData.variantes_gabarits) ? maquisData.variantes_gabarits : [],
       })
       mettreAJourMaquis(maquisData)
       // Charge stations et tables si module actif — isolé pour ne pas bloquer le reste
@@ -297,6 +350,72 @@ const Parametrage = () => {
     } catch (error) { afficherMessage('erreur', error.response?.data?.message || 'Erreur') }
   }
 
+  const saveCatalogue = async (patch) => {
+    const updated = { ...formMaquis, ...patch }
+    setFormMaquis(updated)
+    try {
+      await api.put('/api/parametrage/maquis', updated)
+      afficherMessage('succes', 'Sauvegardé !')
+      chargerDonnees()
+    } catch { afficherMessage('erreur', 'Erreur sauvegarde') }
+  }
+
+  // Catégories
+  const ajouterCategorie = () => {
+    const v = nouvelleCategorie.trim()
+    if (!v || (formMaquis.categories_custom || []).includes(v)) return
+    saveCatalogue({ categories_custom: [...(formMaquis.categories_custom || []), v] })
+    setNouvelleCategorie(''); setAjoutCatalogue(false)
+  }
+  const modifierCategorie = (i) => {
+    const v = editCatVal.trim()
+    if (!v) return
+    const arr = [...(formMaquis.categories_custom || [])]
+    arr[i] = v
+    saveCatalogue({ categories_custom: arr })
+    setEditCatIdx(null)
+  }
+  const supprimerCategorie = (i) =>
+    saveCatalogue({ categories_custom: (formMaquis.categories_custom || []).filter((_, j) => j !== i) })
+
+  // Unités
+  const ajouterUnite = () => {
+    const v = nouvelleUnite.trim()
+    if (!v || (formMaquis.unites_custom || []).includes(v)) return
+    saveCatalogue({ unites_custom: [...(formMaquis.unites_custom || []), v] })
+    setNouvelleUnite(''); setAjoutCatalogue(false)
+  }
+  const modifierUnite = (i) => {
+    const v = editUniteVal.trim()
+    if (!v) return
+    const arr = [...(formMaquis.unites_custom || [])]
+    arr[i] = v
+    saveCatalogue({ unites_custom: arr })
+    setEditUniteIdx(null)
+  }
+  const supprimerUnite = (i) =>
+    saveCatalogue({ unites_custom: (formMaquis.unites_custom || []).filter((_, j) => j !== i) })
+
+  // Gabarits
+  const ajouterGabarit = () => {
+    const nom   = nouveauGabarit.nom.trim()
+    const coeff = parseFloat(nouveauGabarit.coefficient)
+    if (!nom || isNaN(coeff) || coeff <= 0) return
+    saveCatalogue({ variantes_gabarits: [...(formMaquis.variantes_gabarits || []), { nom, coefficient: coeff }] })
+    setNouveauGabarit({ nom: '', coefficient: '' }); setAjoutCatalogue(false)
+  }
+  const modifierGabarit = (i) => {
+    const nom   = editGabVal.nom.trim()
+    const coeff = parseFloat(editGabVal.coefficient)
+    if (!nom || isNaN(coeff) || coeff <= 0) return
+    const arr = [...(formMaquis.variantes_gabarits || [])]
+    arr[i] = { nom, coefficient: coeff }
+    saveCatalogue({ variantes_gabarits: arr })
+    setEditGabIdx(null)
+  }
+  const supprimerGabarit = (i) =>
+    saveCatalogue({ variantes_gabarits: (formMaquis.variantes_gabarits || []).filter((_, j) => j !== i) })
+
   const joursRestants = (date) => {
     if (!date) return null
     const diff = new Date(date) - new Date()
@@ -337,6 +456,7 @@ const Parametrage = () => {
           { key: 'utilisateurs', label: '👥 Utilisateurs' },
           { key: 'maquis',       label: '🏪 Mon Commerce' },
           { key: 'commandes',    label: '🪑 Tables & Stations' },
+          { key: 'catalogue',    label: '🏷️ Catalogue' },
           { key: 'abonnement',   label: `💳 Abonnement${urgence ? ' ⚠️' : estExpire ? ' ❌' : ''}` },
         ].map(o => (
           <button key={o.key} onClick={() => { setOnglet(o.key); setModal(null) }} style={styleOnglet(onglet === o.key)}>{o.label}</button>
@@ -350,7 +470,7 @@ const Parametrage = () => {
             <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Produits ({produits.length})</h2>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button onClick={() => setModal({ type: 'import_csv' })} style={styleBouton('#6b7280')}>⬆ Importer CSV</button>
-              <button onClick={() => { setModal({ type: 'produit' }); setFormProduit({ nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '', conditionnement: '', nb_par_cond: '', prix_cond: '' }) }} style={styleBouton()}>+ Nouveau produit</button>
+              <button onClick={() => { setModal({ type: 'produit' }); setFormProduit({ nom: '', categorie: '', prix_vente: '', prix_achat: '', stock_min: '', unite: 'unité', code_barre: '', conditionnement: '', nb_par_cond: '', prix_cond: '', variantes: [] }) }} style={styleBouton()}>+ Nouveau produit</button>
             </div>
           </div>
 
@@ -370,13 +490,20 @@ const Parametrage = () => {
           {modal?.type === 'produit' && (
             <div style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #e5e7eb' }}>
               <h3 style={{ margin: '0 0 12px', fontSize: '15px' }}>{modal.id ? 'Modifier' : 'Nouveau'} produit</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', overflow: 'visible' }}>
                 <input placeholder="Nom du produit *" value={formProduit.nom} onChange={e => setFormProduit({ ...formProduit, nom: e.target.value })} style={styleInput} />
-                <input placeholder="Catégorie (ex: Boissons)" value={formProduit.categorie} onChange={e => setFormProduit({ ...formProduit, categorie: e.target.value })} style={styleInput} />
+                {(maquis?.categories_custom || []).length > 0
+                  ? <SelectRecherche valeur={formProduit.categorie} onChange={v => setFormProduit({ ...formProduit, categorie: v })} options={maquis.categories_custom} placeholder="Choisir une catégorie..." style={styleInput} />
+                  : <input placeholder="Catégorie (ex: Boissons)" value={formProduit.categorie} onChange={e => setFormProduit({ ...formProduit, categorie: e.target.value })} style={styleInput} />
+                }
                 <input type="number" placeholder="Prix de vente *" value={formProduit.prix_vente} onChange={e => setFormProduit({ ...formProduit, prix_vente: e.target.value })} style={styleInput} />
                 <input type="number" placeholder="Prix d'achat (optionnel)" value={formProduit.prix_achat} onChange={e => setFormProduit({ ...formProduit, prix_achat: e.target.value })} style={styleInput} />
                 <input type="number" placeholder="Seuil d'alerte (stock min)" value={formProduit.stock_min} onChange={e => setFormProduit({ ...formProduit, stock_min: e.target.value })} style={styleInput} />
-                <input placeholder="Unité (bouteille, portion...)" value={formProduit.unite} onChange={e => setFormProduit({ ...formProduit, unite: e.target.value })} style={styleInput} />
+                {(maquis?.unites_custom || []).length > 0
+                  ? <SelectRecherche valeur={formProduit.unite} onChange={v => setFormProduit({ ...formProduit, unite: v })} options={maquis.unites_custom} placeholder="Choisir une unité..." style={styleInput} />
+                  : <input placeholder="Unité (bouteille, portion...)" value={formProduit.unite} onChange={e => setFormProduit({ ...formProduit, unite: e.target.value })} style={styleInput} />
+                }
                 <input placeholder="Code barre (optionnel)" value={formProduit.code_barre} onChange={e => setFormProduit({ ...formProduit, code_barre: e.target.value })} style={styleInput} />
                 <input placeholder="Conditionnement (ex: casier, carton)" value={formProduit.conditionnement} onChange={e => setFormProduit({ ...formProduit, conditionnement: e.target.value })} style={styleInput} />
                 <input type="number" placeholder="Nb unités par cond. (ex: 24)" value={formProduit.nb_par_cond} onChange={e => setFormProduit({ ...formProduit, nb_par_cond: e.target.value })} style={styleInput} />
@@ -395,6 +522,22 @@ const Parametrage = () => {
                     + Ajouter
                   </button>
                 </div>
+
+                {/* Gabarits rapides */}
+                {(maquis?.variantes_gabarits || []).length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600, color: '#6b7280' }}>Gabarits rapides :</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {maquis.variantes_gabarits.map((g, i) => (
+                        <button key={i} type="button"
+                          onClick={() => setFormProduit({ ...formProduit, variantes: [...formProduit.variantes, { nom: g.nom, coefficient: String(g.coefficient), prix_vente: '' }] })}
+                          style={{ padding: '4px 12px', borderRadius: 20, border: '1.5px solid #e5e7eb', backgroundColor: '#f9fafb', color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                          + {g.nom} ×{g.coefficient}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <datalist id="noms-variantes">
                   {NOMS_VARIANTES_SUGGERES.map(n => <option key={n} value={n} />)}
@@ -833,6 +976,231 @@ const Parametrage = () => {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* CATALOGUE */}
+      {onglet === 'catalogue' && (
+        <div style={{ backgroundColor: 'white', borderRadius: 12, padding: 16, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+
+          {/* Sous-onglets */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {[
+              { key: 'categories', label: `📂 Catégories (${(formMaquis.categories_custom||[]).length})` },
+              { key: 'unites',     label: `📏 Unités (${(formMaquis.unites_custom||[]).length})` },
+              { key: 'gabarits',   label: `🔖 Gabarits variantes (${(formMaquis.variantes_gabarits||[]).length})` },
+            ].map(o => (
+              <button key={o.key} onClick={() => { setCatalogueOnglet(o.key); setAjoutCatalogue(false) }}
+                style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: 13,
+                  backgroundColor: catalogueOnglet === o.key ? 'var(--couleur-principale)' : '#f3f4f6',
+                  color: catalogueOnglet === o.key ? 'white' : '#374151' }}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+
+          {/* SOUS-ONGLET : Catégories */}
+          {catalogueOnglet === 'categories' && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Catégories ({(formMaquis.categories_custom||[]).length})</h2>
+                <button onClick={() => { setAjoutCatalogue(v => !v); setNouvelleCategorie('') }} style={styleBouton()}>
+                  {ajoutCatalogue ? 'Annuler' : '+ Nouvelle catégorie'}
+                </button>
+              </div>
+              {ajoutCatalogue && (
+                <div style={{ backgroundColor: '#f9fafb', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e5e7eb', display: 'flex', gap: 8 }}>
+                  <input autoFocus placeholder="Nom de la catégorie (ex: Boissons)" value={nouvelleCategorie}
+                    onChange={e => setNouvelleCategorie(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { ajouterCategorie() } }}
+                    style={{ flex: 1, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }} />
+                  <button onClick={() => { ajouterCategorie() }} style={styleBouton()}>Enregistrer</button>
+                </div>
+              )}
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Nom</th>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(formMaquis.categories_custom||[]).map((cat, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f9fafb' }}>
+                      {editCatIdx === i ? (
+                        <>
+                          <td style={{ padding: '8px 10px' }}>
+                            <input autoFocus value={editCatVal} onChange={e => setEditCatVal(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') modifierCategorie(i); if (e.key === 'Escape') setEditCatIdx(null) }}
+                              style={{ width: '100%', padding: '7px 10px', border: '1.5px solid var(--couleur-principale)', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => modifierCategorie(i)} style={{ padding: '4px 10px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Enregistrer</button>
+                              <button onClick={() => setEditCatIdx(null)} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Annuler</button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ padding: '12px 10px', fontSize: 14, fontWeight: 500 }}>{cat}</td>
+                          <td style={{ padding: '12px 10px' }}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => { setEditCatIdx(i); setEditCatVal(cat) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Modifier</button>
+                              <button onClick={() => supprimerCategorie(i)} style={{ padding: '4px 10px', backgroundColor: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#dc2626' }}>Supprimer</button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                  {(formMaquis.categories_custom||[]).length === 0 && (
+                    <tr><td colSpan={2} style={{ padding: '24px 10px', color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>Aucune catégorie — cliquez sur "+ Nouvelle catégorie"</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {/* SOUS-ONGLET : Unités */}
+          {catalogueOnglet === 'unites' && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Unités ({(formMaquis.unites_custom||[]).length})</h2>
+                <button onClick={() => { setAjoutCatalogue(v => !v); setNouvelleUnite('') }} style={styleBouton()}>
+                  {ajoutCatalogue ? 'Annuler' : '+ Nouvelle unité'}
+                </button>
+              </div>
+              {ajoutCatalogue && (
+                <div style={{ backgroundColor: '#f9fafb', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e5e7eb', display: 'flex', gap: 8 }}>
+                  <input autoFocus placeholder="Nom de l'unité (ex: bouteille, kg, portion...)" value={nouvelleUnite}
+                    onChange={e => setNouvelleUnite(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { ajouterUnite() } }}
+                    style={{ flex: 1, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }} />
+                  <button onClick={() => { ajouterUnite() }} style={styleBouton()}>Enregistrer</button>
+                </div>
+              )}
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Nom</th>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(formMaquis.unites_custom||[]).map((u, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f9fafb' }}>
+                      {editUniteIdx === i ? (
+                        <>
+                          <td style={{ padding: '8px 10px' }}>
+                            <input autoFocus value={editUniteVal} onChange={e => setEditUniteVal(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') modifierUnite(i); if (e.key === 'Escape') setEditUniteIdx(null) }}
+                              style={{ width: '100%', padding: '7px 10px', border: '1.5px solid var(--couleur-principale)', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                          </td>
+                          <td style={{ padding: '8px 10px' }}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => modifierUnite(i)} style={{ padding: '4px 10px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Enregistrer</button>
+                              <button onClick={() => setEditUniteIdx(null)} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Annuler</button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ padding: '12px 10px', fontSize: 14, fontWeight: 500 }}>{u}</td>
+                          <td style={{ padding: '12px 10px' }}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => { setEditUniteIdx(i); setEditUniteVal(u) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Modifier</button>
+                              <button onClick={() => supprimerUnite(i)} style={{ padding: '4px 10px', backgroundColor: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#dc2626' }}>Supprimer</button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                  {(formMaquis.unites_custom||[]).length === 0 && (
+                    <tr><td colSpan={2} style={{ padding: '24px 10px', color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>Aucune unité — cliquez sur "+ Nouvelle unité"</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </>
+          )}
+
+          {/* SOUS-ONGLET : Gabarits */}
+          {catalogueOnglet === 'gabarits' && (
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Gabarits de variantes ({(formMaquis.variantes_gabarits||[]).length})</h2>
+                  <p style={{ margin: '3px 0 0', fontSize: 12, color: '#9ca3af' }}>Coefficient = nb d'unités de base (ex: Casier = 24 bouteilles). Le prix est renseigné par produit.</p>
+                </div>
+                <button onClick={() => { setAjoutCatalogue(v => !v); setNouveauGabarit({ nom: '', coefficient: '' }) }} style={styleBouton()}>
+                  {ajoutCatalogue ? 'Annuler' : '+ Nouveau gabarit'}
+                </button>
+              </div>
+              {ajoutCatalogue && (
+                <div style={{ backgroundColor: '#f9fafb', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e5e7eb', display: 'flex', gap: 8 }}>
+                  <input list="gabarit-noms" autoFocus placeholder="Nom (ex: Casier, Verre, Demi...)" value={nouveauGabarit.nom}
+                    onChange={e => setNouveauGabarit({ ...nouveauGabarit, nom: e.target.value })}
+                    style={{ flex: 2, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }} />
+                  <datalist id="gabarit-noms">{['Casier','Carton','Bouteille','Verre','Demi','Coupe','Dose','Portion','Litre','Pack'].map(n => <option key={n} value={n} />)}</datalist>
+                  <input type="number" placeholder="Coefficient (ex: 24)" value={nouveauGabarit.coefficient} min="0.01" step="0.01"
+                    onChange={e => setNouveauGabarit({ ...nouveauGabarit, coefficient: e.target.value })}
+                    style={{ flex: 1, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }} />
+                  <button onClick={() => { ajouterGabarit() }} style={styleBouton()}>Enregistrer</button>
+                </div>
+              )}
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Nom</th>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Coefficient</th>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(formMaquis.variantes_gabarits||[]).map((g, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid #f9fafb' }}>
+                      {editGabIdx === i ? (
+                        <>
+                          <td style={{ padding: '8px 6px' }}>
+                            <input autoFocus list="gabarit-noms-edit" value={editGabVal.nom} onChange={e => setEditGabVal({ ...editGabVal, nom: e.target.value })}
+                              style={{ width: '100%', padding: '7px 10px', border: '1.5px solid var(--couleur-principale)', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                            <datalist id="gabarit-noms-edit">{['Casier','Carton','Bouteille','Verre','Demi','Coupe','Dose','Portion','Litre','Pack'].map(n => <option key={n} value={n} />)}</datalist>
+                          </td>
+                          <td style={{ padding: '8px 6px' }}>
+                            <input type="number" value={editGabVal.coefficient} min="0.01" step="0.01" onChange={e => setEditGabVal({ ...editGabVal, coefficient: e.target.value })}
+                              onKeyDown={e => { if (e.key === 'Enter') modifierGabarit(i); if (e.key === 'Escape') setEditGabIdx(null) }}
+                              style={{ width: '100%', padding: '7px 10px', border: '1.5px solid var(--couleur-principale)', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
+                          </td>
+                          <td style={{ padding: '8px 6px' }}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => modifierGabarit(i)} style={{ padding: '4px 10px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Enregistrer</button>
+                              <button onClick={() => setEditGabIdx(null)} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Annuler</button>
+                            </div>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ padding: '12px 10px', fontSize: 14, fontWeight: 600 }}>{g.nom}</td>
+                          <td style={{ padding: '12px 10px', fontSize: 13, color: '#6b7280' }}>× {g.coefficient} unité{parseFloat(g.coefficient) > 1 ? 's' : ''}</td>
+                          <td style={{ padding: '12px 10px' }}>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={() => { setEditGabIdx(i); setEditGabVal({ nom: g.nom, coefficient: String(g.coefficient) }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Modifier</button>
+                              <button onClick={() => supprimerGabarit(i)} style={{ padding: '4px 10px', backgroundColor: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#dc2626' }}>Supprimer</button>
+                            </div>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                  {(formMaquis.variantes_gabarits||[]).length === 0 && (
+                    <tr><td colSpan={3} style={{ padding: '24px 10px', color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>Aucun gabarit — cliquez sur "+ Nouveau gabarit"</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </>
+          )}
+
         </div>
       )}
 
