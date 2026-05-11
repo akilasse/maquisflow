@@ -540,8 +540,8 @@ const s = StyleSheet.create({
   produitBadge:    { marginTop: 6, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' },
   produitBadgeTxt: { color: 'white', fontSize: 11, fontWeight: '700' },
 
-  catChip:      { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: 'white' },
-  catChipTxt:   { fontSize: 12, fontWeight: '600', color: '#374151' },
+  catChip:      { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 12, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: 'white' },
+  catChipTxt:   { fontSize: 11, fontWeight: '600', color: '#374151' },
 
   colPanier:    { flex: 1.1, backgroundColor: 'white', padding: 10, flexDirection: 'column' },
   panierHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottomWidth: 1, borderColor: '#f3f4f6' },
@@ -574,8 +574,8 @@ const s = StyleSheet.create({
 
   // Historique
   histoFiltres: { backgroundColor: 'white', borderBottomWidth: 1, borderColor: '#f3f4f6' },
-  chip:         { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: '#e5e7eb' },
-  chipTxt:      { fontSize: 13, fontWeight: '600', color: '#374151' },
+  chip:         { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 14, backgroundColor: '#e5e7eb' },
+  chipTxt:      { fontSize: 11, fontWeight: '600', color: '#374151' },
   histoCard:    { backgroundColor: 'white', borderRadius: 12, padding: 14, elevation: 1 },
   histoNum:     { fontSize: 15, fontWeight: '700', color: '#111827' },
   histoDate:    { fontSize: 12, color: '#9ca3af', marginTop: 2, marginBottom: 6 },

@@ -737,7 +737,7 @@ function connecterSocket() {
         table:   commande.table?.numero || null,
         serveur: commande.serveur?.nom || '',
         date:    new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        lignes:  commande.lignes.map(l => ({ nom: l.produit.nom, quantite: l.quantite, note: l.note || '' })),
+        lignes:  commande.lignes.map(l => ({ nom: l.variante_nom ? `${l.produit.nom} (${l.variante_nom})` : l.produit.nom, quantite: l.quantite, note: l.note || '' })),
         note:    commande.note || null
       }
       const result = await window.electronAPI.printBon(bon)
