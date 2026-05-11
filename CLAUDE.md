@@ -59,6 +59,14 @@ MaquisFlow/
     └── renderer/
         └── index.html # Interface caisse HTML pur
 
+## Règle absolue — JAMAIS de localhost en dur dans le code
+- Tout appel API dans le frontend doit utiliser `import.meta.env.VITE_API_URL` (ou `api.js`)
+- Tout appel API dans le mobile doit utiliser la constante définie dans `utils/api.js`
+- L'Electron utilise la constante `API_URL` définie en haut de `renderer/index.html`
+- Ne jamais écrire `http://localhost:3000` ou `http://localhost:5173` dans du code source
+- `.env.production` frontend : VITE_API_URL=https://maquisflow.com / VITE_SOCKET_URL=https://maquisflow.com
+- `.env` backend VPS : DATABASE_URL=mysql://maquisflow:MaquisFlow2026x@localhost:3306/maquisflow_db (ne pas commiter)
+
 ## Règles importantes
 - Plus de dossier Resto/ — interface universelle pour tous types d'établissements
 - Login sans type — l'API détecte automatiquement le type d'établissement
@@ -72,11 +80,13 @@ MaquisFlow/
 ssh root@31.220.81.96
 cd /var/www/maquisflow
 git pull
-npm install --prefix backend
-cd backend && npx prisma db push && cd ..
+# Si nouveau schema prisma : mysql -u maquisflow -pMaquisFlow2026x maquisflow_db -e "ALTER TABLE ..."
+# puis : cd backend && node node_modules/prisma/build/index.js generate && cd ..
 cd frontend && npm run build && cd ..
-pm2 restart maquisflow-backend
+pm2 restart maquisflow-backend --update-env
 ```
+⚠️ Ne jamais faire `npm install --prefix backend` sur le VPS — casse les permissions prisma
+⚠️ Toujours `--update-env` sur pm2 restart pour charger le bon .env
 
 ## À développer
 1. Génération .exe Electron (en cours)
