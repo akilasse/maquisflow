@@ -1,11 +1,11 @@
 const express = require('express')
 const router = express.Router()
 const ctrl = require('./commandes.controller')
-const { verifierToken, autoriserRoles } = require('../../middlewares/auth')
+const { verifierToken, autoriserRoles, requireMaquis } = require('../../middlewares/auth')
 
-const tous  = verifierToken
-const staff = [verifierToken, autoriserRoles('caissier', 'gerant', 'patron', 'serveur')]
-const admin = [verifierToken, autoriserRoles('gerant', 'patron')]
+const tous  = [verifierToken, requireMaquis]
+const staff = [verifierToken, requireMaquis, autoriserRoles('caissier', 'gerant', 'patron', 'serveur')]
+const admin = [verifierToken, requireMaquis, autoriserRoles('gerant', 'patron')]
 
 // ── Stations ────────────────────────────────────────────────
 router.get('/stations',      tous,  ctrl.getStations)

@@ -1,10 +1,10 @@
 const express = require('express')
 const router = express.Router()
 const ventesController = require('./ventes.controller')
-const { verifierToken, autoriserRoles } = require('../../middlewares/auth')
+const { verifierToken, autoriserRoles, requireMaquis } = require('../../middlewares/auth')
 
-const staff = [verifierToken, autoriserRoles('caissier', 'gerant', 'patron')]
-const admin = [verifierToken, autoriserRoles('gerant', 'patron')]
+const staff = [verifierToken, requireMaquis, autoriserRoles('caissier', 'gerant', 'patron')]
+const admin = [verifierToken, requireMaquis, autoriserRoles('gerant', 'patron')]
 
 router.post('/', staff, ventesController.creerVente)
 router.get('/',  staff, ventesController.getVentes)

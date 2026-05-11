@@ -68,8 +68,20 @@ const verifierMaquis = (req, res, next) => {
   next()
 }
 
+// Bloque les requêtes sans maquis_id dans le token (évite le data leakage Prisma)
+const requireMaquis = (req, res, next) => {
+  if (!req.utilisateur?.maquis_id) {
+    return res.status(403).json({
+      success: false,
+      message: 'Aucun établissement sélectionné - Veuillez vous reconnecter'
+    })
+  }
+  next()
+}
+
 module.exports = {
   verifierToken,
   autoriserRoles,
-  verifierMaquis
+  verifierMaquis,
+  requireMaquis
 }

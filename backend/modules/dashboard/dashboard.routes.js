@@ -6,13 +6,14 @@
 const express = require('express')
 const router = express.Router()
 const dashboardController = require('./dashboard.controller')
-const { verifierToken, autoriserRoles } = require('../../middlewares/auth')
+const { verifierToken, autoriserRoles, requireMaquis } = require('../../middlewares/auth')
 
 // GET /api/dashboard
 // Dashboard temps réel - patron et gérant uniquement
 router.get(
   '/',
   verifierToken,
+  requireMaquis,
   autoriserRoles('gerant', 'patron'),
   dashboardController.getDashboard
 )

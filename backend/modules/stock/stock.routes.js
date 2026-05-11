@@ -6,7 +6,7 @@
 const express = require('express')
 const router = express.Router()
 const stockController = require('./stock.controller')
-const { verifierToken, autoriserRoles } = require('../../middlewares/auth')
+const { verifierToken, autoriserRoles, requireMaquis } = require('../../middlewares/auth')
 const bonController = require('./bon.controller')
 
 // POST /api/stock/entree
@@ -14,6 +14,7 @@ const bonController = require('./bon.controller')
 router.post(
   '/entree',
   verifierToken,
+  requireMaquis,
   autoriserRoles('gerant', 'patron'),
   stockController.entreeStock
 )
@@ -23,6 +24,7 @@ router.post(
 router.post(
   '/sortie',
   verifierToken,
+  requireMaquis,
   autoriserRoles('gerant', 'patron'),
   stockController.sortieStock
 )
@@ -32,6 +34,7 @@ router.post(
 router.get(
   '/historique',
   verifierToken,
+  requireMaquis,
   autoriserRoles('caissier', 'gerant', 'patron'),
   stockController.getHistorique
 )
@@ -41,6 +44,7 @@ router.get(
 router.get(
   '/produits',
   verifierToken,
+  requireMaquis,
   autoriserRoles('caissier', 'gerant', 'patron', 'serveur'),
   stockController.getProduits
 )
