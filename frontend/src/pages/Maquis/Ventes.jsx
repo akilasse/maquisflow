@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useSocket } from '../../context/SocketContext'
+import { useNavigate } from 'react-router-dom'
 import api from '../../utils/api'
 
 const fmtNum  = (n) => Number(n || 0).toLocaleString('fr-FR')
@@ -56,6 +57,7 @@ const Modal = ({ titre, onClose, children }) => (
 export default function Ventes() {
   const { utilisateur } = useAuth()
   const { socket }      = useSocket()
+  const navigate        = useNavigate()
   const estAdmin = ['gerant', 'patron'].includes(utilisateur?.role)
 
   const [ventes,         setVentes]         = useState([])
@@ -103,8 +105,27 @@ export default function Ventes() {
       if (filtreStatut)           p.set('statut',          filtreStatut)
       if (rechercheServ.trim())   p.set('serveur',         rechercheServ.trim())
       if (rechercheNum.trim())    p.set('numero_facture',  rechercheNum.trim())
-      const r = await api.get(`/api/ventes?${p}`)
-      setVentes(r.data.data || [])
+
+      const promises = [api.get(`/api/ventes?${p}`).then(r => (r.data.data || []).map(v => ({ ...v, _type: 'vente' })))]
+
+      // Commandes tablette en attente : visibles quand filtre "En attente" ou "Toutes"
+      if (!filtreStatut || filtreStatut === 'en_attente') {
+        promises.push(
+          api.get('/api/commandes?statut=en_attente')
+            .then(r => (r.data.data || []).map(c => ({
+              ...c,
+              _type:      'commande',
+              date_vente: c.created_at,
+              total_net:  (c.lignes || []).reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0),
+              statut:     'en_attente',
+              serveur_nom: c.serveur?.nom || null,
+            })))
+            .catch(() => [])
+        )
+      }
+
+      const results = await Promise.all(promises)
+      setVentes(results.flat().sort((a, b) => new Date(b.date_vente) - new Date(a.date_vente)))
     } catch { msg('erreur', 'Erreur chargement') }
     finally  { setChargement(false) }
   }, [dateDebut, dateFin, heureDebut, heureFin, filtreStatut, rechercheServ, rechercheNum])
@@ -116,7 +137,14 @@ export default function Ventes() {
     const refresh = () => charger()
     socket.on('dashboard:update', refresh)
     socket.on('commande:encaissee', refresh)
-    return () => { socket.off('dashboard:update', refresh); socket.off('commande:encaissee', refresh) }
+    socket.on('commande:nouvelle', refresh)
+    socket.on('commande:mise_a_jour', refresh)
+    return () => {
+      socket.off('dashboard:update', refresh)
+      socket.off('commande:encaissee', refresh)
+      socket.off('commande:nouvelle', refresh)
+      socket.off('commande:mise_a_jour', refresh)
+    }
   }, [socket, charger])
 
   const msg = (type, texte) => {
@@ -215,8 +243,10 @@ export default function Ventes() {
     finally { setEnCours(false) }
   }
 
-  const totalNet    = ventes.filter(v => v.statut !== 'annulee').reduce((s, v) => s + parseFloat(v.total_net || 0), 0)
-  const nbActives   = ventes.filter(v => v.statut !== 'annulee').length
+  const ventesSeules = ventes.filter(v => v._type !== 'commande')
+  const totalNet    = ventesSeules.filter(v => v.statut !== 'annulee').reduce((s, v) => s + parseFloat(v.total_net || 0), 0)
+  const nbActives   = ventesSeules.filter(v => v.statut !== 'annulee').length
+  const nbCommandes = ventes.filter(v => v._type === 'commande').length
   const couleur     = utilisateur?.maquis?.couleur_primaire || '#FF6B35'
 
   const imprimerVentes = () => {
@@ -344,7 +374,7 @@ export default function Ventes() {
       {/* Résumé */}
       <div style={{ background: '#fff', borderRadius: 14, padding: '14px 20px', marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{ fontSize:14, color:'#6b7280' }}>
-          {chargement ? '...' : <><strong style={{ color:'#111827' }}>{nbActives}</strong> vente{nbActives > 1 ? 's' : ''} · {ventes.length - nbActives > 0 ? `${ventes.length - nbActives} annulée(s)` : 'aucune annulation'}</>}
+          {chargement ? '...' : <><strong style={{ color:'#111827' }}>{nbActives}</strong> vente{nbActives > 1 ? 's' : ''}{nbCommandes > 0 ? <> · <strong style={{ color:'#ea580c' }}>{nbCommandes}</strong> commande{nbCommandes > 1 ? 's' : ''} en attente</> : ''} · {ventesSeules.length - nbActives > 0 ? `${ventesSeules.length - nbActives} annulée(s)` : 'aucune annulation'}</>}
         </div>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <button onClick={imprimerVentes} style={{ padding:'7px 16px', border:`1.5px solid ${couleur}`, borderRadius:8, background:'white', color:couleur, fontSize:13, fontWeight:700, cursor:'pointer' }}>
@@ -368,6 +398,81 @@ export default function Ventes() {
       ) : (
         <div className="ventes-liste-print" style={{ display:'flex', flexDirection:'column', gap:8 }}>
           {ventes.map(v => {
+            // ── Carte commande tablette ──────────────────────────
+            if (v._type === 'commande') {
+              const ouv   = ouverte === `cmd_${v.id}`
+              const total = v.total_net || 0
+              const tAgo  = v.created_at ? Math.floor((Date.now() - new Date(v.created_at)) / 60000) : 0
+              return (
+                <div key={`cmd_${v.id}`} style={{ background:'#fff', borderRadius:14, boxShadow:'0 1px 6px rgba(0,0,0,0.07)', overflow:'hidden', borderLeft:'4px solid #fb923c' }}>
+                  <div onClick={() => setOuverte(ouv ? null : `cmd_${v.id}`)}
+                    style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 18px', cursor:'pointer', userSelect:'none' }}>
+                    <div style={{ width:36, height:36, borderRadius:10, background:'#fff7ed', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:16 }}>🍽️</div>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                        <span style={{ fontSize:14, fontWeight:700, color:'#111827' }}>
+                          {v.table ? `Table ${v.table.numero}` : 'Comptoir'} — Cmd #{v.numero || v.id}
+                        </span>
+                        <span style={{ background:'#fef3c7', color:'#92400e', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700 }}>⏳ En attente</span>
+                        <span style={{ background:'#fff7ed', color:'#ea580c', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:600 }}>Commande tablette</span>
+                      </div>
+                      <div style={{ fontSize:12, color:'#9ca3af', marginTop:3 }}>
+                        {v.serveur_nom && <span>Serveur: {v.serveur_nom}</span>}
+                        <span> · il y a {tAgo} min</span>
+                        {v.lignes?.length > 0 && <span> · {v.lignes.length} article{v.lignes.length > 1 ? 's' : ''}</span>}
+                      </div>
+                    </div>
+                    <div style={{ textAlign:'right', flexShrink:0 }}>
+                      <div style={{ fontSize:16, fontWeight:800, color:'#111827' }}>{fmtNum(total)} FCFA</div>
+                    </div>
+                    <span style={{ color:'#d1d5db', fontSize:18, transition:'transform 0.2s', transform: ouv ? 'rotate(90deg)' : 'none' }}>›</span>
+                  </div>
+                  {ouv && (
+                    <div style={{ borderTop:'1px solid #f3f4f6', padding:'16px 18px', background:'#fafafa' }}>
+                      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13, marginBottom:12 }}>
+                        <thead>
+                          <tr style={{ borderBottom:'2px solid #f3f4f6' }}>
+                            <th style={{ textAlign:'left', color:'#6b7280', fontWeight:600, padding:'0 0 8px' }}>Produit</th>
+                            <th style={{ textAlign:'right', color:'#6b7280', fontWeight:600, padding:'0 0 8px' }}>Qté</th>
+                            <th style={{ textAlign:'right', color:'#6b7280', fontWeight:600, padding:'0 0 8px' }}>P.U.</th>
+                            <th style={{ textAlign:'right', color:'#6b7280', fontWeight:600, padding:'0 0 8px' }}>Sous-total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {v.lignes?.map(l => (
+                            <tr key={l.id} style={{ borderBottom:'1px solid #f3f4f6' }}>
+                              <td style={{ padding:'7px 0', fontWeight:500 }}>
+                                {l.produit?.nom}{l.variante_nom ? ` (${l.variante_nom})` : ''}
+                              </td>
+                              <td style={{ textAlign:'right', padding:'7px 0', color:'#6b7280' }}>{parseFloat(l.quantite)}</td>
+                              <td style={{ textAlign:'right', padding:'7px 0', color:'#6b7280' }}>{fmtNum(l.prix_unitaire)}</td>
+                              <td style={{ textAlign:'right', padding:'7px 0', fontWeight:700 }}>{fmtNum(parseFloat(l.prix_unitaire) * parseFloat(l.quantite))}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <td colSpan={3} style={{ textAlign:'right', paddingTop:10, fontWeight:700, color:'#374151' }}>Total</td>
+                            <td style={{ textAlign:'right', paddingTop:10, fontWeight:800, fontSize:15, color:'var(--couleur-principale)' }}>{fmtNum(total)} FCFA</td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                      {v.note && (
+                        <div style={{ background:'#f9fafb', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#6b7280', marginBottom:8 }}>
+                          Note : {v.note}
+                        </div>
+                      )}
+                      <button onClick={() => navigate('/caisse')}
+                        style={{ background:'var(--couleur-principale)', color:'white', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                        💳 Encaisser depuis la Caisse
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )
+            }
+
+            // ── Carte vente normale ──────────────────────────────
             const mode    = MODES[v.mode_paiement] || { label: v.mode_paiement, icone:'💳', color:'#6b7280' }
             const ouv     = ouverte === v.id
             const annulee = v.statut === 'annulee'
