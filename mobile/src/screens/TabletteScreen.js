@@ -226,12 +226,24 @@ export default function TabletteScreen({ onRetour }) {
             </ScrollView>
           )}
           <FlatList data={produitsFiltres} keyExtractor={p => String(p.id)}
-            renderItem={({ item: p }) => (
-              <TouchableOpacity style={s.produitItem} onPress={() => ajouterProduit(p)}>
-                <Text style={s.produitNom} numberOfLines={2}>{p.nom}</Text>
-                <Text style={[s.produitPrix, { color: couleur }]}>{parseFloat(p.prix_vente).toLocaleString('fr-FR')}</Text>
-              </TouchableOpacity>
-            )}
+            numColumns={2} columnWrapperStyle={{ gap: 6 }}
+            contentContainerStyle={{ gap: 6, paddingBottom: 8 }}
+            renderItem={({ item: p }) => {
+              const enPanier = panier.find(l => l.produit_id === p.id)
+              return (
+                <TouchableOpacity style={[s.produitCard, enPanier && { borderColor: couleur, backgroundColor: couleur + '10' }]}
+                  onPress={() => ajouterProduit(p)}>
+                  <Text style={s.produitNom} numberOfLines={2}>{p.nom}</Text>
+                  {p.categorie ? <Text style={s.produitCat} numberOfLines={1}>{p.categorie}</Text> : null}
+                  <Text style={[s.produitPrix, { color: couleur }]}>{parseFloat(p.prix_vente).toLocaleString('fr-FR')} XOF</Text>
+                  {enPanier && (
+                    <View style={[s.produitBadge, { backgroundColor: couleur }]}>
+                      <Text style={s.produitBadgeTxt}>× {enPanier.quantite}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              )
+            }}
           />
         </View>
 
@@ -447,9 +459,12 @@ const s = StyleSheet.create({
   commandeBody: { flex: 1, flexDirection: 'row' },
   colProduits:  { flex: 1, backgroundColor: 'white', borderRightWidth: 1, borderColor: '#f3f4f6', padding: 10 },
   searchInput:  { borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 10, padding: 10, fontSize: 14, marginBottom: 10, color: '#111827' },
-  produitItem:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, borderRadius: 10, marginBottom: 6, borderWidth: 1, borderColor: '#f3f4f6', backgroundColor: '#fafafa' },
-  produitNom:   { fontSize: 13, fontWeight: '600', color: '#111827', flex: 1, marginRight: 6 },
-  produitPrix:  { fontSize: 12, fontWeight: '700' },
+  produitCard:     { flex: 1, backgroundColor: 'white', borderRadius: 10, padding: 10, borderWidth: 1.5, borderColor: '#f3f4f6' },
+  produitNom:      { fontSize: 12, fontWeight: '700', color: '#111827', marginBottom: 2, lineHeight: 16 },
+  produitCat:      { fontSize: 10, color: '#9ca3af', marginBottom: 4 },
+  produitPrix:     { fontSize: 12, fontWeight: '800' },
+  produitBadge:    { marginTop: 6, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, alignSelf: 'flex-start' },
+  produitBadgeTxt: { color: 'white', fontSize: 11, fontWeight: '700' },
 
   catChip:      { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 16, borderWidth: 1.5, borderColor: '#e5e7eb', backgroundColor: 'white' },
   catChipTxt:   { fontSize: 12, fontWeight: '600', color: '#374151' },
