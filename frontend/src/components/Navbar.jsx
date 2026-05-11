@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 const LIENS = [
+  { path: '/commandes',   label: 'Commandes',   icone: '📝', roles: ['serveur', 'gerant', 'patron'] },
   { path: '/caisse',      label: 'Caisse',      icone: '🧾', roles: ['caissier', 'gerant', 'patron'] },
   { path: '/ventes',      label: 'Ventes',      icone: '📄', roles: ['caissier', 'gerant', 'patron'] },
   { path: '/dashboard',   label: 'Dashboard',   icone: '📊', roles: ['gerant', 'patron'] },

@@ -19,6 +19,8 @@ const Login = () => {
       if (resultat?.selection_requise) return
       if (resultat.role === 'patron' || resultat.role === 'gerant') {
         navigate('/dashboard')
+      } else if (resultat.role === 'serveur') {
+        navigate('/commandes')
       } else {
         navigate('/caisse')
       }
@@ -36,6 +38,8 @@ const Login = () => {
       const utilisateur = await selectionnerEtablissement(maquis_id)
       if (utilisateur.role === 'patron' || utilisateur.role === 'gerant') {
         navigate('/dashboard')
+      } else if (utilisateur.role === 'serveur') {
+        navigate('/commandes')
       } else {
         navigate('/caisse')
       }
