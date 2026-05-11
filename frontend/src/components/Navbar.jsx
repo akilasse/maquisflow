@@ -19,7 +19,11 @@ const Navbar = ({ menuOuvert, setMenuOuvert }) => {
     ? utilisateur.maquis.couleur_primaire
     : '#FF6B35'
 
-  const liensAutorises = LIENS.filter(l => l.roles.includes(utilisateur?.role))
+  const liensAutorises = LIENS.filter(l => {
+    if (!l.roles.includes(utilisateur?.role)) return false
+    if (l.path === '/commandes' && !utilisateur?.maquis?.module_commandes_actif) return false
+    return true
+  })
 
   const lienStyle = (actif) => ({
     display: 'flex', alignItems: 'center', gap: '12px',

@@ -35,8 +35,6 @@ const Commandes = () => {
   const [envoi, setEnvoi]               = useState(false)
   const [message, setMessage]           = useState(null)
   const [chargement, setChargement]     = useState(true)
-  const moduleActif = utilisateur?.maquis?.module_commandes_actif !== false
-
   const flash = (type, texte) => {
     setMessage({ type, texte })
     setTimeout(() => setMessage(null), 3000)
@@ -162,13 +160,6 @@ const Commandes = () => {
     </div>
   )
 
-  if (!moduleActif) return (
-    <div style={{ textAlign: 'center', padding: 48, color: '#6b7280' }}>
-      <div style={{ fontSize: 48, marginBottom: 12 }}>🔒</div>
-      <p style={{ fontSize: 16, fontWeight: 600, color: '#374151' }}>Module commandes non activé</p>
-      <p style={{ fontSize: 13 }}>Activez-le dans Paramétrage → Mon établissement</p>
-    </div>
-  )
 
   return (
     <div style={{ maxWidth: 600, margin: '0 auto', paddingBottom: 16 }}>
