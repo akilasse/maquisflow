@@ -139,6 +139,7 @@ const Caisse = () => {
     setCommandeActive(commande)
     setVenteActive(null)
     setVoirCommandes(false)
+    setOngletMobile('panier')
     setNote(`Commande #${commande.numero}${commande.table ? ` - Table ${commande.table.numero}` : ''}`)
   }
 
@@ -159,6 +160,7 @@ const Caisse = () => {
     setVenteActive(vente)
     setCommandeActive(null)
     setVoirCommandes(false)
+    setOngletMobile('panier')
     setNote(vente.note || `Vente #${vente.id}`)
   }
 
@@ -721,7 +723,7 @@ const Caisse = () => {
         </div>
 
         {/* COLONNE DROITE - Panier */}
-        <div className={`col-panier-caisse ${ongletMobile === 'produits' ? 'mobile-hidden' : ''}`} style={{ flex: 1.2, backgroundColor: 'white', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <div className={`col-panier-caisse ${ongletMobile === 'produits' ? 'mobile-hidden' : ''}`} style={{ flex: 1.2, backgroundColor: 'white', borderRadius: '12px', padding: '20px', display: 'flex', flexDirection: 'column', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
             <div>
               <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '600', color: '#374151' }}>Panier ({panier.length})</h2>
@@ -755,7 +757,7 @@ const Caisse = () => {
             </div>
           )}
 
-          <div style={{ flex: 1, overflowY: 'auto', marginBottom: '12px' }}>
+          <div style={{ flex: 1, overflowY: 'auto', marginBottom: '12px', minHeight: 0 }}>
             {panier.length === 0 ? (
               <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px 20px', fontSize: '15px' }}>Cliquez sur un produit pour l'ajouter</p>
             ) : (
@@ -792,40 +794,44 @@ const Caisse = () => {
             )}
           </div>
 
-          {/* Mode paiement */}
-          <div style={{ marginBottom: '12px' }}>
-            <p style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Mode de paiement</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-              {MODES_PAIEMENT.map(mode => (
-                <button key={mode.value} onClick={() => { setModePaiement(mode.value); setMontantRecu('') }}
-                  style={{ padding: '14px 10px', borderRadius: '10px', fontSize: '14px', cursor: 'pointer', border: modePaiement === mode.value ? `2px solid ${mode.bg}` : '1px solid #e5e7eb', backgroundColor: modePaiement === mode.value ? mode.bg : 'white', color: modePaiement === mode.value ? mode.color : '#374151', fontWeight: '600', transition: 'all 0.15s' }}>
-                  {mode.icone} {mode.label}
-                </button>
-              ))}
+          {/* Zone paiement scrollable */}
+          <div style={{ flexShrink: 0, overflowY: 'auto', maxHeight: '45%' }}>
+            {/* Mode paiement */}
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{ margin: '0 0 8px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Mode de paiement</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                {MODES_PAIEMENT.map(mode => (
+                  <button key={mode.value} onClick={() => { setModePaiement(mode.value); setMontantRecu('') }}
+                    style={{ padding: '14px 10px', borderRadius: '10px', fontSize: '14px', cursor: 'pointer', border: modePaiement === mode.value ? `2px solid ${mode.bg}` : '1px solid #e5e7eb', backgroundColor: modePaiement === mode.value ? mode.bg : 'white', color: modePaiement === mode.value ? mode.color : '#374151', fontWeight: '600', transition: 'all 0.15s' }}>
+                    {mode.icone} {mode.label}
+                  </button>
+                ))}
+              </div>
             </div>
+
+            {/* Montant reçu espèces */}
+            {modePaiement === 'especes' && (
+              <div style={{ marginBottom: '12px' }}>
+                <p style={{ margin: '0 0 6px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Montant reçu du client</p>
+                <input type="number" placeholder={`Minimum ${totalPanier.toLocaleString()} XOF`} value={montantRecu} onChange={e => setMontantRecu(e.target.value)}
+                  style={{ width: '100%', padding: '14px', fontSize: '16px', boxSizing: 'border-box', border: montantRecu && parseFloat(montantRecu) < totalPanier ? '2px solid #dc2626' : '1px solid #e5e7eb', borderRadius: '8px' }}
+                />
+                {montantRecu && parseFloat(montantRecu) >= totalPanier && (
+                  <div style={{ marginTop: '8px', padding: '14px 16px', backgroundColor: '#f0fdf4', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '15px', color: '#16a34a', fontWeight: '600' }}>💰 Monnaie à rendre</span>
+                    <span style={{ fontSize: '22px', fontWeight: '700', color: '#16a34a' }}>{(parseFloat(montantRecu) - totalPanier).toLocaleString()} XOF</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <input type="text" placeholder="Note (table, client...)" value={note} onChange={(e) => setNote(e.target.value)}
+              style={{ width: '100%', padding: '12px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box' }}
+            />
           </div>
 
-          {/* Montant reçu espèces */}
-          {modePaiement === 'especes' && (
-            <div style={{ marginBottom: '12px' }}>
-              <p style={{ margin: '0 0 6px', fontSize: '14px', fontWeight: '600', color: '#374151' }}>Montant reçu du client</p>
-              <input type="number" placeholder={`Minimum ${totalPanier.toLocaleString()} XOF`} value={montantRecu} onChange={e => setMontantRecu(e.target.value)}
-                style={{ width: '100%', padding: '14px', fontSize: '16px', boxSizing: 'border-box', border: montantRecu && parseFloat(montantRecu) < totalPanier ? '2px solid #dc2626' : '1px solid #e5e7eb', borderRadius: '8px' }}
-              />
-              {montantRecu && parseFloat(montantRecu) >= totalPanier && (
-                <div style={{ marginTop: '8px', padding: '14px 16px', backgroundColor: '#f0fdf4', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '15px', color: '#16a34a', fontWeight: '600' }}>💰 Monnaie à rendre</span>
-                  <span style={{ fontSize: '22px', fontWeight: '700', color: '#16a34a' }}>{(parseFloat(montantRecu) - totalPanier).toLocaleString()} XOF</span>
-                </div>
-              )}
-            </div>
-          )}
-
-          <input type="text" placeholder="Note (table, client...)" value={note} onChange={(e) => setNote(e.target.value)}
-            style={{ width: '100%', padding: '12px 14px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', marginBottom: '12px', boxSizing: 'border-box' }}
-          />
-
-          <div style={{ borderTop: '2px solid #f3f4f6', paddingTop: '14px' }}>
+          {/* Total + bouton toujours visible en bas */}
+          <div style={{ flexShrink: 0, borderTop: '2px solid #f3f4f6', paddingTop: '14px', backgroundColor: 'white', marginTop: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '14px', alignItems: 'center' }}>
               <span style={{ fontSize: '20px', fontWeight: '700', color: '#374151' }}>Total</span>
               <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--couleur-principale)' }}>{totalPanier.toLocaleString()} XOF</span>
@@ -850,6 +856,7 @@ const Caisse = () => {
           .col-produits-caisse, .col-panier-caisse {
             flex: 1 !important; width: 100% !important;
             height: calc(100vh - 240px) !important;
+            overflow-y: auto !important;
           }
           .mobile-hidden { display: none !important; }
         }
