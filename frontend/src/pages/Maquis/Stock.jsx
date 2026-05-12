@@ -18,6 +18,11 @@ const Stock = () => {
   const [showSugg, setShowSugg]           = useState(false)
   const [lignesConfirmees, setLignesConfirmees] = useState([])
 
+  // Filtres onglet produits
+  const [rechercheStock, setRechercheStock] = useState('')
+  const [filtreCatStock, setFiltreCatStock] = useState('')
+  const [filtreStatutStock, setFiltreStatutStock] = useState('')
+
   // Sortie manuelle
   const [noteSortie, setNoteSortie] = useState('')
   const [ligneSortie, setLigneSortie] = useState({ produit_id: '', quantite: '', raison: '' })
@@ -173,46 +178,96 @@ const Stock = () => {
       </div>
 
       {/* PRODUITS */}
-      {onglet === 'produits' && (
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
-                {['Produit', 'Catégorie', 'Stock actuel', 'Seuil alerte', 'Prix vente', 'Statut'].map(h => (
-                  <th key={h} style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>{h}</th>
+      {onglet === 'produits' && (() => {
+        const cats = [...new Set(produits.filter(p => p.categorie).map(p => p.categorie))].sort()
+        const produitsFiltres = produits.filter(p => {
+          const critique = parseFloat(p.stock_actuel) <= parseFloat(p.stock_min)
+          if (filtreCatStock && p.categorie !== filtreCatStock) return false
+          if (filtreStatutStock === 'critique' && !critique) return false
+          if (filtreStatutStock === 'normal' && critique) return false
+          if (rechercheStock && !p.nom.toLowerCase().includes(rechercheStock.toLowerCase())) return false
+          return true
+        })
+        return (
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            {/* Barre recherche + filtres */}
+            <div style={{ marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <input
+                placeholder="🔍 Rechercher un produit..."
+                value={rechercheStock}
+                onChange={e => setRechercheStock(e.target.value)}
+                style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+              />
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#6b7280', marginRight: '4px' }}>Catégorie :</span>
+                {['', ...cats].map(c => (
+                  <button key={c} onClick={() => setFiltreCatStock(c)}
+                    style={{ padding: '4px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500',
+                      backgroundColor: filtreCatStock === c ? 'var(--couleur-principale)' : '#f3f4f6',
+                      color: filtreCatStock === c ? 'white' : '#374151' }}>
+                    {c || 'Tout'}
+                  </button>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {produits.map(p => {
-                const critique = parseFloat(p.stock_actuel) <= parseFloat(p.stock_min)
-                return (
-                  <tr key={p.id} style={{ borderBottom: '1px solid #f9fafb' }}>
-                    <td style={{ padding: '12px 10px', fontSize: '14px', fontWeight: '500' }}>{p.nom}</td>
-                    <td style={{ padding: '12px 10px', fontSize: '13px', color: '#6b7280' }}>{p.categorie || '-'}</td>
-                    <td style={{ padding: '12px 10px', fontWeight: '600', color: critique ? '#dc2626' : '#16a34a' }}>
-                      {p.stock_actuel} {p.unite}
-                    </td>
-                    <td style={{ padding: '12px 10px', fontSize: '13px', color: '#6b7280' }}>{p.stock_min} {p.unite}</td>
-                    <td style={{ padding: '12px 10px', color: 'var(--couleur-principale)', fontWeight: '500' }}>
-                      {parseFloat(p.prix_vente).toLocaleString()} XOF
-                    </td>
-                    <td style={{ padding: '12px 10px' }}>
-                      <span style={{
-                        padding: '4px 10px', borderRadius: '20px', fontSize: '12px',
-                        backgroundColor: critique ? '#fef2f2' : '#f0fdf4',
-                        color: critique ? '#dc2626' : '#16a34a'
-                      }}>
-                        {critique ? '⚠️ Critique' : '✅ Normal'}
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
+                <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px', marginRight: '4px' }}>Statut :</span>
+                {[['', 'Tous'], ['critique', '⚠️ Critique'], ['normal', '✅ Normal']].map(([val, label]) => (
+                  <button key={val} onClick={() => setFiltreStatutStock(val)}
+                    style={{ padding: '4px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500',
+                      backgroundColor: filtreStatutStock === val ? (val === 'critique' ? '#dc2626' : val === 'normal' ? '#16a34a' : 'var(--couleur-principale)') : '#f3f4f6',
+                      color: filtreStatutStock === val ? 'white' : '#374151' }}>
+                    {label}
+                  </button>
+                ))}
+                {(rechercheStock || filtreCatStock || filtreStatutStock) && (
+                  <button onClick={() => { setRechercheStock(''); setFiltreCatStock(''); setFiltreStatutStock('') }}
+                    style={{ padding: '4px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', backgroundColor: '#f3f4f6', color: '#6b7280' }}>
+                    ✕ Réinitialiser
+                  </button>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#9ca3af' }}>{produitsFiltres.length} produit{produitsFiltres.length > 1 ? 's' : ''}</span>
+              </div>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
+                  {['Produit', 'Catégorie', 'Stock actuel', 'Seuil alerte', 'Prix vente', 'Statut'].map(h => (
+                    <th key={h} style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {produitsFiltres.map(p => {
+                  const critique = parseFloat(p.stock_actuel) <= parseFloat(p.stock_min)
+                  return (
+                    <tr key={p.id} style={{ borderBottom: '1px solid #f9fafb' }}>
+                      <td style={{ padding: '12px 10px', fontSize: '14px', fontWeight: '500' }}>{p.nom}</td>
+                      <td style={{ padding: '12px 10px', fontSize: '13px', color: '#6b7280' }}>{p.categorie || '-'}</td>
+                      <td style={{ padding: '12px 10px', fontWeight: '600', color: critique ? '#dc2626' : '#16a34a' }}>
+                        {p.stock_actuel} {p.unite}
+                      </td>
+                      <td style={{ padding: '12px 10px', fontSize: '13px', color: '#6b7280' }}>{p.stock_min} {p.unite}</td>
+                      <td style={{ padding: '12px 10px', color: 'var(--couleur-principale)', fontWeight: '500' }}>
+                        {parseFloat(p.prix_vente).toLocaleString()} XOF
+                      </td>
+                      <td style={{ padding: '12px 10px' }}>
+                        <span style={{
+                          padding: '4px 10px', borderRadius: '20px', fontSize: '12px',
+                          backgroundColor: critique ? '#fef2f2' : '#f0fdf4',
+                          color: critique ? '#dc2626' : '#16a34a'
+                        }}>
+                          {critique ? '⚠️ Critique' : '✅ Normal'}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+                {produitsFiltres.length === 0 && (
+                  <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: '#9ca3af', fontSize: '14px' }}>Aucun produit trouvé</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )
+      })()}
 
       {/* APPROVISIONNEMENT */}
       {onglet === 'approvisionnement' && (
