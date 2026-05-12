@@ -12,6 +12,9 @@ const Inventaire = () => {
   const [chargement, setChargement] = useState(true)
   const [chargementAction, setChargementAction] = useState(false)
   const [message, setMessage] = useState(null)
+  const [rechercheInv, setRechercheInv] = useState('')
+  const [filtreCatInv, setFiltreCatInv] = useState('')
+  const [filtreEcartInv, setFiltreEcartInv] = useState('')
 
   useEffect(() => { chargerDonnees() }, [])
 
@@ -168,58 +171,113 @@ const Inventaire = () => {
                 ))}
               </div>
 
-              <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Saisie des quantités réelles</h2>
-                  <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>
-                    Démarré le {new Date(inventaireActif.date_debut).toLocaleDateString('fr-FR')}
-                  </p>
-                </div>
-                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
-                      <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '30%' }}>Produit</th>
-                      <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '18%' }}>Qté théorique</th>
-                      <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '22%' }}>Qté réelle</th>
-                      <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '15%' }}>Écart</th>
-                      <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '15%' }}>Statut</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {inventaireActif.lignes.map(ligne => {
-                      const ecart = parseFloat(ligne.ecart)
-                      return (
-                        <tr key={ligne.id} style={{ borderBottom: '1px solid #f9fafb' }}>
-                          <td style={{ padding: '12px 10px', fontSize: '14px', fontWeight: '500' }}>
-                            {ligne.produit.nom}
-                            <span style={{ display: 'block', fontSize: '12px', color: '#9ca3af', fontWeight: '400' }}>{ligne.produit.unite}</span>
-                          </td>
-                          <td style={{ padding: '12px 10px', fontSize: '14px', color: '#6b7280' }}>{ligne.qte_theorique} {ligne.produit.unite}</td>
-                          <td style={{ padding: '12px 10px' }}>
-                            <input type="number" defaultValue={parseFloat(ligne.qte_reelle) || ''} placeholder="Saisir..."
-                              onBlur={e => mettreAJourLigne(ligne.produit_id, e.target.value)}
-                              style={{ width: '90%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
-                          </td>
-                          <td style={{ padding: '12px 10px', fontSize: '14px', fontWeight: '600', color: ecart > 0 ? '#16a34a' : ecart < 0 ? '#dc2626' : '#9ca3af' }}>
-                            {ecart > 0 ? `+${ecart}` : ecart === 0 ? '0' : ecart} {ligne.produit.unite}
-                          </td>
-                          <td style={{ padding: '12px 10px' }}>
-                            {ecart === 0 && parseFloat(ligne.qte_reelle) === 0 ? (
-                              <span style={{ fontSize: '12px', color: '#9ca3af' }}>Non saisi</span>
-                            ) : ecart === 0 ? (
-                              <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#f0fdf4', color: '#16a34a' }}>✅ OK</span>
-                            ) : ecart > 0 ? (
-                              <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#f0fdf4', color: '#16a34a' }}>📈 Surplus</span>
-                            ) : (
-                              <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#fef2f2', color: '#dc2626' }}>📉 Manque</span>
-                            )}
-                          </td>
+              {(() => {
+                const cats = [...new Set(inventaireActif.lignes.filter(l => l.produit?.categorie).map(l => l.produit.categorie))].sort()
+                const lignesFiltrees = inventaireActif.lignes.filter(l => {
+                  const ecart = parseFloat(l.ecart)
+                  const nonSaisi = ecart === 0 && parseFloat(l.qte_reelle) === 0
+                  if (rechercheInv && !l.produit.nom.toLowerCase().includes(rechercheInv.toLowerCase())) return false
+                  if (filtreCatInv && l.produit?.categorie !== filtreCatInv) return false
+                  if (filtreEcartInv === 'non_saisi' && !nonSaisi) return false
+                  if (filtreEcartInv === 'ok' && (nonSaisi || ecart !== 0)) return false
+                  if (filtreEcartInv === 'surplus' && ecart <= 0) return false
+                  if (filtreEcartInv === 'manque' && ecart >= 0) return false
+                  return true
+                })
+                return (
+                  <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                      <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Saisie des quantités réelles</h2>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af' }}>
+                        Démarré le {new Date(inventaireActif.date_debut).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    {/* Barre recherche + filtres */}
+                    <div style={{ marginBottom: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      <input
+                        placeholder="🔍 Rechercher un produit..."
+                        value={rechercheInv}
+                        onChange={e => setRechercheInv(e.target.value)}
+                        style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
+                      />
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ fontSize: '12px', color: '#6b7280', marginRight: '4px' }}>Catégorie :</span>
+                        {['', ...cats].map(c => (
+                          <button key={c} onClick={() => setFiltreCatInv(c)}
+                            style={{ padding: '4px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500',
+                              backgroundColor: filtreCatInv === c ? 'var(--couleur-principale)' : '#f3f4f6',
+                              color: filtreCatInv === c ? 'white' : '#374151' }}>
+                            {c || 'Tout'}
+                          </button>
+                        ))}
+                        <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px', marginRight: '4px' }}>Écart :</span>
+                        {[['', 'Tous'], ['non_saisi', 'Non saisi'], ['ok', '✅ OK'], ['surplus', '📈 Surplus'], ['manque', '📉 Manque']].map(([val, label]) => (
+                          <button key={val} onClick={() => setFiltreEcartInv(val)}
+                            style={{ padding: '4px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500',
+                              backgroundColor: filtreEcartInv === val ? 'var(--couleur-principale)' : '#f3f4f6',
+                              color: filtreEcartInv === val ? 'white' : '#374151' }}>
+                            {label}
+                          </button>
+                        ))}
+                        {(rechercheInv || filtreCatInv || filtreEcartInv) && (
+                          <button onClick={() => { setRechercheInv(''); setFiltreCatInv(''); setFiltreEcartInv('') }}
+                            style={{ padding: '4px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', backgroundColor: '#f3f4f6', color: '#6b7280' }}>
+                            ✕ Réinitialiser
+                          </button>
+                        )}
+                        <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#9ca3af' }}>{lignesFiltrees.length} / {inventaireActif.lignes.length} produits</span>
+                      </div>
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
+                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '30%' }}>Produit</th>
+                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '18%' }}>Qté théorique</th>
+                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '22%' }}>Qté réelle</th>
+                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '15%' }}>Écart</th>
+                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '15%' }}>Statut</th>
                         </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody>
+                        {lignesFiltrees.map(ligne => {
+                          const ecart = parseFloat(ligne.ecart)
+                          return (
+                            <tr key={ligne.id} style={{ borderBottom: '1px solid #f9fafb' }}>
+                              <td style={{ padding: '12px 10px', fontSize: '14px', fontWeight: '500' }}>
+                                {ligne.produit.nom}
+                                <span style={{ display: 'block', fontSize: '12px', color: '#9ca3af', fontWeight: '400' }}>{ligne.produit.unite}</span>
+                              </td>
+                              <td style={{ padding: '12px 10px', fontSize: '14px', color: '#6b7280' }}>{ligne.qte_theorique} {ligne.produit.unite}</td>
+                              <td style={{ padding: '12px 10px' }}>
+                                <input type="number" defaultValue={parseFloat(ligne.qte_reelle) || ''} placeholder="Saisir..."
+                                  onBlur={e => mettreAJourLigne(ligne.produit_id, e.target.value)}
+                                  style={{ width: '90%', padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box' }} />
+                              </td>
+                              <td style={{ padding: '12px 10px', fontSize: '14px', fontWeight: '600', color: ecart > 0 ? '#16a34a' : ecart < 0 ? '#dc2626' : '#9ca3af' }}>
+                                {ecart > 0 ? `+${ecart}` : ecart === 0 ? '0' : ecart} {ligne.produit.unite}
+                              </td>
+                              <td style={{ padding: '12px 10px' }}>
+                                {ecart === 0 && parseFloat(ligne.qte_reelle) === 0 ? (
+                                  <span style={{ fontSize: '12px', color: '#9ca3af' }}>Non saisi</span>
+                                ) : ecart === 0 ? (
+                                  <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#f0fdf4', color: '#16a34a' }}>✅ OK</span>
+                                ) : ecart > 0 ? (
+                                  <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#f0fdf4', color: '#16a34a' }}>📈 Surplus</span>
+                                ) : (
+                                  <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#fef2f2', color: '#dc2626' }}>📉 Manque</span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                        {lignesFiltrees.length === 0 && (
+                          <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: '#9ca3af', fontSize: '14px' }}>Aucun produit trouvé</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                )
+              })()}
 
               {/* Boutons action */}
               <div style={{ display: 'flex', gap: '12px' }}>
