@@ -199,7 +199,7 @@ const Stock = () => {
                 style={{ padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none', width: '100%', boxSizing: 'border-box' }}
               />
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', color: '#6b7280', marginRight: '4px' }}>Catégorie :</span>
+                <span style={{ fontSize: '12px', color: '#6b7280', flexShrink: 0 }}>Catégorie :</span>
                 {['', ...cats].map(c => (
                   <button key={c} onClick={() => setFiltreCatStock(c)}
                     style={{ padding: '4px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500',
@@ -208,7 +208,9 @@ const Stock = () => {
                     {c || 'Tout'}
                   </button>
                 ))}
-                <span style={{ fontSize: '12px', color: '#6b7280', marginLeft: '8px', marginRight: '4px' }}>Statut :</span>
+              </div>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#6b7280', flexShrink: 0 }}>Statut :</span>
                 {[['', 'Tous'], ['critique', '⚠️ Critique'], ['normal', '✅ Normal']].map(([val, label]) => (
                   <button key={val} onClick={() => setFiltreStatutStock(val)}
                     style={{ padding: '4px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500',
