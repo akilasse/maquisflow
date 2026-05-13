@@ -35,8 +35,9 @@ const Commandes = () => {
   const [envoi, setEnvoi]               = useState(false)
   const [message, setMessage]           = useState(null)
   const [chargement, setChargement]     = useState(true)
-  const [modalFormats, setModalFormats] = useState(null)
-  const [modalAccomp, setModalAccomp]   = useState(null)
+  const [modalFormats, setModalFormats]       = useState(null)
+  const [modalAccomp, setModalAccomp]         = useState(null)
+  const [modalTourneeSucc, setModalTourneeSucc] = useState(null)
   const flash = (type, texte) => {
     setMessage({ type, texte })
     setTimeout(() => setMessage(null), 3000)
@@ -114,7 +115,15 @@ const Commandes = () => {
       setModalAccomp({ quantiteSucc: 2, carafeType: 'petite' })
     } else if (!variante && estSpirit) {
       setModalAccomp({ quantiteSucc: 4, carafeType: 'grande' })
+    } else if (variante && vnom === 'tournée') {
+      const varSucc = produit.variantes?.find(v => v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))
+      if (varSucc) setModalTourneeSucc({ produit, varSucc })
     }
+  }
+
+  const choisirTourneeSucc = (produit, variante) => {
+    choisirFormat(produit, variante)
+    setModalTourneeSucc(null)
   }
 
   const ajouterAccomp = (accomp, quantite) => {
@@ -440,6 +449,38 @@ const Commandes = () => {
                   <span style={{ fontSize: 15, fontWeight: 700, color: couleur }}>{fmtPrix(v.prix_vente)} XOF</span>
                 </button>
               ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {modalTourneeSucc && (
+        <>
+          <div onClick={() => setModalTourneeSucc(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 504 }} />
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            backgroundColor: 'white', borderRadius: '20px 20px 0 0',
+            padding: '20px 16px 32px', zIndex: 505,
+            boxShadow: '0 -4px 24px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>Ajouter sucrerie ?</p>
+              <button onClick={() => setModalTourneeSucc(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+            </div>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b7280' }}>Accompagnement payant</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => choisirTourneeSucc(modalTourneeSucc.produit, modalTourneeSucc.varSucc)} style={{
+                padding: '13px 16px', border: '2px solid #f59e0b', borderRadius: 12,
+                backgroundColor: '#fffbeb', cursor: 'pointer',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{modalTourneeSucc.varSucc.nom}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{fmtPrix(modalTourneeSucc.varSucc.prix_vente)} XOF</span>
+              </button>
+              <button onClick={() => setModalTourneeSucc(null)} style={{
+                padding: '13px 16px', border: '2px solid #e5e7eb', borderRadius: 12,
+                backgroundColor: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280'
+              }}>Non merci</button>
             </div>
           </div>
         </>
