@@ -964,6 +964,10 @@ function ajouterVarianteAuPanier(produitId, varianteIdx) {
     ouvrirModalAccomp(2, 'petite')
   } else if (varianteIdx === null && estSpirit) {
     ouvrirModalAccomp(4, 'grande')
+  } else if (vnom === 'tournée' || vnom === 'tournee') {
+    // Proposer sucrerie payante si variante "Tournée + Sucrerie" existe
+    const varSucc = produit.variantes?.find(v => v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))
+    if (varSucc) ouvrirModalTourneeSucc(produit, varSucc)
   }
 }
 
@@ -1010,6 +1014,21 @@ function ajouterAccompPanier(produitId, quantite) {
   document.querySelector('#modal-variantes .modal-sub').textContent = 'Quel format ?'
 }
 
+function ouvrirModalTourneeSucc(produit, varSucc) {
+  const idx = produit.variantes.indexOf(varSucc)
+  const diff = parseFloat(varSucc.prix_vente) - parseFloat(produit.variantes.find(v => v.nom.toLowerCase() === 'tournée' || v.nom.toLowerCase() === 'tournee')?.prix_vente || varSucc.prix_vente)
+  const label = diff > 0 ? `+${diff.toLocaleString('fr-FR')} XOF` : `${parseFloat(varSucc.prix_vente).toLocaleString('fr-FR')} XOF`
+  document.getElementById('modal-variantes-titre').textContent = 'Ajouter sucrerie ?'
+  document.querySelector('#modal-variantes .modal-sub').textContent = `Accompagnement payant`
+  document.getElementById('modal-variantes-liste').innerHTML = `
+    <div class="variante-option" onclick="ajouterVarianteAuPanier(${produit.id}, ${idx})" style="border-color:#f59e0b;background:#fffbeb">
+      <span class="variante-option-nom">${varSucc.nom}</span>
+      <span class="variante-option-prix">${label}</span>
+    </div>`
+  document.querySelector('.btn-fermer-variantes').textContent = 'Non merci'
+  document.getElementById('modal-variantes').classList.add('visible')
+}
+
 function fermerModalVariantes() {
   state.modalVariantes = null
   document.getElementById('modal-variantes').classList.remove('visible')
@@ -1046,6 +1065,7 @@ function viderPanier() {
   document.getElementById('montant-recu').value = ''
   hideMessage()
   renderPanier()
+  renderProduits()
 }
 
 function getTotal() {
