@@ -117,7 +117,7 @@ const Commandes = () => {
       setModalAccomp({ quantiteSucc: 4, carafeType: 'grande' })
     } else if (variante && vnom.includes('tourn') && !vnom.includes('sucr') && !vnom.includes('demi')) {
       const varSucc = produit.variantes?.find(v => v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))
-      setModalTourneeSucc({ produit, varSucc: varSucc || null })
+      if (varSucc) setModalTourneeSucc({ produit, varSucc })
     }
   }
 
@@ -142,15 +142,6 @@ const Commandes = () => {
     setModalTourneeSucc(null)
   }
 
-  const ajouterSucreriePayante = (sucrerie) => {
-    const cle = `${sucrerie.id}__sucr_${Date.now()}`
-    setPanier(prev => [...prev, {
-      cle, produit_id: sucrerie.id, nom: sucrerie.nom,
-      prix_unitaire: parseFloat(sucrerie.prix_vente), quantite: 1,
-      unite: sucrerie.unite, variante_nom: null, coefficient: null
-    }])
-    setModalTourneeSucc(null)
-  }
 
   const ajouterAccomp = (accomp, quantite) => {
     const cle = `${accomp.id}__offert_${Date.now()}`
@@ -495,27 +486,14 @@ const Commandes = () => {
             </div>
             <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b7280' }}>Accompagnement payant</p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {modalTourneeSucc.varSucc ? (
-                <button onClick={() => choisirTourneeSucc(modalTourneeSucc.produit, modalTourneeSucc.varSucc)} style={{
-                  padding: '13px 16px', border: '2px solid #f59e0b', borderRadius: 12,
-                  backgroundColor: '#fffbeb', cursor: 'pointer',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                }}>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{modalTourneeSucc.varSucc.nom}</span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{fmtPrix(modalTourneeSucc.varSucc.prix_vente)} XOF</span>
-                </button>
-              ) : (
-                produits.filter(p => p.categorie === 'Sucreries').map(s => (
-                  <button key={s.id} onClick={() => ajouterSucreriePayante(s)} style={{
-                    padding: '13px 16px', border: '2px solid #f59e0b', borderRadius: 12,
-                    backgroundColor: '#fffbeb', cursor: 'pointer',
-                    display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                  }}>
-                    <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{s.nom}</span>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{fmtPrix(s.prix_vente)} XOF</span>
-                  </button>
-                ))
-              )}
+              <button onClick={() => choisirTourneeSucc(modalTourneeSucc.produit, modalTourneeSucc.varSucc)} style={{
+                padding: '13px 16px', border: '2px solid #f59e0b', borderRadius: 12,
+                backgroundColor: '#fffbeb', cursor: 'pointer',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{modalTourneeSucc.varSucc.nom}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{fmtPrix(modalTourneeSucc.varSucc.prix_vente)} XOF</span>
+              </button>
               <button onClick={() => setModalTourneeSucc(null)} style={{
                 padding: '13px 16px', border: '2px solid #e5e7eb', borderRadius: 12,
                 backgroundColor: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280'

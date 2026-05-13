@@ -965,9 +965,8 @@ function ajouterVarianteAuPanier(produitId, varianteIdx) {
   } else if (varianteIdx === null && estSpirit) {
     ouvrirModalAccomp(4, 'grande')
   } else if (variante_nom && vnom.includes('tourn') && !vnom.includes('sucr') && !vnom.includes('demi')) {
-    // Proposer sucrerie payante (bundle si disponible, sinon liste sucreries)
     const varSucc = produit.variantes?.find(v => v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))
-    ouvrirModalTourneeSucc(produit, varSucc || null)
+    if (varSucc) ouvrirModalTourneeSucc(produit, varSucc)
   }
 }
 
@@ -1015,43 +1014,19 @@ function ajouterAccompPanier(produitId, quantite) {
 }
 
 function ouvrirModalTourneeSucc(produit, varSucc) {
-  document.getElementById('modal-variantes-titre').textContent = 'Ajouter une sucrerie ?'
+  const idx = produit.variantes.indexOf(varSucc)
+  const varTourneeSimple = produit.variantes.find(v => v.nom.toLowerCase().includes('tourn') && !v.nom.toLowerCase().includes('sucr'))
+  const diff = varTourneeSimple ? parseFloat(varSucc.prix_vente) - parseFloat(varTourneeSimple.prix_vente) : 0
+  const label = diff > 0 ? `+${diff.toLocaleString('fr-FR')} XOF` : `${parseFloat(varSucc.prix_vente).toLocaleString('fr-FR')} XOF`
+  document.getElementById('modal-variantes-titre').textContent = 'Ajouter sucrerie ?'
   document.querySelector('#modal-variantes .modal-sub').textContent = 'Accompagnement payant'
-  let html = ''
-  if (varSucc) {
-    const idx = produit.variantes.indexOf(varSucc)
-    const varTourneeSimple = produit.variantes.find(v => v.nom.toLowerCase().includes('tourn') && !v.nom.toLowerCase().includes('sucr'))
-    const diff = varTourneeSimple ? parseFloat(varSucc.prix_vente) - parseFloat(varTourneeSimple.prix_vente) : 0
-    const label = diff > 0 ? `+${diff.toLocaleString('fr-FR')} XOF` : `${parseFloat(varSucc.prix_vente).toLocaleString('fr-FR')} XOF`
-    html = `<div class="variante-option" onclick="remplacerParTourneeSucc(${produit.id}, ${idx})" style="border-color:#f59e0b;background:#fffbeb">
+  document.getElementById('modal-variantes-liste').innerHTML = `
+    <div class="variante-option" onclick="remplacerParTourneeSucc(${produit.id}, ${idx})" style="border-color:#f59e0b;background:#fffbeb">
       <span class="variante-option-nom">${varSucc.nom}</span>
       <span class="variante-option-prix">${label}</span>
     </div>`
-  } else {
-    const sucreries = state.produits.filter(p => p.categorie === 'Sucreries')
-    html = sucreries.map(s => `
-      <div class="variante-option" onclick="ajouterSucreriePanier(${s.id})" style="border-color:#f59e0b;background:#fffbeb">
-        <span class="variante-option-nom">${s.nom}</span>
-        <span class="variante-option-prix">${parseFloat(s.prix_vente).toLocaleString('fr-FR')} XOF</span>
-      </div>`).join('')
-  }
-  document.getElementById('modal-variantes-liste').innerHTML = html
   document.querySelector('.btn-fermer-variantes').textContent = 'Non merci'
   document.getElementById('modal-variantes').classList.add('visible')
-}
-
-function ajouterSucreriePanier(produitId) {
-  fermerModalVariantes()
-  const produit = state.produits.find(p => p.id === produitId)
-  if (!produit) return
-  const _key = `${produitId}__sucr_${Date.now()}`
-  state.panier.push({
-    _key, produit_id: produitId, nom: produit.nom,
-    quantite: 1, prix_catalogue: parseFloat(produit.prix_vente), prix_applique: parseFloat(produit.prix_vente),
-    variante_nom: null, coefficient: null, stock_max: parseFloat(produit.stock_actuel)
-  })
-  renderPanier()
-  renderProduits()
 }
 
 function remplacerParTourneeSucc(produitId, varSuccIdx) {
