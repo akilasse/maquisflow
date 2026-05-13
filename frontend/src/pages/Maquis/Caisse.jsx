@@ -36,7 +36,9 @@ const Caisse = () => {
   const [commandeActive, setCommandeActive]       = useState(null)
   const [venteActive, setVenteActive]             = useState(null)
   const [voirCommandes, setVoirCommandes]         = useState(false)
-  const [modalVariantes, setModalVariantes]       = useState(null) // produit dont on choisit la variante
+  const [modalVariantes, setModalVariantes]       = useState(null)
+  const [modalAccomp, setModalAccomp]             = useState(null)
+  const [modalTourneeSucc, setModalTourneeSucc]   = useState(null)
 
 
   // Surveiller connexion
@@ -272,6 +274,44 @@ const Caisse = () => {
     }
     setModalVariantes(null)
     setMessage(null)
+    // Accompagnement
+    const vnom = variante.nom.toLowerCase()
+    const estSpirit = produit.variantes?.some(v => v.nom.toLowerCase().includes('tourn'))
+    if (vnom.includes('demi')) {
+      setModalAccomp({ produit, quantiteSucc: 2, carafeType: 'petite' })
+    } else if (vnom.includes('tourn') && !vnom.includes('sucr') && !vnom.includes('demi')) {
+      const varSucc = produit.variantes?.find(v => v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))
+      if (varSucc) setModalTourneeSucc({ produit, varSucc })
+    }
+  }
+
+  const ajouterAccomp = (accomp, quantite) => {
+    const panier_key = `${accomp.id}_offert_${Date.now()}`
+    setPanier(prev => [...prev, {
+      panier_key, produit_id: accomp.id, nom: `${accomp.nom} (Offert)`,
+      quantite, prix_catalogue: 0, prix_applique: 0,
+      unite: accomp.unite, stock_max: parseFloat(accomp.stock_actuel),
+      variante_nom: 'Offert', coefficient: null
+    }])
+    setModalAccomp(null)
+  }
+
+  const choisirTourneeSucc = (produit, varSucc) => {
+    const varTournee = produit.variantes.find(v => v.nom.toLowerCase().includes('tourn') && !v.nom.toLowerCase().includes('sucr'))
+    const cleTournee = varTournee ? `${produit.id}_${varTournee.nom}` : null
+    const panier_key = `${produit.id}_${varSucc.nom}`
+    setPanier(prev => {
+      const sansTournee = cleTournee ? prev.reduce((acc, l) => {
+        if (l.panier_key === cleTournee) { if (l.quantite > 1) acc.push({ ...l, quantite: l.quantite - 1 }) }
+        else acc.push(l)
+        return acc
+      }, []) : [...prev]
+      const exist = sansTournee.find(l => l.panier_key === panier_key)
+      if (exist) return sansTournee.map(l => l.panier_key === panier_key ? { ...l, quantite: l.quantite + 1 } : l)
+      const coeff = parseFloat(varSucc.coefficient)
+      return [...sansTournee, { panier_key, produit_id: produit.id, nom: produit.nom, quantite: 1, prix_catalogue: parseFloat(varSucc.prix_vente), prix_applique: parseFloat(varSucc.prix_vente), unite: varSucc.nom, stock_max: Math.floor(parseFloat(produit.stock_actuel) / coeff), variante_nom: varSucc.nom, coefficient: coeff }]
+    })
+    setModalTourneeSucc(null)
   }
 
   const modifierQuantite = (panier_key, nouvelleQuantite) => {
@@ -567,14 +607,16 @@ const Caisse = () => {
                 <button onClick={() => {
                   setModalVariantes(null)
                   ajouterAuPanier({ ...modalVariantes, variantes: [] })
+                  const estSpirit = modalVariantes.variantes?.some(v => v.nom.toLowerCase().includes('tourn'))
+                  if (estSpirit) setModalAccomp({ produit: modalVariantes, quantiteSucc: 4, carafeType: 'grande' })
                 }} style={{ padding: '14px 16px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--couleur-principale)'; e.currentTarget.style.backgroundColor = '#fff7ed' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.backgroundColor = 'white' }}>
                   <span style={{ fontWeight: '600', fontSize: '14px', color: '#374151' }}>{modalVariantes.unite}</span>
                   <span style={{ fontWeight: '700', color: 'var(--couleur-principale)', fontSize: '15px' }}>{parseFloat(modalVariantes.prix_vente).toLocaleString()} XOF</span>
                 </button>
-                {/* Formats configurés */}
-                {modalVariantes.variantes.map(v => (
+                {/* Formats configurés — Tournée+Sucrerie masquée */}
+                {modalVariantes.variantes.filter(v => !(v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))).map(v => (
                   <button key={v.id} onClick={() => ajouterVarianteAuPanier(modalVariantes, v)}
                     style={{ padding: '14px 16px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--couleur-principale)'; e.currentTarget.style.backgroundColor = '#fff7ed' }}
@@ -586,6 +628,56 @@ const Caisse = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* MODAL ACCOMPAGNEMENT OFFERT */}
+        {modalAccomp && (
+          <>
+            <div onClick={() => setModalAccomp(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1200 }} />
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', backgroundColor: 'white', borderRadius: 16, padding: 24, zIndex: 1201, width: 360, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>Accompagnement offert</p>
+                <button onClick={() => setModalAccomp(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+              </div>
+              <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b7280' }}>{modalAccomp.quantiteSucc} sucrerie(s) ou 1 {modalAccomp.carafeType === 'grande' ? 'Grande Carafe' : 'Petite Carafe'} — offert(e)</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {produits.filter(p => p.categorie === 'Sucreries').map(s => (
+                  <button key={s.id} onClick={() => ajouterAccomp(s, modalAccomp.quantiteSucc)} style={{ padding: '13px 16px', border: '2px solid #16a34a', borderRadius: 12, backgroundColor: '#f0fdf4', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.nom} × {modalAccomp.quantiteSucc}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>Offert</span>
+                  </button>
+                ))}
+                {produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe')).map(c => (
+                  <button key={c.id} onClick={() => ajouterAccomp(c, 1)} style={{ padding: '13px 16px', border: '2px solid #3b82f6', borderRadius: 12, backgroundColor: '#eff6ff', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{c.nom} × 1</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: '#3b82f6' }}>Offert</span>
+                  </button>
+                ))}
+                <button onClick={() => setModalAccomp(null)} style={{ padding: '13px 16px', border: '2px solid #e5e7eb', borderRadius: 12, backgroundColor: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280' }}>Sans accompagnement</button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* MODAL TOURNÉE + SUCRERIE PAYANT */}
+        {modalTourneeSucc && (
+          <>
+            <div onClick={() => setModalTourneeSucc(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1200 }} />
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', backgroundColor: 'white', borderRadius: 16, padding: 24, zIndex: 1201, width: 360, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>Ajouter sucrerie ?</p>
+                <button onClick={() => setModalTourneeSucc(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+              </div>
+              <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b7280' }}>Accompagnement payant</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <button onClick={() => choisirTourneeSucc(modalTourneeSucc.produit, modalTourneeSucc.varSucc)} style={{ padding: '13px 16px', border: '2px solid #f59e0b', borderRadius: 12, backgroundColor: '#fffbeb', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{modalTourneeSucc.varSucc.nom}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: '#d97706' }}>{parseFloat(modalTourneeSucc.varSucc.prix_vente).toLocaleString()} XOF</span>
+                </button>
+                <button onClick={() => setModalTourneeSucc(null)} style={{ padding: '13px 16px', border: '2px solid #e5e7eb', borderRadius: 12, backgroundColor: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280' }}>Non merci</button>
+              </div>
+            </div>
+          </>
         )}
 
         {/* PANNEAU COMMANDES TABLETTE */}
