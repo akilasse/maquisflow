@@ -512,9 +512,12 @@ const Tablette = () => {
             )}
             {panier.length > 0 && (
               <>
-                <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 8px' }}>
-                  À envoyer
-                </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <p style={{ fontSize: 12, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', margin: 0 }}>
+                    À envoyer
+                  </p>
+                  <button onClick={() => setPanier([])} style={{ background: 'none', border: 'none', fontSize: 12, fontWeight: 600, color: '#ef4444', cursor: 'pointer' }}>Vider</button>
+                </div>
                 {panier.map(item => (
                   <div key={item.cle} style={{ padding: '10px', borderRadius: 8, backgroundColor: '#f9fafb', border: '1px solid #f3f4f6', marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>

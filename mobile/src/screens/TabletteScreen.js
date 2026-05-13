@@ -283,7 +283,14 @@ export default function TabletteScreen({ onRetour }) {
         <View style={s.colPanier}>
           <View style={s.panierHeader}>
             <Text style={s.panierTitre}>Panier · {panier.length} article{panier.length > 1 ? 's' : ''}</Text>
-            <Text style={[s.panierTotal, { color: couleur }]}>{getTotal().toLocaleString('fr-FR')} XOF</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {panier.length > 0 && (
+                <TouchableOpacity onPress={() => setPanier([])}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: '#ef4444' }}>Vider</Text>
+                </TouchableOpacity>
+              )}
+              <Text style={[s.panierTotal, { color: couleur }]}>{getTotal().toLocaleString('fr-FR')} XOF</Text>
+            </View>
           </View>
 
           {panier.length === 0 ? (
