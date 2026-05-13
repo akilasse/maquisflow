@@ -456,7 +456,7 @@ const Commandes = () => {
                 <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{modalFormats.unite || 'Unité de base'}</span>
                 <span style={{ fontSize: 15, fontWeight: 700, color: couleur }}>{fmtPrix(modalFormats.prix_vente)} XOF</span>
               </button>
-              {modalFormats.variantes.map(v => (
+              {modalFormats.variantes.filter(v => !(v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))).map(v => (
                 <button key={v.id} onClick={() => choisirFormat(modalFormats, v)} style={{
                   padding: '14px 16px', border: `2px solid ${couleur}`, borderRadius: 12,
                   backgroundColor: couleur + '08', cursor: 'pointer', textAlign: 'left',

@@ -916,7 +916,10 @@ function ouvrirModalVariantes(produit) {
       <span class="variante-option-nom">${produit.unite || 'Unité de base'}</span>
       <span class="variante-option-prix">${parseFloat(produit.prix_vente).toLocaleString('fr-FR')} XOF</span>
     </div>
-    ${produit.variantes.map((v, i) => `
+    ${produit.variantes
+      .map((v, i) => ({ v, i }))
+      .filter(({ v }) => !(v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr')))
+      .map(({ v, i }) => `
       <div class="variante-option" onclick="ajouterVarianteAuPanier(${produit.id}, ${i})">
         <span class="variante-option-nom">${v.nom}</span>
         <span class="variante-option-prix">${parseFloat(v.prix_vente).toLocaleString('fr-FR')} XOF</span>

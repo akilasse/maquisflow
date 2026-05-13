@@ -419,7 +419,7 @@ const Tablette = () => {
                 <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{modalFormats.unite || 'Unité de base'}</span>
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--couleur-principale)' }}>{fmtPrix(modalFormats.prix_vente)} XOF</span>
               </button>
-              {modalFormats.variantes.map(v => (
+              {modalFormats.variantes.filter(v => !(v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))).map(v => (
                 <button key={v.id} onClick={() => choisirFormat(modalFormats, v)} style={{
                   padding: '12px 16px', border: '2px solid var(--couleur-principale)', borderRadius: 10,
                   backgroundColor: 'rgba(var(--couleur-principale-rgb, 255,107,53),0.05)', cursor: 'pointer', textAlign: 'left',
