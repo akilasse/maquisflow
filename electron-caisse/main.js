@@ -133,20 +133,20 @@ const lignesHtml = t.lignes.map(l => `
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       @page { margin: 2mm; size: 80mm auto; }
-      body { font-family: monospace; font-size: 11px; width: 72mm; margin: 0 auto; }
-      h2 { text-align: center; font-size: 13px; margin: 4px 0; }
-      .sub { text-align: center; font-size: 10px; color: #555; margin-bottom: 4px; }
+      body { font-family: monospace; font-size: 14px; width: 72mm; margin: 0 auto; color: #000; font-weight: bold; }
+      h2 { text-align: center; font-size: 18px; margin: 4px 0; font-weight: bold; }
+      .sub { text-align: center; font-size: 13px; color: #000; margin-bottom: 4px; }
       hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
       table { width: 100%; border-collapse: collapse; }
       td { padding: 2px 0; }
-      .total td { font-weight: bold; font-size: 13px; border-top: 1px solid #000; padding-top: 4px; }
-      .footer { text-align: center; margin-top: 6px; font-size: 10px; }
+      .total td { font-weight: bold; font-size: 16px; border-top: 1px solid #000; padding-top: 4px; }
+      .footer { text-align: center; margin-top: 6px; font-size: 13px; }
     </style></head><body>
       <h2>${t.maquis || 'Flowix'}</h2>
       <div class="sub">${t.copie ? '-- COPIE CAISSIER --' : '-- COPIE CLIENT --'}</div>
       <hr>
-      <div style="font-size:10px">${t.date}</div>
-      <div style="font-size:10px">Caissier : ${t.caissier}</div>
+      <div>${t.date}</div>
+      <div>Caissier : ${t.caissier}</div>
       <hr>
       <table>${lignesHtml}</table>
       <hr>
@@ -170,17 +170,17 @@ ipcMain.handle('print:bon', async (_, bon) => {
 const lignesHtml = bon.lignes.map(l => `
       <tr>
         <td>${l.quantite}× ${l.nom}</td>
-        <td style="text-align:right;color:#555">${l.note || ''}</td>
+        <td style="text-align:right">${l.note || ''}</td>
       </tr>`).join('')
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       @page { margin: 2mm; size: 80mm auto; }
-      body { font-family: monospace; font-size: 12px; width: 72mm; margin: 0 auto; }
-      h2 { text-align: center; font-size: 15px; margin: 4px 0; }
-      hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+      body { font-family: monospace; font-size: 15px; width: 72mm; margin: 0 auto; color: #000; font-weight: bold; }
+      h2 { text-align: center; font-size: 20px; margin: 4px 0; font-weight: bold; }
+      hr { border: none; border-top: 2px dashed #000; margin: 4px 0; }
       table { width: 100%; border-collapse: collapse; }
-      td { padding: 3px 0; }
+      td { padding: 3px 0; color: #000; }
     </style></head><body>
       <h2>BON DE COMMANDE</h2>
       <hr>
