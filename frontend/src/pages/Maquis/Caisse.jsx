@@ -634,27 +634,27 @@ const Caisse = () => {
         {modalAccomp && (
           <>
             <div onClick={() => setModalAccomp(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1200 }} />
-            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', backgroundColor: 'white', borderRadius: 16, padding: 24, zIndex: 1201, width: 360, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>Accompagnement offert</p>
-                <button onClick={() => setModalAccomp(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', backgroundColor: 'white', borderRadius: 16, padding: 28, zIndex: 1201, width: 540, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#111827' }}>Accompagnement offert</p>
+                <button onClick={() => setModalAccomp(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
               </div>
-              <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b7280' }}>{modalAccomp.quantiteSucc} sucrerie(s) ou 1 {modalAccomp.carafeType === 'grande' ? 'Grande Carafe' : 'Petite Carafe'} — offert(e)</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>{modalAccomp.quantiteSucc} sucrerie(s) ou 1 {modalAccomp.carafeType === 'grande' ? 'Grande Carafe' : 'Petite Carafe'} — offert(e)</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
                 {produits.filter(p => p.categorie === 'Sucreries').map(s => (
-                  <button key={s.id} onClick={() => ajouterAccomp(s, modalAccomp.quantiteSucc)} style={{ padding: '13px 16px', border: '2px solid #16a34a', borderRadius: 12, backgroundColor: '#f0fdf4', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.nom} × {modalAccomp.quantiteSucc}</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>Offert</span>
+                  <button key={s.id} onClick={() => ajouterAccomp(s, modalAccomp.quantiteSucc)} style={{ padding: '12px 14px', border: '2px solid #16a34a', borderRadius: 12, backgroundColor: '#f0fdf4', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.nom} ×{modalAccomp.quantiteSucc}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>Offert</span>
                   </button>
                 ))}
                 {produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe')).map(c => (
-                  <button key={c.id} onClick={() => ajouterAccomp(c, 1)} style={{ padding: '13px 16px', border: '2px solid #3b82f6', borderRadius: 12, backgroundColor: '#eff6ff', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{c.nom} × 1</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#3b82f6' }}>Offert</span>
+                  <button key={c.id} onClick={() => ajouterAccomp(c, 1)} style={{ padding: '12px 14px', border: '2px solid #3b82f6', borderRadius: 12, backgroundColor: '#eff6ff', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{c.nom}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#3b82f6' }}>Offert</span>
                   </button>
                 ))}
-                <button onClick={() => setModalAccomp(null)} style={{ padding: '13px 16px', border: '2px solid #e5e7eb', borderRadius: 12, backgroundColor: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280' }}>Sans accompagnement</button>
               </div>
+              <button onClick={() => setModalAccomp(null)} style={{ width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: 12, backgroundColor: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280' }}>Sans accompagnement</button>
             </div>
           </>
         )}
@@ -663,9 +663,9 @@ const Caisse = () => {
         {modalTourneeSucc && (
           <>
             <div onClick={() => setModalTourneeSucc(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1200 }} />
-            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', backgroundColor: 'white', borderRadius: 16, padding: 24, zIndex: 1201, width: 360, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', backgroundColor: 'white', borderRadius: 16, padding: 28, zIndex: 1201, width: 420, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>Ajouter sucrerie ?</p>
+                <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#111827' }}>Ajouter sucrerie ?</p>
                 <button onClick={() => setModalTourneeSucc(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
               </div>
               <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b7280' }}>Accompagnement payant</p>
