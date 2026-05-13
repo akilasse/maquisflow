@@ -36,6 +36,7 @@ const Commandes = () => {
   const [message, setMessage]           = useState(null)
   const [chargement, setChargement]     = useState(true)
   const [modalFormats, setModalFormats] = useState(null)
+  const [modalAccomp, setModalAccomp]   = useState(null)
   const flash = (type, texte) => {
     setMessage({ type, texte })
     setTimeout(() => setMessage(null), 3000)
@@ -106,6 +107,24 @@ const Commandes = () => {
       return [...prev, { cle, produit_id: produit.id, nom, prix_unitaire: prix, quantite: 1, unite: produit.unite, variante_nom: variante ? variante.nom : null, coefficient: coeff }]
     })
     setModalFormats(null)
+    // Accompagnement offert pour bouteille / demi
+    const vnom = variante?.nom?.toLowerCase() || ''
+    const estSpirit = produit.variantes?.some(v => v.nom.toLowerCase().includes('tourn'))
+    if (variante && vnom.includes('demi')) {
+      setModalAccomp({ quantiteSucc: 2, carafeType: 'petite' })
+    } else if (!variante && estSpirit) {
+      setModalAccomp({ quantiteSucc: 4, carafeType: 'grande' })
+    }
+  }
+
+  const ajouterAccomp = (accomp, quantite) => {
+    const cle = `${accomp.id}__offert_${Date.now()}`
+    setPanier(prev => [...prev, {
+      cle, produit_id: accomp.id, nom: `${accomp.nom} (Offert)`,
+      prix_unitaire: 0, quantite, unite: accomp.unite,
+      variante_nom: 'Offert', coefficient: null
+    }])
+    setModalAccomp(null)
   }
 
   const modifierQte = (cle, delta) => {
@@ -421,6 +440,52 @@ const Commandes = () => {
                   <span style={{ fontSize: 15, fontWeight: 700, color: couleur }}>{fmtPrix(v.prix_vente)} XOF</span>
                 </button>
               ))}
+            </div>
+          </div>
+        </>
+      )}
+
+      {modalAccomp && (
+        <>
+          <div onClick={() => setModalAccomp(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 502 }} />
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            backgroundColor: 'white', borderRadius: '20px 20px 0 0',
+            padding: '20px 16px 32px', zIndex: 503,
+            boxShadow: '0 -4px 24px rgba(0,0,0,0.2)', maxHeight: '80vh', overflowY: 'auto'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>🎁 Accompagnement offert ?</p>
+              <button onClick={() => setModalAccomp(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+            </div>
+            <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b7280' }}>
+              {modalAccomp.quantiteSucc} sucrerie(s) ou 1 {modalAccomp.carafeType === 'grande' ? 'Grande Carafe' : 'Petite Carafe'} — offert(e)
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {produits.filter(p => p.categorie === 'Sucreries').map(s => (
+                <button key={s.id} onClick={() => ajouterAccomp(s, modalAccomp.quantiteSucc)} style={{
+                  padding: '13px 16px', border: `2px solid ${couleur}`, borderRadius: 12,
+                  backgroundColor: couleur + '0d', cursor: 'pointer',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{s.nom} × {modalAccomp.quantiteSucc}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>Offert</span>
+                </button>
+              ))}
+              {produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe')).map(c => (
+                <button key={c.id} onClick={() => ajouterAccomp(c, 1)} style={{
+                  padding: '13px 16px', border: '2px solid #3b82f6', borderRadius: 12,
+                  backgroundColor: '#eff6ff', cursor: 'pointer',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{c.nom}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>Offert</span>
+                </button>
+              ))}
+              <button onClick={() => setModalAccomp(null)} style={{
+                padding: '13px 16px', border: '2px solid #e5e7eb', borderRadius: 12,
+                backgroundColor: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280'
+              }}>Sans accompagnement</button>
             </div>
           </div>
         </>

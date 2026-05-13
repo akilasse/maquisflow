@@ -35,6 +35,7 @@ export default function TabletteScreen({ onRetour }) {
   const [showCaisseModal,    setShowCaisseModal]    = useState(false)
   const [categorie,          setCategorie]          = useState('Tout')
   const [modalVariantesTabl, setModalVariantesTabl] = useState(null)
+  const [modalAccomp,        setModalAccomp]        = useState(null)
 
   // Historique
   const [historique,         setHistorique]         = useState([])
@@ -104,8 +105,22 @@ export default function TabletteScreen({ onRetour }) {
     })
   }
 
+  const ajouterAccomp = (accomp, quantite) => {
+    setPanier(prev => [...prev, {
+      produit_id: accomp.id, nom: `${accomp.nom} (Offert)`,
+      quantite, prix: 0, station_id: null,
+      _key: Date.now(), variante_nom: 'Offert', coefficient: null
+    }])
+    setModalAccomp(null)
+  }
+
   const ajouterVarianteTabl = (produit, variante) => {
     setModalVariantesTabl(null)
+    const vnom = variante.nom.toLowerCase()
+    const estSpirit = produit.variantes?.some(v => v.nom.toLowerCase().includes('tourn'))
+    if (vnom.includes('demi')) {
+      setModalAccomp({ quantiteSucc: 2, carafeType: 'petite' })
+    }
     setPanier(prev => {
       const existe = prev.find(x => x.produit_id === produit.id && x.variante_nom === variante.nom)
       if (existe) return prev.map(x => x.produit_id === produit.id && x.variante_nom === variante.nom ? { ...x, quantite: x.quantite + 1 } : x)
@@ -358,12 +373,14 @@ export default function TabletteScreen({ onRetour }) {
               style={[s.caisseOption, { borderColor: couleur }]}
               onPress={() => {
                 if (!modalVariantesTabl) return
+                const estSpirit = modalVariantesTabl.variantes?.some(v => v.nom.toLowerCase().includes('tourn'))
                 setModalVariantesTabl(null)
                 setPanier(prev => {
                   const existe = prev.find(x => x.produit_id === modalVariantesTabl.id && !x.variante_nom)
                   if (existe) return prev.map(x => x.produit_id === modalVariantesTabl.id && !x.variante_nom ? { ...x, quantite: x.quantite + 1 } : x)
                   return [...prev, { produit_id: modalVariantesTabl.id, nom: modalVariantesTabl.nom, quantite: 1, prix: parseFloat(modalVariantesTabl.prix_vente), station_id: null, _key: Date.now(), variante_nom: null, coefficient: null }]
                 })
+                if (estSpirit) setModalAccomp({ quantiteSucc: 4, carafeType: 'grande' })
               }}>
               <View style={[s.caisseDot, { backgroundColor: couleur }]} />
               <View style={{ flex: 1 }}>
@@ -382,6 +399,35 @@ export default function TabletteScreen({ onRetour }) {
             ))}
             <TouchableOpacity onPress={() => setModalVariantesTabl(null)} style={{ alignItems: 'center', padding: 14 }}>
               <Text style={{ color: '#9ca3af', fontWeight: '600' }}>Annuler</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal accompagnement offert */}
+      <Modal visible={!!modalAccomp} transparent animationType="slide" onRequestClose={() => setModalAccomp(null)}>
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <Text style={s.modalTitre}>🎁 Accompagnement offert ?</Text>
+            <Text style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', marginBottom: 16 }}>
+              {modalAccomp?.quantiteSucc} sucrerie(s) ou 1 {modalAccomp?.carafeType === 'grande' ? 'Grande Carafe' : 'Petite Carafe'} — offert(e)
+            </Text>
+            {produits.filter(p => p.categorie === 'Sucreries').map(succ => (
+              <TouchableOpacity key={succ.id} style={[s.accompBtn, { borderColor: couleur }]}
+                onPress={() => ajouterAccomp(succ, modalAccomp.quantiteSucc)}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{succ.nom} × {modalAccomp?.quantiteSucc}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#16a34a' }}>Offert</Text>
+              </TouchableOpacity>
+            ))}
+            {produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp?.carafeType === 'grande' ? 'grande carafe' : 'petite carafe')).map(c => (
+              <TouchableOpacity key={c.id} style={[s.accompBtn, { borderColor: '#3b82f6', backgroundColor: '#eff6ff' }]}
+                onPress={() => ajouterAccomp(c, 1)}>
+                <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>{c.nom}</Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#16a34a' }}>Offert</Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => setModalAccomp(null)} style={{ alignItems: 'center', padding: 14 }}>
+              <Text style={{ color: '#9ca3af', fontWeight: '600' }}>Sans accompagnement</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -575,6 +621,7 @@ const s = StyleSheet.create({
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalBox:     { backgroundColor: 'white', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 36 },
   modalTitre:   { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 16, textAlign: 'center' },
+  accompBtn:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1.5, marginBottom: 8, backgroundColor: 'white' },
   caisseOption: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 12, borderWidth: 1.5, marginBottom: 10 },
   caisseDot:    { width: 14, height: 14, borderRadius: 7 },
   caisseNom:    { fontSize: 15, fontWeight: '600', color: '#111827' },

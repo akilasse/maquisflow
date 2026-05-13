@@ -933,36 +933,88 @@ function ajouterVarianteAuPanier(produitId, varianteIdx) {
 
   let nom, prix_applique, prix_catalogue, variante_nom, coefficient, stock_max
   if (varianteIdx === null) {
-    nom          = produit.nom
-    prix_applique = parseFloat(produit.prix_vente)
+    nom           = produit.nom
+    prix_applique  = parseFloat(produit.prix_vente)
     prix_catalogue = prix_applique
-    variante_nom = null
-    coefficient  = null
-    stock_max    = parseFloat(produit.stock_actuel)
+    variante_nom  = null
+    coefficient   = null
+    stock_max     = parseFloat(produit.stock_actuel)
   } else {
-    const v      = produit.variantes[varianteIdx]
-    nom          = produit.nom
-    prix_applique = parseFloat(v.prix_vente)
+    const v        = produit.variantes[varianteIdx]
+    nom            = produit.nom
+    prix_applique  = parseFloat(v.prix_vente)
     prix_catalogue = prix_applique
-    variante_nom = v.nom
-    coefficient  = parseFloat(v.coefficient)
-    stock_max    = parseFloat(produit.stock_actuel)
+    variante_nom   = v.nom
+    coefficient    = parseFloat(v.coefficient)
+    stock_max      = parseFloat(produit.stock_actuel)
   }
 
   const _key  = variante_nom ? `${produitId}_${variante_nom}` : String(produitId)
   const existe = state.panier.find(p => p._key === _key)
-  if (existe) {
-    existe.quantite++
-  } else {
-    state.panier.push({ _key, produit_id: produitId, nom, quantite: 1, prix_catalogue, prix_applique, variante_nom, coefficient, stock_max })
-  }
+  if (existe) { existe.quantite++ }
+  else { state.panier.push({ _key, produit_id: produitId, nom, quantite: 1, prix_catalogue, prix_applique, variante_nom, coefficient, stock_max }) }
+
   renderPanier()
   renderProduits()
+
+  // Accompagnement offert pour Bouteille / Demi Bouteille
+  const estSpirit = produit.variantes?.some(v => v.nom.toLowerCase().includes('tourn'))
+  const vnom = (variante_nom || '').toLowerCase()
+  if (vnom.includes('demi')) {
+    ouvrirModalAccomp(2, 'petite')
+  } else if (varianteIdx === null && estSpirit) {
+    ouvrirModalAccomp(4, 'grande')
+  }
+}
+
+function ouvrirModalAccomp(quantiteSucc, carafeType) {
+  const sucreries = state.produits.filter(p => p.categorie === 'Sucreries')
+  const carafes   = state.produits.filter(p => p.nom.toLowerCase().startsWith(carafeType === 'grande' ? 'grande carafe' : 'petite carafe'))
+
+  const succHtml = sucreries.map(s => `
+    <div class="variante-option" onclick="ajouterAccompPanier(${s.id}, ${quantiteSucc})">
+      <span class="variante-option-nom">${s.nom} × ${quantiteSucc}</span>
+      <span style="font-size:13px;font-weight:700;color:#16a34a">Offert</span>
+    </div>`).join('')
+
+  const carafeHtml = carafes.map(c => `
+    <div class="variante-option" onclick="ajouterAccompPanier(${c.id}, 1)" style="border-color:#3b82f6;background:#eff6ff">
+      <span class="variante-option-nom">${c.nom}</span>
+      <span style="font-size:13px;font-weight:700;color:#16a34a">Offert</span>
+    </div>`).join('')
+
+  document.getElementById('modal-variantes-titre').textContent = '🎁 Accompagnement offert ?'
+  document.querySelector('#modal-variantes .modal-sub').textContent =
+    `${quantiteSucc} sucrerie(s) ou 1 ${carafeType === 'grande' ? 'Grande Carafe' : 'Petite Carafe'}`
+  document.getElementById('modal-variantes-liste').innerHTML = succHtml + carafeHtml
+  document.querySelector('.btn-fermer-variantes').textContent = 'Sans accompagnement'
+  document.getElementById('modal-variantes').classList.add('visible')
+}
+
+function ajouterAccompPanier(produitId, quantite) {
+  fermerModalVariantes()
+  const produit = state.produits.find(p => p.id === produitId)
+  if (!produit) return
+  const _key = `${produitId}_offert_${Date.now()}`
+  state.panier.push({
+    _key, produit_id: produitId,
+    nom: `${produit.nom} (Offert)`,
+    quantite, prix_catalogue: 0, prix_applique: 0,
+    variante_nom: 'Offert', coefficient: null,
+    stock_max: parseFloat(produit.stock_actuel)
+  })
+  renderPanier()
+  renderProduits()
+  // Remettre le texte par défaut du bouton fermer
+  document.querySelector('.btn-fermer-variantes').textContent = 'Annuler'
+  document.querySelector('#modal-variantes .modal-sub').textContent = 'Quel format ?'
 }
 
 function fermerModalVariantes() {
   state.modalVariantes = null
   document.getElementById('modal-variantes').classList.remove('visible')
+  document.querySelector('.btn-fermer-variantes').textContent = 'Annuler'
+  document.querySelector('#modal-variantes .modal-sub').textContent = 'Quel format ?'
 }
 
 function modifierQuantite(key, delta) {
