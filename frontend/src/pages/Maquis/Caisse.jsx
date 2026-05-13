@@ -561,7 +561,7 @@ const Caisse = () => {
                 </div>
                 <button onClick={() => setModalVariantes(null)} style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#6b7280' }}>✕</button>
               </div>
-              <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>Choisir la variante :</p>
+              <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#6b7280', fontWeight: '600' }}>Quel format ?</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {/* Option unité de base */}
                 <button onClick={() => {
@@ -570,19 +570,16 @@ const Caisse = () => {
                 }} style={{ padding: '14px 16px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--couleur-principale)'; e.currentTarget.style.backgroundColor = '#fff7ed' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.backgroundColor = 'white' }}>
-                  <span style={{ fontWeight: '600', fontSize: '14px', color: '#374151' }}>1 {modalVariantes.unite}</span>
+                  <span style={{ fontWeight: '600', fontSize: '14px', color: '#374151' }}>{modalVariantes.unite}</span>
                   <span style={{ fontWeight: '700', color: 'var(--couleur-principale)', fontSize: '15px' }}>{parseFloat(modalVariantes.prix_vente).toLocaleString()} XOF</span>
                 </button>
-                {/* Variantes configurées */}
+                {/* Formats configurés */}
                 {modalVariantes.variantes.map(v => (
                   <button key={v.id} onClick={() => ajouterVarianteAuPanier(modalVariantes, v)}
                     style={{ padding: '14px 16px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}
                     onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--couleur-principale)'; e.currentTarget.style.backgroundColor = '#fff7ed' }}
                     onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.backgroundColor = 'white' }}>
-                    <div>
-                      <span style={{ fontWeight: '600', fontSize: '14px', color: '#374151' }}>{v.nom}</span>
-                      <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: '8px' }}>= {v.coefficient} {modalVariantes.unite}</span>
-                    </div>
+                    <span style={{ fontWeight: '600', fontSize: '14px', color: '#374151' }}>{v.nom}</span>
                     <span style={{ fontWeight: '700', color: 'var(--couleur-principale)', fontSize: '15px' }}>{parseFloat(v.prix_vente).toLocaleString()} XOF</span>
                   </button>
                 ))}
@@ -706,7 +703,7 @@ const Caisse = () => {
                       <p style={{ margin: 0, fontWeight: 700, color: 'var(--couleur-principale)', fontSize: 12 }}>{parseFloat(produit.prix_vente).toLocaleString()} XOF</p>
                       {produit.variantes?.length > 0 && (
                         <p style={{ margin: '3px 0 0', fontSize: 10, color: 'var(--couleur-principale)', fontWeight: 600 }}>
-                          {produit.variantes.length} variante{produit.variantes.length > 1 ? 's' : ''} →
+                          {produit.variantes.length} format{produit.variantes.length > 1 ? 's' : ''} →
                         </p>
                       )}
                       {enPanier && (

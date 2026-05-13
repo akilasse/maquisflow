@@ -35,6 +35,7 @@ const Commandes = () => {
   const [envoi, setEnvoi]               = useState(false)
   const [message, setMessage]           = useState(null)
   const [chargement, setChargement]     = useState(true)
+  const [modalFormats, setModalFormats] = useState(null)
   const flash = (type, texte) => {
     setMessage({ type, texte })
     setTimeout(() => setMessage(null), 3000)
@@ -82,16 +83,34 @@ const Commandes = () => {
 
   // ── Panier ────────────────────────────────────────────────
   const ajouterAuPanier = (produit) => {
+    if (produit.variantes && produit.variantes.length > 0) {
+      setModalFormats(produit)
+      return
+    }
+    const cle = `${produit.id}__`
     setPanier(prev => {
-      const exist = prev.find(l => l.produit_id === produit.id)
-      if (exist) return prev.map(l => l.produit_id === produit.id ? { ...l, quantite: l.quantite + 1 } : l)
-      return [...prev, { produit_id: produit.id, nom: produit.nom, prix_unitaire: parseFloat(produit.prix_vente), quantite: 1, unite: produit.unite }]
+      const exist = prev.find(l => l.cle === cle)
+      if (exist) return prev.map(l => l.cle === cle ? { ...l, quantite: l.quantite + 1 } : l)
+      return [...prev, { cle, produit_id: produit.id, nom: produit.nom, prix_unitaire: parseFloat(produit.prix_vente), quantite: 1, unite: produit.unite, variante_nom: null, coefficient: null }]
     })
   }
 
-  const modifierQte = (produit_id, delta) => {
+  const choisirFormat = (produit, variante) => {
+    const cle = `${produit.id}__${variante ? variante.nom : ''}`
+    const nom = variante ? `${produit.nom} — ${variante.nom}` : produit.nom
+    const prix = variante ? parseFloat(variante.prix_vente) : parseFloat(produit.prix_vente)
+    const coeff = variante ? parseFloat(variante.coefficient) : null
     setPanier(prev => {
-      const updated = prev.map(l => l.produit_id === produit_id ? { ...l, quantite: l.quantite + delta } : l)
+      const exist = prev.find(l => l.cle === cle)
+      if (exist) return prev.map(l => l.cle === cle ? { ...l, quantite: l.quantite + 1 } : l)
+      return [...prev, { cle, produit_id: produit.id, nom, prix_unitaire: prix, quantite: 1, unite: produit.unite, variante_nom: variante ? variante.nom : null, coefficient: coeff }]
+    })
+    setModalFormats(null)
+  }
+
+  const modifierQte = (cle, delta) => {
+    setPanier(prev => {
+      const updated = prev.map(l => l.cle === cle ? { ...l, quantite: l.quantite + delta } : l)
       return updated.filter(l => l.quantite > 0)
     })
   }
@@ -108,7 +127,12 @@ const Commandes = () => {
         table_id:     tableId ? parseInt(tableId) : null,
         type_commande: typeCommande,
         note:          note.trim() || null,
-        lignes:        panier.map(l => ({ produit_id: l.produit_id, quantite: l.quantite, prix_unitaire: l.prix_unitaire }))
+        lignes:        panier.map(l => ({
+          produit_id:   l.produit_id,
+          quantite:     l.quantite,
+          prix_unitaire: l.prix_unitaire,
+          ...(l.variante_nom && { variante_nom: l.variante_nom, coefficient: l.coefficient })
+        }))
       })
       setPanier([])
       setNote('')
@@ -244,13 +268,15 @@ const Commandes = () => {
           {/* Grille produits */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8, marginBottom: 80 }}>
             {produitsFiltres.map(p => {
-              const enPanier = panier.find(l => l.produit_id === p.id)
+              const lignesProduit = panier.filter(l => l.produit_id === p.id)
+              const qteTotal = lignesProduit.reduce((s, l) => s + l.quantite, 0)
+              const hasVariantes = p.variantes && p.variantes.length > 0
               return (
                 <button key={p.id} onClick={() => ajouterAuPanier(p)}
                   style={{
-                    backgroundColor: 'white', border: `2px solid ${enPanier ? couleur : '#f3f4f6'}`,
+                    backgroundColor: 'white', border: `2px solid ${qteTotal > 0 ? couleur : '#f3f4f6'}`,
                     borderRadius: 12, padding: '12px 10px', cursor: 'pointer', textAlign: 'left',
-                    transition: 'all 0.15s', boxShadow: enPanier ? `0 0 0 2px ${couleur}33` : '0 1px 3px rgba(0,0,0,0.06)'
+                    transition: 'all 0.15s', boxShadow: qteTotal > 0 ? `0 0 0 2px ${couleur}33` : '0 1px 3px rgba(0,0,0,0.06)'
                   }}>
                   {p.photo_url && (
                     <img src={p.photo_url} alt={p.nom}
@@ -259,9 +285,12 @@ const Commandes = () => {
                   <p style={{ margin: '0 0 2px', fontSize: 13, fontWeight: 700, color: '#111827', lineHeight: 1.3 }}>{p.nom}</p>
                   {p.categorie && <p style={{ margin: '0 0 4px', fontSize: 11, color: '#9ca3af' }}>{p.categorie}</p>}
                   <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: couleur }}>{fmtPrix(p.prix_vente)} XOF</p>
-                  {enPanier && (
+                  {hasVariantes && (
+                    <p style={{ margin: '4px 0 0', fontSize: 11, color: '#9ca3af' }}>{p.variantes.length} format{p.variantes.length > 1 ? 's' : ''} →</p>
+                  )}
+                  {qteTotal > 0 && (
                     <div style={{ marginTop: 6, backgroundColor: couleur, color: 'white', borderRadius: 6, padding: '2px 8px', fontSize: 12, fontWeight: 700, textAlign: 'center' }}>
-                      × {enPanier.quantite}
+                      × {qteTotal}
                     </div>
                   )}
                 </button>
@@ -354,6 +383,49 @@ const Commandes = () => {
         </div>
       )}
 
+      {/* ── Modal sélection format ── */}
+      {modalFormats && (
+        <>
+          <div onClick={() => setModalFormats(null)} style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 500
+          }} />
+          <div style={{
+            position: 'fixed', bottom: 0, left: 0, right: 0,
+            backgroundColor: 'white', borderRadius: '20px 20px 0 0',
+            padding: '20px 16px 32px', zIndex: 501,
+            boxShadow: '0 -4px 24px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>Quel format ?</p>
+                <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>{modalFormats.nom}</p>
+              </div>
+              <button onClick={() => setModalFormats(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => choisirFormat(modalFormats, null)} style={{
+                padding: '14px 16px', border: `2px solid #e5e7eb`, borderRadius: 12,
+                backgroundColor: 'white', cursor: 'pointer', textAlign: 'left',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{modalFormats.unite || 'Unité de base'}</span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: couleur }}>{fmtPrix(modalFormats.prix_vente)} XOF</span>
+              </button>
+              {modalFormats.variantes.map(v => (
+                <button key={v.id} onClick={() => choisirFormat(modalFormats, v)} style={{
+                  padding: '14px 16px', border: `2px solid ${couleur}`, borderRadius: 12,
+                  backgroundColor: couleur + '08', cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{v.nom}</span>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: couleur }}>{fmtPrix(v.prix_vente)} XOF</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* ── Panneau panier (bottom sheet) ── */}
       {panierOuvert && (
         <>
@@ -374,15 +446,15 @@ const Commandes = () => {
 
             {/* Lignes panier */}
             {panier.map(l => (
-              <div key={l.produit_id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
+              <div key={l.cle} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
                 <div style={{ flex: 1 }}>
                   <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#111827' }}>{l.nom}</p>
                   <p style={{ margin: 0, fontSize: 12, color: '#9ca3af' }}>{fmtPrix(l.prix_unitaire)} XOF × {l.quantite}</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <button onClick={() => modifierQte(l.produit_id, -1)} style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', backgroundColor: '#f3f4f6', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>−</button>
+                  <button onClick={() => modifierQte(l.cle, -1)} style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', backgroundColor: '#f3f4f6', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>−</button>
                   <span style={{ fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{l.quantite}</span>
-                  <button onClick={() => modifierQte(l.produit_id, +1)} style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', backgroundColor: couleur, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>+</button>
+                  <button onClick={() => modifierQte(l.cle, +1)} style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', backgroundColor: couleur, color: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>+</button>
                 </div>
               </div>
             ))}

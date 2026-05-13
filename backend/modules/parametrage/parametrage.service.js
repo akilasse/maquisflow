@@ -277,9 +277,10 @@ const modifierMaquis = async (prisma, maquis_id, data) => {
       paiement_avant:          data.paiement_avant,
       heure_debut_journee:     data.heure_debut_journee !== undefined ? parseInt(data.heure_debut_journee) : undefined,
       type:                    data.type,
-      categories_custom:       data.categories_custom  !== undefined ? data.categories_custom  : undefined,
-      unites_custom:           data.unites_custom      !== undefined ? data.unites_custom      : undefined,
-      variantes_gabarits:      data.variantes_gabarits !== undefined ? data.variantes_gabarits : undefined,
+      categories_custom:       data.categories_custom       !== undefined ? data.categories_custom       : undefined,
+      unites_custom:           data.unites_custom           !== undefined ? data.unites_custom           : undefined,
+      variantes_gabarits:      data.variantes_gabarits      !== undefined ? data.variantes_gabarits      : undefined,
+      conditionnements_custom: data.conditionnements_custom !== undefined ? data.conditionnements_custom : undefined,
     }
   })
 }

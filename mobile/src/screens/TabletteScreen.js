@@ -346,7 +346,7 @@ export default function TabletteScreen({ onRetour }) {
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <Text style={s.modalTitre}>{modalVariantesTabl?.nom}</Text>
-            <Text style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', marginBottom: 16 }}>Choisir une variante</Text>
+            <Text style={{ fontSize: 13, color: '#6b7280', textAlign: 'center', marginBottom: 16 }}>Quel format ?</Text>
             <TouchableOpacity
               style={[s.caisseOption, { borderColor: couleur }]}
               onPress={() => {

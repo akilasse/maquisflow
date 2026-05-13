@@ -165,7 +165,7 @@ const Parametrage = () => {
   const NOMS_VARIANTES_SUGGERES = ['Casier', 'Carton', 'Bouteille', 'Verre', 'Demi', 'Coupe', 'Dose', 'Portion', 'Litre', '50cl', '33cl', 'Pack']
   const [formFournisseur, setFormFournisseur] = useState({ nom: '', telephone: '', email: '', adresse: '' })
   const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', login: '', mot_de_passe: '', role: 'serveur' })
-  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false, heure_debut_journee: 0, categories_custom: [], unites_custom: [], variantes_gabarits: [] })
+  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false, heure_debut_journee: 0, categories_custom: [], unites_custom: [], variantes_gabarits: [], conditionnements_custom: [] })
   const [stations, setStations] = useState([])
   const [tables, setTables]     = useState([])
   const [formStation, setFormStation] = useState({ nom: '', couleur: '#6b7280', type: 'preparation' })
@@ -175,6 +175,9 @@ const Parametrage = () => {
   const [nouvelleCategorie, setNouvelleCategorie] = useState('')
   const [nouvelleUnite, setNouvelleUnite]         = useState('')
   const [nouveauGabarit, setNouveauGabarit]       = useState({ nom: '', coefficient: '' })
+  const [nouveauCond, setNouveauCond]             = useState({ nom: '', equivalent: '' })
+  const [editCondIdx, setEditCondIdx]             = useState(null)
+  const [editCondVal, setEditCondVal]             = useState({ nom: '', equivalent: '' })
   const [editCatIdx,  setEditCatIdx]  = useState(null)
   const [editCatVal,  setEditCatVal]  = useState('')
   const [editUniteIdx, setEditUniteIdx] = useState(null)
@@ -210,9 +213,10 @@ const Parametrage = () => {
         module_commandes_direct: maquisData.module_commandes_direct || false,
         paiement_avant:          maquisData.paiement_avant          || false,
         heure_debut_journee:     maquisData.heure_debut_journee     ?? 0,
-        categories_custom:       Array.isArray(maquisData.categories_custom)  ? maquisData.categories_custom  : [],
-        unites_custom:           Array.isArray(maquisData.unites_custom)      ? maquisData.unites_custom      : [],
-        variantes_gabarits:      Array.isArray(maquisData.variantes_gabarits) ? maquisData.variantes_gabarits : [],
+        categories_custom:       Array.isArray(maquisData.categories_custom)       ? maquisData.categories_custom       : [],
+        unites_custom:           Array.isArray(maquisData.unites_custom)           ? maquisData.unites_custom           : [],
+        variantes_gabarits:      Array.isArray(maquisData.variantes_gabarits)      ? maquisData.variantes_gabarits      : [],
+        conditionnements_custom: Array.isArray(maquisData.conditionnements_custom) ? maquisData.conditionnements_custom : [],
       })
       mettreAJourMaquis(maquisData)
       // Charge stations et tables si module actif — isolé pour ne pas bloquer le reste
@@ -254,11 +258,18 @@ const Parametrage = () => {
 
   const soumettreProdukt = async () => {
     try {
+      const payload = {
+        ...formProduit,
+        variantes: formProduit.variantes.map(v => ({
+          ...v,
+          coefficient: v.par_unite ? (1 / parseFloat(v.par_unite)) : parseFloat(v.coefficient) || 1
+        }))
+      }
       if (modal?.id) {
-        await api.put(`/api/parametrage/produits/${modal.id}`, formProduit)
+        await api.put(`/api/parametrage/produits/${modal.id}`, payload)
         afficherMessage('succes', 'Produit modifié !')
       } else {
-        await api.post('/api/parametrage/produits', formProduit)
+        await api.post('/api/parametrage/produits', payload)
         afficherMessage('succes', 'Produit créé !')
       }
       setModal(null)
@@ -398,7 +409,27 @@ const Parametrage = () => {
   const supprimerUnite = (i) =>
     saveCatalogue({ unites_custom: (formMaquis.unites_custom || []).filter((_, j) => j !== i) })
 
-  // Gabarits
+  // Conditionnements
+  const ajouterConditionnement = () => {
+    const nom = nouveauCond.nom.trim()
+    const equivalent = parseFloat(nouveauCond.equivalent)
+    if (!nom || isNaN(equivalent) || equivalent < 1) return
+    saveCatalogue({ conditionnements_custom: [...(formMaquis.conditionnements_custom || []), { nom, equivalent }] })
+    setNouveauCond({ nom: '', equivalent: '' }); setAjoutCatalogue(false)
+  }
+  const modifierConditionnement = (i) => {
+    const nom = editCondVal.nom.trim()
+    const equivalent = parseFloat(editCondVal.equivalent)
+    if (!nom || isNaN(equivalent) || equivalent < 1) return
+    const arr = [...(formMaquis.conditionnements_custom || [])]
+    arr[i] = { nom, equivalent }
+    saveCatalogue({ conditionnements_custom: arr })
+    setEditCondIdx(null)
+  }
+  const supprimerConditionnement = (i) =>
+    saveCatalogue({ conditionnements_custom: (formMaquis.conditionnements_custom || []).filter((_, j) => j !== i) })
+
+  // Gabarits (legacy)
   const ajouterGabarit = () => {
     const nom   = nouveauGabarit.nom.trim()
     const coeff = parseFloat(nouveauGabarit.coefficient)
@@ -493,68 +524,82 @@ const Parametrage = () => {
             <div id="form-produit" style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #e5e7eb' }}>
               <h3 style={{ margin: '0 0 12px', fontSize: '15px' }}>{modal.id ? 'Modifier' : 'Nouveau'} produit</h3>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', overflow: 'visible' }}>
-                <input placeholder="Nom du produit *" value={formProduit.nom} onChange={e => setFormProduit({ ...formProduit, nom: e.target.value })} style={styleInput} />
-                {(maquis?.categories_custom || []).length > 0
-                  ? <SelectRecherche valeur={formProduit.categorie} onChange={v => setFormProduit({ ...formProduit, categorie: v })} options={maquis.categories_custom} placeholder="Choisir une catégorie..." style={styleInput} />
-                  : <input placeholder="Catégorie (ex: Boissons)" value={formProduit.categorie} onChange={e => setFormProduit({ ...formProduit, categorie: e.target.value })} style={styleInput} />
-                }
-                <input type="number" placeholder="Prix de vente *" value={formProduit.prix_vente} onChange={e => setFormProduit({ ...formProduit, prix_vente: e.target.value })} style={styleInput} />
-                <input type="number" placeholder="Prix d'achat (optionnel)" value={formProduit.prix_achat} onChange={e => setFormProduit({ ...formProduit, prix_achat: e.target.value })} style={styleInput} />
-                <input type="number" placeholder="Seuil d'alerte (stock min)" value={formProduit.stock_min} onChange={e => setFormProduit({ ...formProduit, stock_min: e.target.value })} style={styleInput} />
-                {(maquis?.unites_custom || []).length > 0
-                  ? <SelectRecherche valeur={formProduit.unite} onChange={v => setFormProduit({ ...formProduit, unite: v })} options={maquis.unites_custom} placeholder="Choisir une unité..." style={styleInput} />
-                  : <input placeholder="Unité (bouteille, portion...)" value={formProduit.unite} onChange={e => setFormProduit({ ...formProduit, unite: e.target.value })} style={styleInput} />
-                }
-                <input placeholder="Code barre (optionnel)" value={formProduit.code_barre} onChange={e => setFormProduit({ ...formProduit, code_barre: e.target.value })} style={styleInput} />
-                <input placeholder="Conditionnement (ex: casier, carton)" value={formProduit.conditionnement} onChange={e => setFormProduit({ ...formProduit, conditionnement: e.target.value })} style={styleInput} />
-                <input type="number" placeholder="Nb unités par cond. (ex: 24)" value={formProduit.nb_par_cond} onChange={e => setFormProduit({ ...formProduit, nb_par_cond: e.target.value })} style={styleInput} />
-                <input type="number" placeholder="Prix du conditionnement" value={formProduit.prix_cond} onChange={e => setFormProduit({ ...formProduit, prix_cond: e.target.value })} style={styleInput} />
+              {(() => {
+                const lbl = (txt, requis) => <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#6b7280', marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{txt}{requis && <span style={{ color: '#ef4444' }}> *</span>}</label>
+                const wrap = (children) => <div style={{ marginBottom: 4 }}>{children}</div>
+                const inp = { ...styleInput, marginBottom: 0 }
+                return (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', overflow: 'visible' }}>
+                {wrap(<>{lbl('Nom du produit', true)}<input placeholder="Ex : Chivas Regal" value={formProduit.nom} onChange={e => setFormProduit({ ...formProduit, nom: e.target.value })} style={inp} /></>)}
+                {wrap(<>{lbl('Catégorie')}{(maquis?.categories_custom || []).length > 0
+                  ? <SelectRecherche valeur={formProduit.categorie} onChange={v => setFormProduit({ ...formProduit, categorie: v })} options={maquis.categories_custom} placeholder="Choisir..." style={inp} />
+                  : <input placeholder="Ex : Boissons" value={formProduit.categorie} onChange={e => setFormProduit({ ...formProduit, categorie: e.target.value })} style={inp} />
+                }</>)}
+                {wrap(<>{lbl('Prix de vente', true)}<input type="number" placeholder="0" value={formProduit.prix_vente} onChange={e => setFormProduit({ ...formProduit, prix_vente: e.target.value })} style={inp} /></>)}
+                {wrap(<>{lbl("Prix d'achat")}<input type="number" placeholder="Optionnel" value={formProduit.prix_achat} onChange={e => setFormProduit({ ...formProduit, prix_achat: e.target.value })} style={inp} /></>)}
+                {wrap(<>{lbl('Seuil alerte stock')}<input type="number" placeholder="0" value={formProduit.stock_min} onChange={e => setFormProduit({ ...formProduit, stock_min: e.target.value })} style={inp} /></>)}
+                {wrap(<>{lbl('Unité de base')}{(maquis?.unites_custom || []).length > 0
+                  ? <SelectRecherche valeur={formProduit.unite} onChange={v => setFormProduit({ ...formProduit, unite: v })} options={maquis.unites_custom} placeholder="Choisir..." style={inp} />
+                  : <input placeholder="Ex : bouteille, portion" value={formProduit.unite} onChange={e => setFormProduit({ ...formProduit, unite: e.target.value })} style={inp} />
+                }</>)}
+                {wrap(<>{lbl('Code barre')}<input placeholder="Optionnel" value={formProduit.code_barre} onChange={e => setFormProduit({ ...formProduit, code_barre: e.target.value })} style={inp} /></>)}
+                {wrap(<>{lbl('Conditionnement')}{(maquis?.conditionnements_custom || []).length > 0
+                  ? <SelectRecherche valeur={formProduit.conditionnement}
+                      onChange={v => {
+                        const found = (maquis.conditionnements_custom || []).find(c => c.nom === v)
+                        setFormProduit({ ...formProduit, conditionnement: v, nb_par_cond: found ? String(found.equivalent) : formProduit.nb_par_cond })
+                      }}
+                      options={(maquis.conditionnements_custom || []).map(c => c.nom)}
+                      placeholder="Choisir..." style={inp} />
+                  : <input placeholder="Ex : casier, carton" value={formProduit.conditionnement} onChange={e => setFormProduit({ ...formProduit, conditionnement: e.target.value })} style={inp} />
+                }</>)}
+                {wrap(<>{lbl('Nb unités par cond.')}<input type="number" placeholder="Ex : 24" value={formProduit.nb_par_cond} onChange={e => setFormProduit({ ...formProduit, nb_par_cond: e.target.value })} style={inp} /></>)}
+                {wrap(<>{lbl('Prix du conditionnement')}<input type="number" placeholder="0" value={formProduit.prix_cond} onChange={e => setFormProduit({ ...formProduit, prix_cond: e.target.value })} style={inp} /></>)}
               </div>
+                )
+              })()}
 
-              {/* Section variantes de vente */}
+              {/* Section formats de vente */}
               <div style={{ marginTop: '4px', marginBottom: '10px', padding: '14px', backgroundColor: 'white', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                   <div>
-                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#374151' }}>Variantes de vente</p>
-                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>Ex : Casier (24 btle), Verre (0.2 btle)... Le stock se décrémente en unité de base.</p>
+                    <p style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: '#374151' }}>Formats de vente</p>
+                    <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>
+                      Formats disponibles à la caisse. Le stock se décrémente en <strong>{formProduit.unite || 'unité'}</strong>.
+                    </p>
                   </div>
-                  <button onClick={() => setFormProduit({ ...formProduit, variantes: [...formProduit.variantes, { nom: '', coefficient: '', prix_vente: '' }] })}
+                  <button onClick={() => setFormProduit({ ...formProduit, variantes: [...formProduit.variantes, { nom: '', par_unite: '', prix_vente: '' }] })}
                     style={{ padding: '6px 14px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '700', cursor: 'pointer', flexShrink: 0 }}>
                     + Ajouter
                   </button>
                 </div>
 
-                {/* Gabarits rapides */}
-                {(maquis?.variantes_gabarits || []).length > 0 && (
-                  <div style={{ marginBottom: 10 }}>
-                    <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600, color: '#6b7280' }}>Gabarits rapides :</p>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {maquis.variantes_gabarits.map((g, i) => (
-                        <button key={i} type="button"
-                          onClick={() => setFormProduit({ ...formProduit, variantes: [...formProduit.variantes, { nom: g.nom, coefficient: String(g.coefficient), prix_vente: '' }] })}
-                          style={{ padding: '4px 12px', borderRadius: 20, border: '1.5px solid #e5e7eb', backgroundColor: '#f9fafb', color: '#374151', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                          + {g.nom} ×{g.coefficient}
-                        </button>
-                      ))}
-                    </div>
+                {formProduit.variantes.length === 0 && (
+                  <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '10px 0' }}>
+                    Aucun format — le produit se vend à l'{formProduit.unite || 'unité'} uniquement
+                  </p>
+                )}
+                {formProduit.variantes.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.4fr 1.2fr auto', gap: '6px', marginBottom: '4px' }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Format</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Qté par {formProduit.unite || 'unité'}</span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>Prix XOF</span>
+                    <span />
                   </div>
                 )}
-
-                <datalist id="noms-variantes">
-                  {NOMS_VARIANTES_SUGGERES.map(n => <option key={n} value={n} />)}
-                </datalist>
-
-                {formProduit.variantes.length === 0 && (
-                  <p style={{ margin: 0, fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '10px 0' }}>Aucune variante — le produit se vend à l'unité de base</p>
-                )}
                 {formProduit.variantes.map((v, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
-                    <input list="noms-variantes" placeholder="Nom (ex: Casier, Verre)" value={v.nom}
-                      onChange={e => { const vv = [...formProduit.variantes]; vv[i] = { ...vv[i], nom: e.target.value }; setFormProduit({ ...formProduit, variantes: vv }) }}
-                      style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }} />
-                    <input type="number" placeholder="Coeff (ex: 24)" value={v.coefficient} min="0.01" step="0.01"
-                      onChange={e => { const vv = [...formProduit.variantes]; vv[i] = { ...vv[i], coefficient: e.target.value }; setFormProduit({ ...formProduit, variantes: vv }) }}
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.8fr 1.4fr 1.2fr auto', gap: '6px', marginBottom: '6px', alignItems: 'center' }}>
+                    {(maquis?.unites_custom || []).length > 0
+                      ? <SelectRecherche valeur={v.nom}
+                          onChange={val => { const vv = [...formProduit.variantes]; vv[i] = { ...vv[i], nom: val }; setFormProduit({ ...formProduit, variantes: vv }) }}
+                          options={maquis.unites_custom} placeholder="Format..."
+                          style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', width: '100%', boxSizing: 'border-box', marginBottom: 0 }} />
+                      : <input placeholder="Format (ex: Verre)" value={v.nom}
+                          onChange={e => { const vv = [...formProduit.variantes]; vv[i] = { ...vv[i], nom: e.target.value }; setFormProduit({ ...formProduit, variantes: vv }) }}
+                          style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }} />
+                    }
+                    <input type="number" placeholder="Ex: 15" value={v.par_unite} min="1" step="1"
+                      onChange={e => { const vv = [...formProduit.variantes]; vv[i] = { ...vv[i], par_unite: e.target.value }; setFormProduit({ ...formProduit, variantes: vv }) }}
                       style={{ padding: '8px 10px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', width: '100%', boxSizing: 'border-box' }} />
                     <input type="number" placeholder="Prix XOF" value={v.prix_vente}
                       onChange={e => { const vv = [...formProduit.variantes]; vv[i] = { ...vv[i], prix_vente: e.target.value }; setFormProduit({ ...formProduit, variantes: vv }) }}
@@ -563,11 +608,6 @@ const Parametrage = () => {
                       style={{ width: 30, height: 30, backgroundColor: '#fef2f2', border: 'none', borderRadius: '7px', cursor: 'pointer', color: '#dc2626', fontSize: '16px', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>×</button>
                   </div>
                 ))}
-                {formProduit.variantes.length > 0 && (
-                  <p style={{ margin: '6px 0 0', fontSize: '11px', color: '#9ca3af' }}>
-                    Coeff = nombre d'unités de base consommées — ex: Verre = 0.33 bouteille
-                  </p>
-                )}
               </div>
 
               <div style={{ display: 'flex', gap: '8px' }}>
@@ -656,7 +696,7 @@ const Parametrage = () => {
                   </td>
                   <td style={{ padding: '10px' }}>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button onClick={() => { setModal({ type: 'produit', id: p.id }); setFormProduit({ nom: p.nom, categorie: p.categorie || '', prix_vente: p.prix_vente, prix_achat: p.prix_achat || '', stock_min: p.stock_min, unite: p.unite, code_barre: p.code_barre || '', conditionnement: p.conditionnement || '', nb_par_cond: p.nb_par_cond || '', prix_cond: p.prix_cond || '', variantes: (p.variantes || []).map(v => ({ nom: v.nom, coefficient: v.coefficient, prix_vente: v.prix_vente })) }); setTimeout(() => document.getElementById('form-produit')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
+                      <button onClick={() => { setModal({ type: 'produit', id: p.id }); setFormProduit({ nom: p.nom, categorie: p.categorie || '', prix_vente: p.prix_vente, prix_achat: p.prix_achat || '', stock_min: p.stock_min, unite: p.unite, code_barre: p.code_barre || '', conditionnement: p.conditionnement || '', nb_par_cond: p.nb_par_cond || '', prix_cond: p.prix_cond || '', variantes: (p.variantes || []).map(v => ({ nom: v.nom, par_unite: Math.round(1 / parseFloat(v.coefficient)), prix_vente: v.prix_vente })) }); setTimeout(() => document.getElementById('form-produit')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
                       <button onClick={() => toggleActifProduit(p)} style={{ padding: '4px 10px', backgroundColor: p.actif ? '#fef2f2' : '#f0fdf4', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: p.actif ? '#dc2626' : '#16a34a' }}>{p.actif ? 'Désactiver' : 'Activer'}</button>
                     </div>
                   </td>
@@ -1026,9 +1066,9 @@ const Parametrage = () => {
           {/* Sous-onglets */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
             {[
-              { key: 'categories', label: `📂 Catégories (${(formMaquis.categories_custom||[]).length})` },
-              { key: 'unites',     label: `📏 Unités (${(formMaquis.unites_custom||[]).length})` },
-              { key: 'gabarits',   label: `🔖 Gabarits variantes (${(formMaquis.variantes_gabarits||[]).length})` },
+              { key: 'categories',      label: `📂 Catégories (${(formMaquis.categories_custom||[]).length})` },
+              { key: 'formats',         label: `🏷️ Formats de vente (${(formMaquis.unites_custom||[]).length})` },
+              { key: 'conditionnements',label: `📦 Conditionnements (${(formMaquis.conditionnements_custom||[]).length})` },
             ].map(o => (
               <button key={o.key} onClick={() => { setCatalogueOnglet(o.key); setAjoutCatalogue(false) }}
                 style={{ padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontWeight: 500, fontSize: 13,
@@ -1102,18 +1142,21 @@ const Parametrage = () => {
             </>
           )}
 
-          {/* SOUS-ONGLET : Unités */}
-          {catalogueOnglet === 'unites' && (
+          {/* SOUS-ONGLET : Formats de vente */}
+          {catalogueOnglet === 'formats' && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Unités ({(formMaquis.unites_custom||[]).length})</h2>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Formats de vente ({(formMaquis.unites_custom||[]).length})</h2>
+                  <p style={{ margin: '3px 0 0', fontSize: 12, color: '#9ca3af' }}>Les formats disponibles à la caisse et aux commandes (ex: Bouteille, Verre, Tournée...)</p>
+                </div>
                 <button onClick={() => { setAjoutCatalogue(v => !v); setNouvelleUnite('') }} style={styleBouton()}>
-                  {ajoutCatalogue ? 'Annuler' : '+ Nouvelle unité'}
+                  {ajoutCatalogue ? 'Annuler' : '+ Nouveau format'}
                 </button>
               </div>
               {ajoutCatalogue && (
                 <div style={{ backgroundColor: '#f9fafb', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e5e7eb', display: 'flex', gap: 8 }}>
-                  <input autoFocus placeholder="Nom de l'unité (ex: bouteille, kg, portion...)" value={nouvelleUnite}
+                  <input autoFocus placeholder="Nom du format (ex: Bouteille, Verre, Tournée...)" value={nouvelleUnite}
                     onChange={e => setNouvelleUnite(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { ajouterUnite() } }}
                     style={{ flex: 1, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }} />
@@ -1165,76 +1208,76 @@ const Parametrage = () => {
             </>
           )}
 
-          {/* SOUS-ONGLET : Gabarits */}
-          {catalogueOnglet === 'gabarits' && (
+          {/* SOUS-ONGLET : Conditionnements */}
+          {catalogueOnglet === 'conditionnements' && (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                 <div>
-                  <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Gabarits de variantes ({(formMaquis.variantes_gabarits||[]).length})</h2>
-                  <p style={{ margin: '3px 0 0', fontSize: 12, color: '#9ca3af' }}>Coefficient = nb d'unités de base (ex: Casier = 24 bouteilles). Le prix est renseigné par produit.</p>
+                  <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Conditionnements ({(formMaquis.conditionnements_custom||[]).length})</h2>
+                  <p style={{ margin: '3px 0 0', fontSize: 12, color: '#9ca3af' }}>Définissez vos emballages d'approvisionnement et leur équivalence en unité de base (ex: 1 Carton = 12 bouteilles)</p>
                 </div>
-                <button onClick={() => { setAjoutCatalogue(v => !v); setNouveauGabarit({ nom: '', coefficient: '' }) }} style={styleBouton()}>
-                  {ajoutCatalogue ? 'Annuler' : '+ Nouveau gabarit'}
+                <button onClick={() => { setAjoutCatalogue(v => !v); setNouveauCond({ nom: '', equivalent: '' }) }} style={styleBouton()}>
+                  {ajoutCatalogue ? 'Annuler' : '+ Nouveau conditionnement'}
                 </button>
               </div>
               {ajoutCatalogue && (
-                <div style={{ backgroundColor: '#f9fafb', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e5e7eb', display: 'flex', gap: 8 }}>
-                  <input list="gabarit-noms" autoFocus placeholder="Nom (ex: Casier, Verre, Demi...)" value={nouveauGabarit.nom}
-                    onChange={e => setNouveauGabarit({ ...nouveauGabarit, nom: e.target.value })}
+                <div style={{ backgroundColor: '#f9fafb', borderRadius: 10, padding: 14, marginBottom: 14, border: '1px solid #e5e7eb', display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input autoFocus placeholder="Nom (ex: Carton, Casier, Caisse...)" value={nouveauCond.nom}
+                    onChange={e => setNouveauCond({ ...nouveauCond, nom: e.target.value })}
                     style={{ flex: 2, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }} />
-                  <datalist id="gabarit-noms">{['Casier','Carton','Bouteille','Verre','Demi','Coupe','Dose','Portion','Litre','Pack'].map(n => <option key={n} value={n} />)}</datalist>
-                  <input type="number" placeholder="Coefficient (ex: 24)" value={nouveauGabarit.coefficient} min="0.01" step="0.01"
-                    onChange={e => setNouveauGabarit({ ...nouveauGabarit, coefficient: e.target.value })}
+                  <span style={{ fontSize: 13, color: '#6b7280', whiteSpace: 'nowrap' }}>= combien d'unités ?</span>
+                  <input type="number" placeholder="ex: 12" value={nouveauCond.equivalent} min="1" step="1"
+                    onChange={e => setNouveauCond({ ...nouveauCond, equivalent: e.target.value })}
+                    onKeyDown={e => { if (e.key === 'Enter') ajouterConditionnement() }}
                     style={{ flex: 1, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 8, fontSize: 14 }} />
-                  <button onClick={() => { ajouterGabarit() }} style={styleBouton()}>Enregistrer</button>
+                  <button onClick={ajouterConditionnement} style={styleBouton()}>Enregistrer</button>
                 </div>
               )}
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
                     <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Nom</th>
-                    <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Coefficient</th>
+                    <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Équivalence</th>
                     <th style={{ padding: '10px', textAlign: 'left', fontSize: 13, color: '#6b7280', fontWeight: 500 }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {(formMaquis.variantes_gabarits||[]).map((g, i) => (
+                  {(formMaquis.conditionnements_custom||[]).map((c, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid #f9fafb' }}>
-                      {editGabIdx === i ? (
+                      {editCondIdx === i ? (
                         <>
                           <td style={{ padding: '8px 6px' }}>
-                            <input autoFocus list="gabarit-noms-edit" value={editGabVal.nom} onChange={e => setEditGabVal({ ...editGabVal, nom: e.target.value })}
+                            <input autoFocus value={editCondVal.nom} onChange={e => setEditCondVal({ ...editCondVal, nom: e.target.value })}
                               style={{ width: '100%', padding: '7px 10px', border: '1.5px solid var(--couleur-principale)', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
-                            <datalist id="gabarit-noms-edit">{['Casier','Carton','Bouteille','Verre','Demi','Coupe','Dose','Portion','Litre','Pack'].map(n => <option key={n} value={n} />)}</datalist>
                           </td>
                           <td style={{ padding: '8px 6px' }}>
-                            <input type="number" value={editGabVal.coefficient} min="0.01" step="0.01" onChange={e => setEditGabVal({ ...editGabVal, coefficient: e.target.value })}
-                              onKeyDown={e => { if (e.key === 'Enter') modifierGabarit(i); if (e.key === 'Escape') setEditGabIdx(null) }}
+                            <input type="number" value={editCondVal.equivalent} min="1" step="1" onChange={e => setEditCondVal({ ...editCondVal, equivalent: e.target.value })}
+                              onKeyDown={e => { if (e.key === 'Enter') modifierConditionnement(i); if (e.key === 'Escape') setEditCondIdx(null) }}
                               style={{ width: '100%', padding: '7px 10px', border: '1.5px solid var(--couleur-principale)', borderRadius: 6, fontSize: 14, boxSizing: 'border-box' }} />
                           </td>
                           <td style={{ padding: '8px 6px' }}>
                             <div style={{ display: 'flex', gap: 6 }}>
-                              <button onClick={() => modifierGabarit(i)} style={{ padding: '4px 10px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Enregistrer</button>
-                              <button onClick={() => setEditGabIdx(null)} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Annuler</button>
+                              <button onClick={() => modifierConditionnement(i)} style={{ padding: '4px 10px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>Enregistrer</button>
+                              <button onClick={() => setEditCondIdx(null)} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Annuler</button>
                             </div>
                           </td>
                         </>
                       ) : (
                         <>
-                          <td style={{ padding: '12px 10px', fontSize: 14, fontWeight: 600 }}>{g.nom}</td>
-                          <td style={{ padding: '12px 10px', fontSize: 13, color: '#6b7280' }}>× {g.coefficient} unité{parseFloat(g.coefficient) > 1 ? 's' : ''}</td>
+                          <td style={{ padding: '12px 10px', fontSize: 14, fontWeight: 600 }}>{c.nom}</td>
+                          <td style={{ padding: '12px 10px', fontSize: 13, color: '#6b7280' }}>1 {c.nom} = {c.equivalent} unité{c.equivalent > 1 ? 's' : ''}</td>
                           <td style={{ padding: '12px 10px' }}>
                             <div style={{ display: 'flex', gap: 6 }}>
-                              <button onClick={() => { setEditGabIdx(i); setEditGabVal({ nom: g.nom, coefficient: String(g.coefficient) }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Modifier</button>
-                              <button onClick={() => supprimerGabarit(i)} style={{ padding: '4px 10px', backgroundColor: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#dc2626' }}>Supprimer</button>
+                              <button onClick={() => { setEditCondIdx(i); setEditCondVal({ nom: c.nom, equivalent: String(c.equivalent) }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12 }}>Modifier</button>
+                              <button onClick={() => supprimerConditionnement(i)} style={{ padding: '4px 10px', backgroundColor: '#fef2f2', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 12, color: '#dc2626' }}>Supprimer</button>
                             </div>
                           </td>
                         </>
                       )}
                     </tr>
                   ))}
-                  {(formMaquis.variantes_gabarits||[]).length === 0 && (
-                    <tr><td colSpan={3} style={{ padding: '24px 10px', color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>Aucun gabarit — cliquez sur "+ Nouveau gabarit"</td></tr>
+                  {(formMaquis.conditionnements_custom||[]).length === 0 && (
+                    <tr><td colSpan={3} style={{ padding: '24px 10px', color: '#9ca3af', fontSize: 14, textAlign: 'center' }}>Aucun conditionnement — cliquez sur "+ Nouveau conditionnement"</td></tr>
                   )}
                 </tbody>
               </table>

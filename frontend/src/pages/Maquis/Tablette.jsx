@@ -36,6 +36,7 @@ const Tablette = () => {
   const [message, setMessage]           = useState(null)
   const [typeCommande, setTypeCommande] = useState('sur_place')
   const [moduleActif, setModuleActif]   = useState(true)
+  const [modalFormats, setModalFormats] = useState(null)
 
   const afficherMessage = (type, texte) => {
     setMessage({ type, texte })
@@ -136,33 +137,51 @@ const Tablette = () => {
 
   // ── Gestion du panier ────────────────────────────────────────
   const ajouterAuPanier = (produit) => {
+    if (produit.variantes && produit.variantes.length > 0) {
+      setModalFormats(produit)
+      return
+    }
+    const cle = `${produit.id}__`
     setPanier(prev => {
-      const existe = prev.find(p => p.produit_id === produit.id)
-      if (existe) return prev.map(p => p.produit_id === produit.id ? { ...p, quantite: p.quantite + 1 } : p)
-      return [...prev, { produit_id: produit.id, nom: produit.nom, prix: parseFloat(produit.prix_vente), quantite: 1, note: '', station_id: null }]
+      const existe = prev.find(p => p.cle === cle)
+      if (existe) return prev.map(p => p.cle === cle ? { ...p, quantite: p.quantite + 1 } : p)
+      return [...prev, { cle, produit_id: produit.id, nom: produit.nom, prix: parseFloat(produit.prix_vente), quantite: 1, note: '', station_id: null, variante_nom: null, coefficient: null }]
     })
   }
 
-  const modifierStation = (produit_id, station_id) => {
-    setPanier(prev => prev.map(p => p.produit_id === produit_id ? { ...p, station_id: station_id || null } : p))
+  const choisirFormat = (produit, variante) => {
+    const cle = `${produit.id}__${variante ? variante.nom : ''}`
+    const nom = variante ? `${produit.nom} — ${variante.nom}` : produit.nom
+    const prix = variante ? parseFloat(variante.prix_vente) : parseFloat(produit.prix_vente)
+    const coeff = variante ? parseFloat(variante.coefficient) : null
+    setPanier(prev => {
+      const existe = prev.find(p => p.cle === cle)
+      if (existe) return prev.map(p => p.cle === cle ? { ...p, quantite: p.quantite + 1 } : p)
+      return [...prev, { cle, produit_id: produit.id, nom, prix, quantite: 1, note: '', station_id: null, variante_nom: variante ? variante.nom : null, coefficient: coeff }]
+    })
+    setModalFormats(null)
   }
 
-  const modifierQte = (produit_id, delta) => {
+  const modifierStation = (cle, station_id) => {
+    setPanier(prev => prev.map(p => p.cle === cle ? { ...p, station_id: station_id || null } : p))
+  }
+
+  const modifierQte = (cle, delta) => {
     setPanier(prev => {
-      const item = prev.find(p => p.produit_id === produit_id)
+      const item = prev.find(p => p.cle === cle)
       if (!item) return prev
       const nouvelleQte = item.quantite + delta
-      if (nouvelleQte <= 0) return prev.filter(p => p.produit_id !== produit_id)
-      return prev.map(p => p.produit_id === produit_id ? { ...p, quantite: nouvelleQte } : p)
+      if (nouvelleQte <= 0) return prev.filter(p => p.cle !== cle)
+      return prev.map(p => p.cle === cle ? { ...p, quantite: nouvelleQte } : p)
     })
   }
 
-  const modifierNote = (produit_id, note) => {
-    setPanier(prev => prev.map(p => p.produit_id === produit_id ? { ...p, note } : p))
+  const modifierNote = (cle, note) => {
+    setPanier(prev => prev.map(p => p.cle === cle ? { ...p, note } : p))
   }
 
-  const retirerDuPanier = (produit_id) => {
-    setPanier(prev => prev.filter(p => p.produit_id !== produit_id))
+  const retirerDuPanier = (cle) => {
+    setPanier(prev => prev.filter(p => p.cle !== cle))
   }
 
   // ── Envoi en cuisine ─────────────────────────────────────────
@@ -171,10 +190,12 @@ const Tablette = () => {
     setEnvoi(true)
     try {
       const lignes = panier.map(p => ({
-        produit_id: p.produit_id,
-        quantite:   p.quantite,
-        note:       p.note || null,
-        station_id: p.station_id || null
+        produit_id:    p.produit_id,
+        quantite:      p.quantite,
+        note:          p.note || null,
+        station_id:    p.station_id || null,
+        prix_unitaire: p.prix,
+        ...(p.variante_nom && { variante_nom: p.variante_nom, coefficient: p.coefficient })
       }))
 
       if (commande) {
@@ -328,6 +349,48 @@ const Tablette = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 32px)', gap: 0 }}>
 
+      {/* ── Modal sélection format ── */}
+      {modalFormats && (
+        <>
+          <div onClick={() => setModalFormats(null)} style={{
+            position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 500
+          }} />
+          <div style={{
+            position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+            backgroundColor: 'white', borderRadius: 16, padding: 24, zIndex: 501,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.25)', minWidth: 320, maxWidth: 420, width: '90%'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <div>
+                <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>Quel format ?</p>
+                <p style={{ margin: '2px 0 0', fontSize: 13, color: '#6b7280' }}>{modalFormats.nom}</p>
+              </div>
+              <button onClick={() => setModalFormats(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <button onClick={() => choisirFormat(modalFormats, null)} style={{
+                padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: 10,
+                backgroundColor: 'white', cursor: 'pointer', textAlign: 'left',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+              }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{modalFormats.unite || 'Unité de base'}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--couleur-principale)' }}>{fmtPrix(modalFormats.prix_vente)} XOF</span>
+              </button>
+              {modalFormats.variantes.map(v => (
+                <button key={v.id} onClick={() => choisirFormat(modalFormats, v)} style={{
+                  padding: '12px 16px', border: '2px solid var(--couleur-principale)', borderRadius: 10,
+                  backgroundColor: 'rgba(var(--couleur-principale-rgb, 255,107,53),0.05)', cursor: 'pointer', textAlign: 'left',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{v.nom}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--couleur-principale)' }}>{fmtPrix(v.prix_vente)} XOF</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* En-tête */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <button onClick={retourTables}
@@ -453,27 +516,27 @@ const Tablette = () => {
                   À envoyer
                 </p>
                 {panier.map(item => (
-                  <div key={item.produit_id} style={{ padding: '10px', borderRadius: 8, backgroundColor: '#f9fafb', border: '1px solid #f3f4f6', marginBottom: 8 }}>
+                  <div key={item.cle} style={{ padding: '10px', borderRadius: 8, backgroundColor: '#f9fafb', border: '1px solid #f3f4f6', marginBottom: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                       <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#111827' }}>{item.nom}</p>
-                      <button onClick={() => retirerDuPanier(item.produit_id)}
+                      <button onClick={() => retirerDuPanier(item.cle)}
                         style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>×</button>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                      <button onClick={() => modifierQte(item.produit_id, -1)}
+                      <button onClick={() => modifierQte(item.cle, -1)}
                         style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>-</button>
                       <span style={{ minWidth: 28, textAlign: 'center', fontSize: 15, fontWeight: 700 }}>{item.quantite}</span>
-                      <button onClick={() => modifierQte(item.produit_id, 1)}
+                      <button onClick={() => modifierQte(item.cle, 1)}
                         style={{ width: 32, height: 32, borderRadius: 6, border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', fontSize: 16, fontWeight: 700 }}>+</button>
                       <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 700, color: 'var(--couleur-principale)' }}>
                         {fmtPrix(item.prix * item.quantite)} XOF
                       </span>
                     </div>
                     <input type="text" placeholder="Note (ex: sans oignon...)" value={item.note}
-                      onChange={e => modifierNote(item.produit_id, e.target.value)}
+                      onChange={e => modifierNote(item.cle, e.target.value)}
                       style={{ width: '100%', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12, boxSizing: 'border-box', color: '#6b7280', marginBottom: stations.length > 0 ? 4 : 0 }} />
                     {stations.length > 0 && (
-                      <select value={item.station_id || ''} onChange={e => modifierStation(item.produit_id, e.target.value)}
+                      <select value={item.station_id || ''} onChange={e => modifierStation(item.cle, e.target.value)}
                         style={{ width: '100%', padding: '5px 8px', border: `1px solid ${item.station_id ? 'var(--couleur-principale)' : '#e5e7eb'}`, borderRadius: 6, fontSize: 12, color: item.station_id ? 'var(--couleur-principale)' : '#9ca3af', fontWeight: item.station_id ? 600 : 400 }}>
                         <option value="">📍 Station (toutes)</option>
                         {stations.map(s => (

@@ -39,6 +39,7 @@ model Maquis {
   categories_custom       Json?
   unites_custom           Json?
   variantes_gabarits      Json?
+  conditionnements_custom Json?
   created_at              DateTime   @default(now())
 
   utilisateurs    UtilisateurMaquis[]

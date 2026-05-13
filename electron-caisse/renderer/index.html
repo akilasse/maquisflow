@@ -459,7 +459,7 @@
   <div class="modal-variantes-card">
     <div class="modal-icon" style="font-size:32px;text-align:center;margin-bottom:8px">🔀</div>
     <div class="modal-title" id="modal-variantes-titre" style="font-size:17px;text-align:center;margin-bottom:4px"></div>
-    <div class="modal-sub" style="text-align:center;margin-bottom:16px;color:#9ca3af;font-size:13px">Choisir une variante</div>
+    <div class="modal-sub" style="text-align:center;margin-bottom:16px;color:#9ca3af;font-size:13px">Quel format ?</div>
     <div id="modal-variantes-liste"></div>
     <button class="btn-fermer-variantes" onclick="fermerModalVariantes()">Annuler</button>
   </div>
@@ -516,6 +516,7 @@ const MODES = [
 // ═══════════════════════════════════════════════════════════
 let state = {
   token: null,
+  refreshToken: null,
   utilisateur: null,
   produits: [],
   panier: [],
@@ -537,11 +538,13 @@ let pollInterval = null
 // ═══════════════════════════════════════════════════════════
 window.addEventListener('DOMContentLoaded', async () => {
   // Charger session sauvegardée
-  const token = await window.electronAPI.storeGet('token')
-  const user  = await window.electronAPI.storeGet('utilisateur')
+  const token        = await window.electronAPI.storeGet('token')
+  const user         = await window.electronAPI.storeGet('utilisateur')
+  const refreshToken = await window.electronAPI.storeGet('refreshToken')
   if (token && user) {
-    state.token = token
-    state.utilisateur = user
+    state.token        = token
+    state.refreshToken = refreshToken || null
+    state.utilisateur  = user
     afficherCaisse()
   }
 
@@ -592,10 +595,12 @@ async function login() {
       return
     }
 
-    state.token = data.data.accessToken
-    state.utilisateur = data.data.utilisateur
+    state.token        = data.data.accessToken
+    state.refreshToken = data.data.refreshToken
+    state.utilisateur  = data.data.utilisateur
 
     await window.electronAPI.storeSet('token', state.token)
+    await window.electronAPI.storeSet('refreshToken', state.refreshToken)
     await window.electronAPI.storeSet('utilisateur', state.utilisateur)
 
     afficherCaisse()
@@ -624,7 +629,11 @@ async function fetchAPI(url, options = {}) {
 
   if (res.status === 401 && state.token) {
     if (!_refreshPromise) {
-      _refreshPromise = fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
+      _refreshPromise = fetch(`${API_URL}/api/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken: state.refreshToken })
+        })
         .then(async r => {
           if (r.status === 401 || r.status === 403) {
             // Token vraiment expiré → déconnexion
@@ -651,14 +660,20 @@ async function fetchAPI(url, options = {}) {
 
 // Rafraîchir proactivement toutes les 14 min (token expire à 15 min)
 setInterval(async () => {
-  if (!state.token) return
+  if (!state.token || !state.refreshToken) return
   try {
-    const r = await fetch(`${API_URL}/api/auth/refresh`, { method: 'POST', credentials: 'include' })
+    const r = await fetch(`${API_URL}/api/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken: state.refreshToken })
+    })
     if (r.ok) {
       const d = await r.json()
       state.token = d.data.accessToken
       await window.electronAPI.storeSet('token', state.token)
       if (window._socket) window._socket.auth.token = state.token
+    } else if (r.status === 401 || r.status === 403) {
+      await logout()
     }
   } catch {}
 }, 14 * 60 * 1000)
@@ -667,8 +682,10 @@ async function logout() {
   if (pollInterval) { clearInterval(pollInterval); pollInterval = null }
   window.removeEventListener('focus', chargerCommandesTablette)
   await window.electronAPI.storeDelete('token')
+  await window.electronAPI.storeDelete('refreshToken')
   await window.electronAPI.storeDelete('utilisateur')
   state.token = null
+  state.refreshToken = null
   state.utilisateur = null
   state.panier = []
   state.commandesTablette = []
@@ -760,6 +777,7 @@ async function chargerProduits() {
     const data = await res.json()
     state.produits = data.data || []
     await window.electronAPI.storeSet('produits_cache', state.produits)
+    hideMessage()
   } catch {
     const cache = await window.electronAPI.storeGet('produits_cache')
     if (cache) {
@@ -803,14 +821,17 @@ function renderProduits() {
   }
 
   list.innerHTML = `<div class="produits-grid">${filtres.map(p => {
-    const enPanier = state.panier.find(i => i.produit_id === p.id)
+    const lignesProduit = state.panier.filter(i => i.produit_id === p.id)
+    const qteTotal = lignesProduit.reduce((s, i) => s + i.quantite, 0)
+    const hasVariantes = p.variantes && p.variantes.length > 0
     return `
-      <div class="produit-card ${enPanier ? 'en-panier' : ''}" onclick="ajouterAuPanier(${p.id})">
+      <div class="produit-card ${qteTotal > 0 ? 'en-panier' : ''}" onclick="ajouterAuPanier(${p.id})">
         ${p.photo_url ? `<img src="${API_URL}${p.photo_url}" alt="${p.nom}" onerror="this.style.display='none'">` : ''}
         <div class="produit-nom">${p.nom}</div>
         ${p.categorie ? `<div class="produit-cat">${p.categorie}</div>` : ''}
         <div class="produit-prix">${parseFloat(p.prix_vente).toLocaleString('fr-FR')} XOF</div>
-        ${enPanier ? `<div class="produit-badge">× ${enPanier.quantite}</div>` : ''}
+        ${hasVariantes ? `<div style="font-size:9px;color:#9ca3af;margin-top:2px">${p.variantes.length} format${p.variantes.length > 1 ? 's' : ''} →</div>` : ''}
+        ${qteTotal > 0 ? `<div class="produit-badge">× ${qteTotal}</div>` : ''}
       </div>`
   }).join('')}</div>`
 }
@@ -1566,7 +1587,7 @@ function showMessage(msg, type) {
   el.textContent = msg
   el.className = `message-box message-${type}`
   el.style.display = 'block'
-  if (type === 'succes') setTimeout(hideMessage, 4000)
+  if (type === 'succes' || type === 'info') setTimeout(hideMessage, 5000)
 }
 
 function hideMessage() {
