@@ -115,7 +115,7 @@ const Commandes = () => {
       setModalAccomp({ quantiteSucc: 2, carafeType: 'petite' })
     } else if (!variante && estSpirit) {
       setModalAccomp({ quantiteSucc: 4, carafeType: 'grande' })
-    } else if (variante && vnom === 'tournée') {
+    } else if (variante && vnom.includes('tourn') && !vnom.includes('sucr') && !vnom.includes('demi')) {
       const varSucc = produit.variantes?.find(v => v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))
       if (varSucc) setModalTourneeSucc({ produit, varSucc })
     }

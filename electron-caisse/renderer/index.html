@@ -964,7 +964,7 @@ function ajouterVarianteAuPanier(produitId, varianteIdx) {
     ouvrirModalAccomp(2, 'petite')
   } else if (varianteIdx === null && estSpirit) {
     ouvrirModalAccomp(4, 'grande')
-  } else if (vnom === 'tournée' || vnom === 'tournee') {
+  } else if (variante_nom && vnom.includes('tourn') && !vnom.includes('sucr') && !vnom.includes('demi')) {
     // Proposer sucrerie payante si variante "Tournée + Sucrerie" existe
     const varSucc = produit.variantes?.find(v => v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))
     if (varSucc) ouvrirModalTourneeSucc(produit, varSucc)
