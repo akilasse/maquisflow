@@ -1016,17 +1016,43 @@ function ajouterAccompPanier(produitId, quantite) {
 
 function ouvrirModalTourneeSucc(produit, varSucc) {
   const idx = produit.variantes.indexOf(varSucc)
-  const diff = parseFloat(varSucc.prix_vente) - parseFloat(produit.variantes.find(v => v.nom.toLowerCase() === 'tournée' || v.nom.toLowerCase() === 'tournee')?.prix_vente || varSucc.prix_vente)
+  const varTourneeSimple = produit.variantes.find(v => v.nom.toLowerCase().includes('tourn') && !v.nom.toLowerCase().includes('sucr'))
+  const diff = varTourneeSimple ? parseFloat(varSucc.prix_vente) - parseFloat(varTourneeSimple.prix_vente) : 0
   const label = diff > 0 ? `+${diff.toLocaleString('fr-FR')} XOF` : `${parseFloat(varSucc.prix_vente).toLocaleString('fr-FR')} XOF`
   document.getElementById('modal-variantes-titre').textContent = 'Ajouter sucrerie ?'
   document.querySelector('#modal-variantes .modal-sub').textContent = `Accompagnement payant`
   document.getElementById('modal-variantes-liste').innerHTML = `
-    <div class="variante-option" onclick="ajouterVarianteAuPanier(${produit.id}, ${idx})" style="border-color:#f59e0b;background:#fffbeb">
+    <div class="variante-option" onclick="remplacerParTourneeSucc(${produit.id}, ${idx})" style="border-color:#f59e0b;background:#fffbeb">
       <span class="variante-option-nom">${varSucc.nom}</span>
       <span class="variante-option-prix">${label}</span>
     </div>`
   document.querySelector('.btn-fermer-variantes').textContent = 'Non merci'
   document.getElementById('modal-variantes').classList.add('visible')
+}
+
+function remplacerParTourneeSucc(produitId, varSuccIdx) {
+  fermerModalVariantes()
+  const produit = state.produits.find(p => p.id === produitId)
+  if (!produit) return
+  const varSucc = produit.variantes[varSuccIdx]
+  if (!varSucc) return
+  // Retirer 1 unité de la Tournée simple du panier
+  const varTournee = produit.variantes.find(v => v.nom.toLowerCase().includes('tourn') && !v.nom.toLowerCase().includes('sucr'))
+  if (varTournee) {
+    const keyTournee = `${produitId}_${varTournee.nom}`
+    const idxT = state.panier.findIndex(p => p._key === keyTournee)
+    if (idxT !== -1) {
+      if (state.panier[idxT].quantite > 1) state.panier[idxT].quantite--
+      else state.panier.splice(idxT, 1)
+    }
+  }
+  // Ajouter Tournée + Sucrerie
+  const _key = `${produitId}_${varSucc.nom}`
+  const existe = state.panier.find(p => p._key === _key)
+  if (existe) { existe.quantite++ }
+  else { state.panier.push({ _key, produit_id: produitId, nom: produit.nom, quantite: 1, prix_catalogue: parseFloat(varSucc.prix_vente), prix_applique: parseFloat(varSucc.prix_vente), variante_nom: varSucc.nom, coefficient: parseFloat(varSucc.coefficient), stock_max: parseFloat(produit.stock_actuel) }) }
+  renderPanier()
+  renderProduits()
 }
 
 function fermerModalVariantes() {

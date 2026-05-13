@@ -174,8 +174,23 @@ const Tablette = () => {
     }
   }
 
-  const choisirTourneeSucc = (produit, variante) => {
-    choisirFormat(produit, variante)
+  const choisirTourneeSucc = (produit, varSucc) => {
+    const varTournee = produit.variantes.find(v => v.nom.toLowerCase().includes('tourn') && !v.nom.toLowerCase().includes('sucr'))
+    const cleTournee = varTournee ? `${produit.id}__${varTournee.nom}` : null
+    const cle = `${produit.id}__${varSucc.nom}`
+    const nom = `${produit.nom} — ${varSucc.nom}`
+    const prix = parseFloat(varSucc.prix_vente)
+    const coeff = parseFloat(varSucc.coefficient)
+    setPanier(prev => {
+      const sansTournee = cleTournee ? prev.reduce((acc, l) => {
+        if (l.cle === cleTournee) { if (l.quantite > 1) acc.push({ ...l, quantite: l.quantite - 1 }) }
+        else acc.push(l)
+        return acc
+      }, []) : [...prev]
+      const exist = sansTournee.find(l => l.cle === cle)
+      if (exist) return sansTournee.map(l => l.cle === cle ? { ...l, quantite: l.quantite + 1 } : l)
+      return [...sansTournee, { cle, produit_id: produit.id, nom, prix, quantite: 1, note: '', station_id: null, variante_nom: varSucc.nom, coefficient: coeff }]
+    })
     setModalTourneeSucc(null)
   }
 
