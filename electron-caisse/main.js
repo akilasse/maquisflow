@@ -6,6 +6,14 @@ const { app, BrowserWindow, ipcMain } = require('electron')
 const path = require('path')
 const Store = require('electron-store')
 
+// Empêcher les crashs silencieux sur erreurs non gérées
+process.on('uncaughtException', (err) => {
+  console.error('uncaughtException:', err)
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('unhandledRejection:', reason)
+})
+
 // Windows 7 : certificats Let's Encrypt non reconnus
 app.commandLine.appendSwitch('ignore-certificate-errors')
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
@@ -51,7 +59,10 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') app.quit()
+  // Ne quitter que si c'est la mainWindow qui est fermée, pas une fenêtre d'impression
+  if (process.platform !== 'darwin' && (!mainWindow || mainWindow.isDestroyed())) {
+    app.quit()
+  }
 })
 
 // ── IPC — Stockage local (offline) ────────────────────────
@@ -62,22 +73,41 @@ ipcMain.handle('store:delete', (_, key) => store.delete(key))
 // ── Utilitaire : ouvre une fenêtre cachée et imprime le HTML ──
 function imprimerHTML(html) {
   return new Promise((resolve) => {
+    let done = false
+    const finish = (result) => {
+      if (done) return
+      done = true
+      try { if (!win.isDestroyed()) win.destroy() } catch (_) {}
+      resolve(result)
+    }
+
     const win = new BrowserWindow({
       show: false,
       webPreferences: { nodeIntegration: false, contextIsolation: true }
     })
-    win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
+
+    // Timeout de sécurité : 15s max pour imprimer
+    const timeout = setTimeout(() => finish({ success: false, error: 'timeout' }), 15000)
+
     win.webContents.once('did-finish-load', () => {
+      clearTimeout(timeout)
       win.webContents.print({ silent: true, printBackground: true }, (success, err) => {
-        win.destroy()
-        resolve({ success, error: err || null })
+        finish({ success, error: err || null })
       })
     })
+
+    win.webContents.once('did-fail-load', (_, code, desc) => {
+      clearTimeout(timeout)
+      finish({ success: false, error: desc })
+    })
+
+    win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html))
   })
 }
 
 // ── IPC — Liste des imprimantes Windows ───────────────────
 ipcMain.handle('print:get-printers', async () => {
+  if (!mainWindow || mainWindow.isDestroyed()) return []
   const printers = await mainWindow.webContents.getPrintersAsync()
   return printers.map(p => p.name)
 })

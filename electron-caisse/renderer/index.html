@@ -476,7 +476,7 @@
     </div>
     <div class="recu-details" id="recu-details"></div>
     <div class="modal-btns">
-      <button class="btn-imprimer" onclick="imprimerTicket()">🖨️ Imprimer</button>
+      <button class="btn-imprimer" onclick="imprimerTicket()">🖨️ Ré-imprimer</button>
       <button class="btn-fermer" onclick="fermerModal()">Fermer</button>
     </div>
   </div>
@@ -729,6 +729,33 @@ async function afficherCaisse() {
   connecterSocket()
 }
 
+async function recupererBonsManques() {
+  try {
+    const dejaPrints = (await window.electronAPI.storeGet('bons_imprimes')) || []
+    const depuis = new Date(Date.now() - 30 * 60 * 1000).toISOString()
+    const res = await fetchAPI(`${API_URL}/api/commandes?date_debut=${encodeURIComponent(depuis)}&historique=true`)
+    if (!res.ok) return
+    const data = await res.json()
+    const commandes = (data.data || []).filter(c => !dejaPrints.includes(c.id))
+    for (const commande of commandes) {
+      const bon = {
+        numero:  commande.numero,
+        table:   commande.table?.numero || null,
+        serveur: commande.serveur?.nom || '',
+        date:    new Date(commande.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        lignes:  commande.lignes.map(l => ({ nom: l.variante_nom ? `${l.produit.nom} (${l.variante_nom})` : l.produit.nom, quantite: l.quantite, note: l.note || '' })),
+        note:    commande.note || null
+      }
+      await window.electronAPI.printBon(bon)
+      dejaPrints.push(commande.id)
+    }
+    await window.electronAPI.storeSet('bons_imprimes', dejaPrints.slice(-500))
+    if (commandes.length > 0) console.log(`${commandes.length} bon(s) manqué(s) imprimés`)
+  } catch (e) {
+    console.log('Récupération bons manqués échouée:', e.message)
+  }
+}
+
 function connecterSocket() {
   if (window._socket) return // déjà connecté
   const script = document.createElement('script')
@@ -740,8 +767,9 @@ function connecterSocket() {
     })
     window._socket = socket
 
-    socket.on('connect', () => {
+    socket.on('connect', async () => {
       socket.emit('join:maquis', state.utilisateur.maquis_id)
+      await recupererBonsManques()
     })
 
     // Mettre à jour le token avant chaque tentative de reconnexion
@@ -763,6 +791,10 @@ function connecterSocket() {
       }
       const result = await window.electronAPI.printBon(bon)
       if (!result.success) console.log('Impression bon échouée:', result.error)
+      // Marquer comme imprimé
+      const dejaPrints = (await window.electronAPI.storeGet('bons_imprimes')) || []
+      dejaPrints.push(commande.id)
+      await window.electronAPI.storeSet('bons_imprimes', dejaPrints.slice(-500))
     })
   }
   document.head.appendChild(script)
