@@ -1056,34 +1056,38 @@ function ouvrirModalAccomp(quantiteSucc, carafeType) {
 }
 
 function renderModalAccomp() {
-  const total     = Object.values(state.accompSelections).reduce((s, v) => s + v, 0)
-  const quota     = state.accompQuantiteSucc
-  const carafeType = state.accompCarafeType
+  const total = getAccompTotal()
+  const quota = state.accompQuantiteSucc
+  const reste = quota - total
 
   document.getElementById('accomp-subtitle').textContent =
-    `Choisissez jusqu'à ${quota} boisson${quota > 1 ? 's' : ''} (${total}/${quota})`
+    `Choisissez jusqu'à ${quota} unité${quota > 1 ? 's' : ''} (${total}/${quota})`
 
   // Indicateur de points
   document.getElementById('accomp-dots').innerHTML = Array.from({ length: quota }, (_, i) =>
     `<div class="accomp-dot ${i < total ? 'filled' : ''}"></div>`
   ).join('')
 
-  // Sucreries + Eau & Sirop + Boissons Importees + Petites Carafes (chaque = 1 item)
-  const accompItems = state.produits.filter(p =>
-    p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees' ||
-    p.nom.toLowerCase().startsWith('petite carafe')
-  )
+  // Sucreries + Eau & Sirop + Boissons Importees + Carafes dont le poids <= quota
+  const accompItems = state.produits.filter(p => {
+    const n = p.nom.toLowerCase()
+    const w = n.startsWith('grande carafe') ? 4 : n.startsWith('petite carafe') ? 2 : 1
+    return (p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees' ||
+            n.startsWith('petite carafe') || n.startsWith('grande carafe')) && w <= quota
+  })
+
   document.getElementById('accomp-grid').innerHTML = accompItems.map(s => {
-    const qty   = state.accompSelections[s.id] || 0
-    const atMax = total >= quota
+    const qty    = state.accompSelections[s.id] || 0
+    const weight = getAccompWeight(s)
+    const canAdd = weight <= reste
     return `
       <div class="accomp-item">
         <div class="accomp-item-nom">${s.nom}</div>
-        <div style="font-size:11px;color:#16a34a;font-weight:700">Offert</div>
+        <div style="font-size:11px;color:#16a34a;font-weight:700">Offert${weight > 1 ? ` (${weight}u)` : ''}</div>
         <div class="accomp-counter">
           <button class="accomp-ctrl minus" onclick="decrementAccomp(${s.id})" ${qty === 0 ? 'disabled' : ''}>−</button>
           <span class="accomp-count">${qty}</span>
-          <button class="accomp-ctrl plus" onclick="incrementAccomp(${s.id})" ${atMax ? 'disabled' : ''}>+</button>
+          <button class="accomp-ctrl plus" onclick="incrementAccomp(${s.id})" ${!canAdd ? 'disabled' : ''}>+</button>
         </div>
       </div>`
   }).join('')
@@ -1091,9 +1095,22 @@ function renderModalAccomp() {
   document.getElementById('accomp-carafes').innerHTML = ''
 }
 
+function getAccompWeight(produit) {
+  const n = (produit.nom || '').toLowerCase()
+  return n.startsWith('grande carafe') ? 4 : n.startsWith('petite carafe') ? 2 : 1
+}
+
+function getAccompTotal() {
+  return Object.entries(state.accompSelections).reduce((s, [id, qty]) => {
+    const p = state.produits.find(p => p.id === parseInt(id))
+    return s + (p ? getAccompWeight(p) * qty : qty)
+  }, 0)
+}
+
 function incrementAccomp(produitId) {
-  const total = Object.values(state.accompSelections).reduce((s, v) => s + v, 0)
-  if (total >= state.accompQuantiteSucc) return
+  const produit = state.produits.find(p => p.id === produitId)
+  if (!produit) return
+  if (getAccompTotal() + getAccompWeight(produit) > state.accompQuantiteSucc) return
   state.accompSelections[produitId] = (state.accompSelections[produitId] || 0) + 1
   renderModalAccomp()
 }

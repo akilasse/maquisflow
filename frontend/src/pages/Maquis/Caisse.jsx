@@ -286,10 +286,11 @@ const Caisse = () => {
     }
   }
 
-  const accompTotal = Object.values(accompSelections).reduce((s, v) => s + v, 0)
+  const getAccompWeight = (p) => { const n = (p.nom || '').toLowerCase(); return n.startsWith('grande carafe') ? 4 : n.startsWith('petite carafe') ? 2 : 1 }
+  const accompTotal = Object.entries(accompSelections).reduce((s, [id, qty]) => { const p = produits.find(pr => pr.id === parseInt(id)); return s + (p ? getAccompWeight(p) * qty : qty) }, 0)
 
   const incrementAccomp = (produit) => {
-    if (!modalAccomp || accompTotal >= modalAccomp.quantiteSucc) return
+    if (!modalAccomp || accompTotal + getAccompWeight(produit) > modalAccomp.quantiteSucc) return
     setAccompSelections(prev => ({ ...prev, [produit.id]: (prev[produit.id] || 0) + 1 }))
   }
 
@@ -651,7 +652,7 @@ const Caisse = () => {
         {/* MODAL ACCOMPAGNEMENT OFFERT — compteurs libres */}
         {modalAccomp && (() => {
           const reste = modalAccomp.quantiteSucc - accompTotal
-          const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees' || p.nom.toLowerCase().startsWith('petite carafe'))
+          const sucrerieItems = produits.filter(p => { const n = p.nom.toLowerCase(); const w = n.startsWith('grande carafe') ? 4 : n.startsWith('petite carafe') ? 2 : 1; return (p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees' || n.startsWith('petite carafe') || n.startsWith('grande carafe')) && w <= modalAccomp.quantiteSucc })
           const btnStyle = (sel) => ({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, border: `2px solid ${sel > 0 ? '#16a34a' : '#e5e7eb'}`, backgroundColor: sel > 0 ? '#f0fdf4' : 'white', marginBottom: 8 })
           const compteurStyle = { display: 'flex', alignItems: 'center', gap: 8 }
           const btnPM = (disabled) => ({ width: 28, height: 28, borderRadius: 6, border: 'none', backgroundColor: disabled ? '#f3f4f6' : '#16a34a', color: disabled ? '#9ca3af' : 'white', fontSize: 18, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' })
@@ -682,7 +683,7 @@ const Caisse = () => {
                     <div style={compteurStyle}>
                       <button onClick={() => decrementAccomp(s.id)} disabled={!accompSelections[s.id]} style={btnPM(!accompSelections[s.id])}>−</button>
                       <span style={{ fontSize: 15, fontWeight: 700, minWidth: 18, textAlign: 'center', color: '#111827' }}>{accompSelections[s.id] || 0}</span>
-                      <button onClick={() => incrementAccomp(s)} disabled={reste <= 0} style={btnPM(reste <= 0)}>+</button>
+                      <button onClick={() => incrementAccomp(s)} disabled={getAccompWeight(s) > reste} style={btnPM(getAccompWeight(s) > reste)}>+</button>
                     </div>
                   </div>
                 ))}

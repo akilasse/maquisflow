@@ -144,8 +144,9 @@ const Commandes = () => {
   }
 
 
-  const accompTotal = Object.values(accompSelections).reduce((s, v) => s + v, 0)
-  const incrementAccomp = (p) => { if (!modalAccomp || accompTotal >= modalAccomp.quantiteSucc) return; setAccompSelections(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 })) }
+  const getAccompWeight = (p) => { const n = (p.nom || '').toLowerCase(); return n.startsWith('grande carafe') ? 4 : n.startsWith('petite carafe') ? 2 : 1 }
+  const accompTotal = Object.entries(accompSelections).reduce((s, [id, qty]) => { const p = produits.find(pr => pr.id === parseInt(id)); return s + (p ? getAccompWeight(p) * qty : qty) }, 0)
+  const incrementAccomp = (p) => { if (!modalAccomp || accompTotal + getAccompWeight(p) > modalAccomp.quantiteSucc) return; setAccompSelections(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 })) }
   const decrementAccomp = (id) => { setAccompSelections(prev => { const nv = (prev[id] || 0) - 1; if (nv <= 0) { const { [id]: _, ...rest } = prev; return rest } return { ...prev, [id]: nv } }) }
   const confirmerAccomp = () => {
     const lignes = Object.entries(accompSelections).filter(([, q]) => q > 0).map(([id, qty]) => { const p = produits.find(x => x.id === parseInt(id)); return p ? { cle: `${id}__offert_${Date.now()}_${Math.random().toString(36).slice(2)}`, produit_id: p.id, nom: `${p.nom} (Offert)`, prix_unitaire: 0, quantite: qty, unite: p.unite, variante_nom: 'Offert', coefficient: null } : null }).filter(Boolean)
@@ -515,7 +516,7 @@ const Commandes = () => {
 
       {modalAccomp && (() => {
         const reste = modalAccomp.quantiteSucc - accompTotal
-        const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees' || p.nom.toLowerCase().startsWith('petite carafe'))
+        const sucrerieItems = produits.filter(p => { const n = p.nom.toLowerCase(); const w = n.startsWith('grande carafe') ? 4 : n.startsWith('petite carafe') ? 2 : 1; return (p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees' || n.startsWith('petite carafe') || n.startsWith('grande carafe')) && w <= modalAccomp.quantiteSucc })
         return (
         <>
           <div onClick={() => { setModalAccomp(null); setAccompSelections({}) }} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 502 }} />
@@ -535,7 +536,7 @@ const Commandes = () => {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <button onClick={() => decrementAccomp(s.id)} disabled={!accompSelections[s.id]} style={{ width: 30, height: 30, borderRadius: 6, border: 'none', backgroundColor: accompSelections[s.id] ? '#16a34a' : '#f3f4f6', color: accompSelections[s.id] ? 'white' : '#9ca3af', fontSize: 20, fontWeight: 700, cursor: accompSelections[s.id] ? 'pointer' : 'not-allowed' }}>−</button>
                     <span style={{ fontSize: 16, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{accompSelections[s.id] || 0}</span>
-                    <button onClick={() => incrementAccomp(s)} disabled={reste <= 0} style={{ width: 30, height: 30, borderRadius: 6, border: 'none', backgroundColor: reste > 0 ? '#16a34a' : '#f3f4f6', color: reste > 0 ? 'white' : '#9ca3af', fontSize: 20, fontWeight: 700, cursor: reste > 0 ? 'pointer' : 'not-allowed' }}>+</button>
+                    <button onClick={() => incrementAccomp(s)} disabled={getAccompWeight(s) > reste} style={{ width: 30, height: 30, borderRadius: 6, border: 'none', backgroundColor: getAccompWeight(s) <= reste ? '#16a34a' : '#f3f4f6', color: getAccompWeight(s) <= reste ? 'white' : '#9ca3af', fontSize: 20, fontWeight: 700, cursor: getAccompWeight(s) <= reste ? 'pointer' : 'not-allowed' }}>+</button>
                   </div>
                 </div>
               ))}
