@@ -1068,11 +1068,12 @@ function renderModalAccomp() {
     `<div class="accomp-dot ${i < total ? 'filled' : ''}"></div>`
   ).join('')
 
-  // Sucreries + Eau & Sirop + Boissons importées
-  const sucrerieItems = state.produits.filter(p =>
-    p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees'
+  // Sucreries + Eau & Sirop + Boissons Importees + Petites Carafes (chaque = 1 item)
+  const accompItems = state.produits.filter(p =>
+    p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees' ||
+    p.nom.toLowerCase().startsWith('petite carafe')
   )
-  document.getElementById('accomp-grid').innerHTML = sucrerieItems.map(s => {
+  document.getElementById('accomp-grid').innerHTML = accompItems.map(s => {
     const qty   = state.accompSelections[s.id] || 0
     const atMax = total >= quota
     return `
@@ -1082,27 +1083,12 @@ function renderModalAccomp() {
         <div class="accomp-counter">
           <button class="accomp-ctrl minus" onclick="decrementAccomp(${s.id})" ${qty === 0 ? 'disabled' : ''}>−</button>
           <span class="accomp-count">${qty}</span>
-          <button class="accomp-ctrl plus" onclick="incrementAccomp(${s.id})" ${atMax && qty === 0 ? 'disabled' : total >= quota && qty === 0 ? 'disabled' : ''}>+</button>
+          <button class="accomp-ctrl plus" onclick="incrementAccomp(${s.id})" ${atMax ? 'disabled' : ''}>+</button>
         </div>
       </div>`
   }).join('')
 
-  // Carafes
-  const carafes = state.produits.filter(p =>
-    p.nom.toLowerCase().startsWith(carafeType === 'grande' ? 'grande carafe' : 'petite carafe')
-  )
-  const carafesEl = document.getElementById('accomp-carafes')
-  if (carafes.length) {
-    carafesEl.innerHTML = `
-      <div class="accomp-section-title">Ou une carafe</div>
-      ${carafes.map(c => `
-        <button class="accomp-carafe-btn" onclick="ajouterCarafeOffert(${c.id})">
-          🍶 ${c.nom} — <span style="color:#16a34a;font-weight:700">Offert</span>
-        </button>`).join('')}
-    `
-  } else {
-    carafesEl.innerHTML = ''
-  }
+  document.getElementById('accomp-carafes').innerHTML = ''
 }
 
 function incrementAccomp(produitId) {

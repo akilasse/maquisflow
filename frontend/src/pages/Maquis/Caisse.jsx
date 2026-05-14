@@ -651,8 +651,7 @@ const Caisse = () => {
         {/* MODAL ACCOMPAGNEMENT OFFERT — compteurs libres */}
         {modalAccomp && (() => {
           const reste = modalAccomp.quantiteSucc - accompTotal
-          const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees')
-          const carafeItems = produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe'))
+          const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees' || p.nom.toLowerCase().startsWith('petite carafe'))
           const btnStyle = (sel) => ({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, border: `2px solid ${sel > 0 ? '#16a34a' : '#e5e7eb'}`, backgroundColor: sel > 0 ? '#f0fdf4' : 'white', marginBottom: 8 })
           const compteurStyle = { display: 'flex', alignItems: 'center', gap: 8 }
           const btnPM = (disabled) => ({ width: 28, height: 28, borderRadius: 6, border: 'none', backgroundColor: disabled ? '#f3f4f6' : '#16a34a', color: disabled ? '#9ca3af' : 'white', fontSize: 18, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' })
@@ -688,19 +687,6 @@ const Caisse = () => {
                   </div>
                 ))}
               </div>
-              {/* Carafes (pleine ligne) */}
-              {carafeItems.length > 0 && (
-                <div style={{ marginTop: 8 }}>
-                  <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 6px', fontWeight: 600 }}>OU — Carafe (utilise tout le quota)</p>
-                  {carafeItems.map(c => (
-                    <button key={c.id} onClick={() => { setPanier(prev => [...prev, { panier_key: `${c.id}_offert_${Date.now()}`, produit_id: c.id, nom: `${c.nom} (Offert)`, quantite: 1, prix_catalogue: 0, prix_applique: 0, unite: c.unite, stock_max: parseFloat(c.stock_actuel), variante_nom: 'Offert', coefficient: null }]); setModalAccomp(null); setAccompSelections({}) }}
-                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '2px solid #3b82f6', backgroundColor: '#eff6ff', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                      <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{c.nom}</span>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#3b82f6' }}>Offert — 1 carafe</span>
-                    </button>
-                  ))}
-                </div>
-              )}
               {/* Actions */}
               <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
                 <button onClick={confirmerAccomp} disabled={accompTotal === 0} style={{ flex: 1, padding: '13px 16px', borderRadius: 12, border: 'none', backgroundColor: accompTotal > 0 ? '#16a34a' : '#e5e7eb', color: accompTotal > 0 ? 'white' : '#9ca3af', fontSize: 14, fontWeight: 700, cursor: accompTotal > 0 ? 'pointer' : 'not-allowed' }}>

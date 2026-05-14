@@ -477,8 +477,7 @@ const Tablette = () => {
 
       {modalAccomp && (() => {
         const reste = modalAccomp.quantiteSucc - accompTotal
-        const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees')
-        const carafeItems = produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe'))
+        const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees' || p.nom.toLowerCase().startsWith('petite carafe'))
         return (
         <>
           <div onClick={() => { setModalAccomp(null); setAccompSelections({}) }} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 502 }} />
@@ -501,14 +500,6 @@ const Tablette = () => {
                     <button onClick={() => incrementAccomp(s)} disabled={reste <= 0} style={{ width: 30, height: 30, borderRadius: 6, border: 'none', backgroundColor: reste > 0 ? '#16a34a' : '#f3f4f6', color: reste > 0 ? 'white' : '#9ca3af', fontSize: 18, fontWeight: 700, cursor: reste > 0 ? 'pointer' : 'not-allowed' }}>+</button>
                   </div>
                 </div>
-              ))}
-              {carafeItems.length > 0 && <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 2px', fontWeight: 600 }}>OU — Carafe (utilise tout le quota)</p>}
-              {carafeItems.map(c => (
-                <button key={c.id} onClick={() => { setPanier(prev => [...prev, { cle: `${c.id}__offert_${Date.now()}`, produit_id: c.id, nom: `${c.nom} (Offert)`, prix: 0, quantite: 1, note: '', station_id: null, variante_nom: 'Offert', coefficient: null }]); setModalAccomp(null); setAccompSelections({}) }}
-                  style={{ padding: '11px 14px', border: '2px solid #3b82f6', borderRadius: 12, backgroundColor: '#eff6ff', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{c.nom}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#3b82f6' }}>Offert — 1 carafe</span>
-                </button>
               ))}
               <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                 <button onClick={confirmerAccomp} disabled={accompTotal === 0} style={{ flex: 1, padding: '12px 16px', borderRadius: 12, border: 'none', backgroundColor: accompTotal > 0 ? '#16a34a' : '#e5e7eb', color: accompTotal > 0 ? 'white' : '#9ca3af', fontSize: 14, fontWeight: 700, cursor: accompTotal > 0 ? 'pointer' : 'not-allowed' }}>
