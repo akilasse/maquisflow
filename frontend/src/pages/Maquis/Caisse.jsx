@@ -38,6 +38,7 @@ const Caisse = () => {
   const [voirCommandes, setVoirCommandes]         = useState(false)
   const [modalVariantes, setModalVariantes]       = useState(null)
   const [modalAccomp, setModalAccomp]             = useState(null)
+  const [accompSelections, setAccompSelections]   = useState({})
   const [modalTourneeSucc, setModalTourneeSucc]   = useState(null)
 
 
@@ -278,22 +279,39 @@ const Caisse = () => {
     const vnom = variante.nom.toLowerCase()
     const estSpirit = produit.variantes?.some(v => v.nom.toLowerCase().includes('tourn'))
     if (vnom.includes('demi')) {
-      setModalAccomp({ produit, quantiteSucc: 2, carafeType: 'petite' })
+      setAccompSelections({}); setModalAccomp({ produit, quantiteSucc: 2, carafeType: 'petite' })
     } else if (vnom.includes('tourn') && !vnom.includes('sucr') && !vnom.includes('demi')) {
       const varSucc = produit.variantes?.find(v => v.nom.toLowerCase().includes('tourn') && v.nom.toLowerCase().includes('sucr'))
       if (varSucc) setModalTourneeSucc({ produit, varSucc })
     }
   }
 
-  const ajouterAccomp = (accomp, quantite) => {
-    const panier_key = `${accomp.id}_offert_${Date.now()}`
-    setPanier(prev => [...prev, {
-      panier_key, produit_id: accomp.id, nom: `${accomp.nom} (Offert)`,
-      quantite, prix_catalogue: 0, prix_applique: 0,
-      unite: accomp.unite, stock_max: parseFloat(accomp.stock_actuel),
-      variante_nom: 'Offert', coefficient: null
-    }])
+  const accompTotal = Object.values(accompSelections).reduce((s, v) => s + v, 0)
+
+  const incrementAccomp = (produit) => {
+    if (!modalAccomp || accompTotal >= modalAccomp.quantiteSucc) return
+    setAccompSelections(prev => ({ ...prev, [produit.id]: (prev[produit.id] || 0) + 1 }))
+  }
+
+  const decrementAccomp = (produitId) => {
+    setAccompSelections(prev => {
+      const nv = (prev[produitId] || 0) - 1
+      if (nv <= 0) { const { [produitId]: _, ...rest } = prev; return rest }
+      return { ...prev, [produitId]: nv }
+    })
+  }
+
+  const confirmerAccomp = () => {
+    const entries = Object.entries(accompSelections).filter(([, q]) => q > 0)
+    if (entries.length > 0) {
+      const lignes = entries.map(([id, qty]) => {
+        const p = produits.find(prod => prod.id === parseInt(id))
+        return p ? { panier_key: `${id}_offert_${Date.now()}_${Math.random().toString(36).slice(2)}`, produit_id: p.id, nom: `${p.nom} (Offert)`, quantite: qty, prix_catalogue: 0, prix_applique: 0, unite: p.unite, stock_max: parseFloat(p.stock_actuel), variante_nom: 'Offert', coefficient: null } : null
+      }).filter(Boolean)
+      setPanier(prev => [...prev, ...lignes])
+    }
     setModalAccomp(null)
+    setAccompSelections({})
   }
 
   const choisirTourneeSucc = (produit, varSucc) => {
@@ -608,7 +626,7 @@ const Caisse = () => {
                   setModalVariantes(null)
                   ajouterAuPanier({ ...modalVariantes, variantes: [] })
                   const estSpirit = modalVariantes.variantes?.some(v => v.nom.toLowerCase().includes('tourn'))
-                  if (estSpirit) setModalAccomp({ produit: modalVariantes, quantiteSucc: 4, carafeType: 'grande' })
+                  if (estSpirit) { setAccompSelections({}); setModalAccomp({ produit: modalVariantes, quantiteSucc: 4, carafeType: 'grande' }) }
                 }} style={{ padding: '14px 16px', borderRadius: '10px', border: '1px solid #e5e7eb', backgroundColor: 'white', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', textAlign: 'left' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--couleur-principale)'; e.currentTarget.style.backgroundColor = '#fff7ed' }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.backgroundColor = 'white' }}>
@@ -630,34 +648,72 @@ const Caisse = () => {
           </div>
         )}
 
-        {/* MODAL ACCOMPAGNEMENT OFFERT */}
-        {modalAccomp && (
+        {/* MODAL ACCOMPAGNEMENT OFFERT — compteurs libres */}
+        {modalAccomp && (() => {
+          const reste = modalAccomp.quantiteSucc - accompTotal
+          const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries')
+          const carafeItems = produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe'))
+          const btnStyle = (sel) => ({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, border: `2px solid ${sel > 0 ? '#16a34a' : '#e5e7eb'}`, backgroundColor: sel > 0 ? '#f0fdf4' : 'white', marginBottom: 8 })
+          const compteurStyle = { display: 'flex', alignItems: 'center', gap: 8 }
+          const btnPM = (disabled) => ({ width: 28, height: 28, borderRadius: 6, border: 'none', backgroundColor: disabled ? '#f3f4f6' : '#16a34a', color: disabled ? '#9ca3af' : 'white', fontSize: 18, fontWeight: 700, cursor: disabled ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' })
+          return (
           <>
-            <div onClick={() => setModalAccomp(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1200 }} />
-            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', backgroundColor: 'white', borderRadius: 16, padding: 28, zIndex: 1201, width: 540, boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            <div onClick={() => { setModalAccomp(null); setAccompSelections({}) }} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1200 }} />
+            <div style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', backgroundColor: 'white', borderRadius: 16, padding: 28, zIndex: 1201, width: 560, maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#111827' }}>Accompagnement offert</p>
-                <button onClick={() => setModalAccomp(null)} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+                <button onClick={() => { setModalAccomp(null); setAccompSelections({}) }} style={{ background: 'none', border: 'none', fontSize: 22, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
               </div>
-              <p style={{ margin: '0 0 16px', fontSize: 13, color: '#6b7280' }}>{modalAccomp.quantiteSucc} sucrerie(s) ou 1 {modalAccomp.carafeType === 'grande' ? 'Grande Carafe' : 'Petite Carafe'} — offert(e)</p>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
-                {produits.filter(p => p.categorie === 'Sucreries').map(s => (
-                  <button key={s.id} onClick={() => ajouterAccomp(s, modalAccomp.quantiteSucc)} style={{ padding: '12px 14px', border: '2px solid #16a34a', borderRadius: 12, backgroundColor: '#f0fdf4', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.nom} ×{modalAccomp.quantiteSucc}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#16a34a' }}>Offert</span>
-                  </button>
-                ))}
-                {produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe')).map(c => (
-                  <button key={c.id} onClick={() => ajouterAccomp(c, 1)} style={{ padding: '12px 14px', border: '2px solid #3b82f6', borderRadius: 12, backgroundColor: '#eff6ff', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{c.nom}</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: '#3b82f6' }}>Offert</span>
-                  </button>
+              {/* Quota */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, padding: '10px 14px', borderRadius: 10, backgroundColor: reste > 0 ? '#f0fdf4' : '#fef3c7' }}>
+                <div style={{ display: 'flex', gap: 5 }}>
+                  {Array.from({ length: modalAccomp.quantiteSucc }).map((_, i) => (
+                    <div key={i} style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: i < accompTotal ? '#16a34a' : '#d1d5db' }} />
+                  ))}
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 600, color: reste > 0 ? '#16a34a' : '#d97706' }}>
+                  {accompTotal} / {modalAccomp.quantiteSucc} — {reste > 0 ? `${reste} restant${reste > 1 ? 's' : ''}` : 'Quota atteint'}
+                </span>
+              </div>
+              {/* Sucreries */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                {sucrerieItems.map(s => (
+                  <div key={s.id} style={btnStyle(accompSelections[s.id] || 0)}>
+                    <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{s.nom}</span>
+                    <div style={compteurStyle}>
+                      <button onClick={() => decrementAccomp(s.id)} disabled={!accompSelections[s.id]} style={btnPM(!accompSelections[s.id])}>−</button>
+                      <span style={{ fontSize: 15, fontWeight: 700, minWidth: 18, textAlign: 'center', color: '#111827' }}>{accompSelections[s.id] || 0}</span>
+                      <button onClick={() => incrementAccomp(s)} disabled={reste <= 0} style={btnPM(reste <= 0)}>+</button>
+                    </div>
+                  </div>
                 ))}
               </div>
-              <button onClick={() => setModalAccomp(null)} style={{ width: '100%', padding: '12px 16px', border: '2px solid #e5e7eb', borderRadius: 12, backgroundColor: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280' }}>Sans accompagnement</button>
+              {/* Carafes (pleine ligne) */}
+              {carafeItems.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <p style={{ fontSize: 12, color: '#6b7280', margin: '0 0 6px', fontWeight: 600 }}>OU — Carafe (utilise tout le quota)</p>
+                  {carafeItems.map(c => (
+                    <button key={c.id} onClick={() => { setPanier(prev => [...prev, { panier_key: `${c.id}_offert_${Date.now()}`, produit_id: c.id, nom: `${c.nom} (Offert)`, quantite: 1, prix_catalogue: 0, prix_applique: 0, unite: c.unite, stock_max: parseFloat(c.stock_actuel), variante_nom: 'Offert', coefficient: null }]); setModalAccomp(null); setAccompSelections({}) }}
+                      style={{ width: '100%', padding: '11px 14px', borderRadius: 10, border: '2px solid #3b82f6', backgroundColor: '#eff6ff', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{c.nom}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#3b82f6' }}>Offert — 1 carafe</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Actions */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
+                <button onClick={confirmerAccomp} disabled={accompTotal === 0} style={{ flex: 1, padding: '13px 16px', borderRadius: 12, border: 'none', backgroundColor: accompTotal > 0 ? '#16a34a' : '#e5e7eb', color: accompTotal > 0 ? 'white' : '#9ca3af', fontSize: 14, fontWeight: 700, cursor: accompTotal > 0 ? 'pointer' : 'not-allowed' }}>
+                  Confirmer ({accompTotal} offert{accompTotal > 1 ? 's' : ''})
+                </button>
+                <button onClick={() => { setModalAccomp(null); setAccompSelections({}) }} style={{ padding: '13px 16px', borderRadius: 12, border: '2px solid #e5e7eb', backgroundColor: 'white', fontSize: 14, fontWeight: 600, color: '#6b7280', cursor: 'pointer' }}>
+                  Sans accompagnement
+                </button>
+              </div>
             </div>
           </>
-        )}
+          )
+        })()}
 
         {/* MODAL TOURNÉE + SUCRERIE PAYANT */}
         {modalTourneeSucc && (

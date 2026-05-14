@@ -37,6 +37,7 @@ const Commandes = () => {
   const [chargement, setChargement]     = useState(true)
   const [modalFormats, setModalFormats]       = useState(null)
   const [modalAccomp, setModalAccomp]         = useState(null)
+  const [accompSelections, setAccompSelections] = useState({})
   const [modalTourneeSucc, setModalTourneeSucc] = useState(null)
   const flash = (type, texte) => {
     setMessage({ type, texte })
@@ -142,6 +143,15 @@ const Commandes = () => {
     setModalTourneeSucc(null)
   }
 
+
+  const accompTotal = Object.values(accompSelections).reduce((s, v) => s + v, 0)
+  const incrementAccomp = (p) => { if (!modalAccomp || accompTotal >= modalAccomp.quantiteSucc) return; setAccompSelections(prev => ({ ...prev, [p.id]: (prev[p.id] || 0) + 1 })) }
+  const decrementAccomp = (id) => { setAccompSelections(prev => { const nv = (prev[id] || 0) - 1; if (nv <= 0) { const { [id]: _, ...rest } = prev; return rest } return { ...prev, [id]: nv } }) }
+  const confirmerAccomp = () => {
+    const lignes = Object.entries(accompSelections).filter(([, q]) => q > 0).map(([id, qty]) => { const p = produits.find(x => x.id === parseInt(id)); return p ? { cle: `${id}__offert_${Date.now()}_${Math.random().toString(36).slice(2)}`, produit_id: p.id, nom: `${p.nom} (Offert)`, prix_unitaire: 0, quantite: qty, unite: p.unite, variante_nom: 'Offert', coefficient: null } : null }).filter(Boolean)
+    if (lignes.length > 0) setPanier(prev => [...prev, ...lignes])
+    setModalAccomp(null); setAccompSelections({})
+  }
 
   const ajouterAccomp = (accomp, quantite) => {
     const cle = `${accomp.id}__offert_${Date.now()}`
@@ -503,51 +513,52 @@ const Commandes = () => {
         </>
       )}
 
-      {modalAccomp && (
+      {modalAccomp && (() => {
+        const reste = modalAccomp.quantiteSucc - accompTotal
+        const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries')
+        const carafeItems = produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe'))
+        return (
         <>
-          <div onClick={() => setModalAccomp(null)} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 502 }} />
-          <div style={{
-            position: 'fixed', bottom: 0, left: 0, right: 0,
-            backgroundColor: 'white', borderRadius: '20px 20px 0 0',
-            padding: '20px 16px 32px', zIndex: 503,
-            boxShadow: '0 -4px 24px rgba(0,0,0,0.2)', maxHeight: '80vh', overflowY: 'auto'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>🎁 Accompagnement offert ?</p>
-              <button onClick={() => setModalAccomp(null)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
+          <div onClick={() => { setModalAccomp(null); setAccompSelections({}) }} style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 502 }} />
+          <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'white', borderRadius: '20px 20px 0 0', padding: '20px 16px 32px', zIndex: 503, boxShadow: '0 -4px 24px rgba(0,0,0,0.2)', maxHeight: '85vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <p style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#111827' }}>Accompagnement offert</p>
+              <button onClick={() => { setModalAccomp(null); setAccompSelections({}) }} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af' }}>✕</button>
             </div>
-            <p style={{ margin: '0 0 14px', fontSize: 13, color: '#6b7280' }}>
-              {modalAccomp.quantiteSucc} sucrerie(s) ou 1 {modalAccomp.carafeType === 'grande' ? 'Grande Carafe' : 'Petite Carafe'} — offert(e)
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, padding: '8px 12px', borderRadius: 10, backgroundColor: reste > 0 ? '#f0fdf4' : '#fef3c7' }}>
+              <div style={{ display: 'flex', gap: 4 }}>{Array.from({ length: modalAccomp.quantiteSucc }).map((_, i) => <div key={i} style={{ width: 12, height: 12, borderRadius: '50%', backgroundColor: i < accompTotal ? '#16a34a' : '#d1d5db' }} />)}</div>
+              <span style={{ fontSize: 13, fontWeight: 600, color: reste > 0 ? '#16a34a' : '#d97706' }}>{accompTotal} / {modalAccomp.quantiteSucc} — {reste > 0 ? `${reste} restant${reste > 1 ? 's' : ''}` : 'Quota atteint'}</span>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {produits.filter(p => p.categorie === 'Sucreries').map(s => (
-                <button key={s.id} onClick={() => ajouterAccomp(s, modalAccomp.quantiteSucc)} style={{
-                  padding: '13px 16px', border: `2px solid ${couleur}`, borderRadius: 12,
-                  backgroundColor: couleur + '0d', cursor: 'pointer',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                }}>
-                  <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{s.nom} × {modalAccomp.quantiteSucc}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>Offert</span>
-                </button>
+              {sucrerieItems.map(s => (
+                <div key={s.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 12, border: `2px solid ${(accompSelections[s.id] || 0) > 0 ? '#16a34a' : '#e5e7eb'}`, backgroundColor: (accompSelections[s.id] || 0) > 0 ? '#f0fdf4' : 'white' }}>
+                  <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{s.nom}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <button onClick={() => decrementAccomp(s.id)} disabled={!accompSelections[s.id]} style={{ width: 30, height: 30, borderRadius: 6, border: 'none', backgroundColor: accompSelections[s.id] ? '#16a34a' : '#f3f4f6', color: accompSelections[s.id] ? 'white' : '#9ca3af', fontSize: 20, fontWeight: 700, cursor: accompSelections[s.id] ? 'pointer' : 'not-allowed' }}>−</button>
+                    <span style={{ fontSize: 16, fontWeight: 700, minWidth: 20, textAlign: 'center' }}>{accompSelections[s.id] || 0}</span>
+                    <button onClick={() => incrementAccomp(s)} disabled={reste <= 0} style={{ width: 30, height: 30, borderRadius: 6, border: 'none', backgroundColor: reste > 0 ? '#16a34a' : '#f3f4f6', color: reste > 0 ? 'white' : '#9ca3af', fontSize: 20, fontWeight: 700, cursor: reste > 0 ? 'pointer' : 'not-allowed' }}>+</button>
+                  </div>
+                </div>
               ))}
-              {produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe')).map(c => (
-                <button key={c.id} onClick={() => ajouterAccomp(c, 1)} style={{
-                  padding: '13px 16px', border: '2px solid #3b82f6', borderRadius: 12,
-                  backgroundColor: '#eff6ff', cursor: 'pointer',
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-                }}>
+              {carafeItems.length > 0 && <p style={{ fontSize: 12, color: '#6b7280', margin: '4px 0 2px', fontWeight: 600 }}>OU — Carafe (utilise tout le quota)</p>}
+              {carafeItems.map(c => (
+                <button key={c.id} onClick={() => { setPanier(prev => [...prev, { cle: `${c.id}__offert_${Date.now()}`, produit_id: c.id, nom: `${c.nom} (Offert)`, prix_unitaire: 0, quantite: 1, unite: c.unite, variante_nom: 'Offert', coefficient: null }]); setModalAccomp(null); setAccompSelections({}) }}
+                  style={{ padding: '12px 14px', border: '2px solid #3b82f6', borderRadius: 12, backgroundColor: '#eff6ff', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{c.nom}</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#16a34a' }}>Offert</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#3b82f6' }}>Offert — 1 carafe</span>
                 </button>
               ))}
-              <button onClick={() => setModalAccomp(null)} style={{
-                padding: '13px 16px', border: '2px solid #e5e7eb', borderRadius: 12,
-                backgroundColor: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6b7280'
-              }}>Sans accompagnement</button>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button onClick={confirmerAccomp} disabled={accompTotal === 0} style={{ flex: 1, padding: '13px 16px', borderRadius: 12, border: 'none', backgroundColor: accompTotal > 0 ? '#16a34a' : '#e5e7eb', color: accompTotal > 0 ? 'white' : '#9ca3af', fontSize: 14, fontWeight: 700, cursor: accompTotal > 0 ? 'pointer' : 'not-allowed' }}>
+                  Confirmer ({accompTotal} offert{accompTotal > 1 ? 's' : ''})
+                </button>
+                <button onClick={() => { setModalAccomp(null); setAccompSelections({}) }} style={{ padding: '13px 16px', borderRadius: 12, border: '2px solid #e5e7eb', backgroundColor: 'white', fontSize: 14, fontWeight: 600, color: '#6b7280', cursor: 'pointer' }}>Sans</button>
+              </div>
             </div>
           </div>
         </>
-      )}
+        )
+      })()}
 
       {/* ── Panneau panier (bottom sheet) ── */}
       {panierOuvert && (
