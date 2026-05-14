@@ -842,7 +842,7 @@ function connecterSocket() {
     window._socket = socket
 
     socket.on('connect', async () => {
-      socket.emit('join:maquis', state.utilisateur.maquis_id)
+      socket.emit('join:maquis', state.utilisateur.maquis?.id)
       await recupererBonsManques()
     })
 

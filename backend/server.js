@@ -25,7 +25,11 @@ const originesAutorisees = [
 ]
 
 const io = new Server(server, {
-  cors: { origin: originesAutorisees, methods: ['GET', 'POST'], credentials: true }
+  cors: {
+    origin: (origin, cb) => cb(null, !origin || originesAutorisees.includes(origin)),
+    methods: ['GET', 'POST'],
+    credentials: true
+  }
 })
 
 // ============================================================
