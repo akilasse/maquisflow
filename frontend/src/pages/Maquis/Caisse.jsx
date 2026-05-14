@@ -651,7 +651,7 @@ const Caisse = () => {
         {/* MODAL ACCOMPAGNEMENT OFFERT — compteurs libres */}
         {modalAccomp && (() => {
           const reste = modalAccomp.quantiteSucc - accompTotal
-          const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries')
+          const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees')
           const carafeItems = produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe'))
           const btnStyle = (sel) => ({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, border: `2px solid ${sel > 0 ? '#16a34a' : '#e5e7eb'}`, backgroundColor: sel > 0 ? '#f0fdf4' : 'white', marginBottom: 8 })
           const compteurStyle = { display: 'flex', alignItems: 'center', gap: 8 }

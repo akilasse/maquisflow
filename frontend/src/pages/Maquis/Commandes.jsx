@@ -515,7 +515,7 @@ const Commandes = () => {
 
       {modalAccomp && (() => {
         const reste = modalAccomp.quantiteSucc - accompTotal
-        const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries')
+        const sucrerieItems = produits.filter(p => p.categorie === 'Sucreries' || p.categorie === 'Eau & Sirop' || p.categorie === 'Boissons Importees')
         const carafeItems = produits.filter(p => p.nom.toLowerCase().startsWith(modalAccomp.carafeType === 'grande' ? 'grande carafe' : 'petite carafe'))
         return (
         <>
