@@ -243,7 +243,7 @@ const Tablette = () => {
     if (panier.length === 0) return
     setEnvoi(true)
     try {
-      const lignes = panier.map(p => ({
+      const lignes = panier.filter(p => p.variante_nom !== 'Offert').map(p => ({
         produit_id:    p.produit_id,
         quantite:      p.quantite,
         note:          p.note || null,

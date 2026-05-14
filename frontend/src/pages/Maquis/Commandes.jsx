@@ -183,7 +183,7 @@ const Commandes = () => {
         table_id:     tableId ? parseInt(tableId) : null,
         type_commande: typeCommande,
         note:          note.trim() || null,
-        lignes:        panier.map(l => ({
+        lignes:        panier.filter(l => l.variante_nom !== 'Offert').map(l => ({
           produit_id:   l.produit_id,
           quantite:     l.quantite,
           prix_unitaire: l.prix_unitaire,

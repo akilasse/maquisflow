@@ -1373,7 +1373,7 @@ async function validerVente() {
   const venteData = {
     mode_paiement: state.modePaiement,
     note,
-    lignes: state.panier.map(i => ({
+    lignes: state.panier.filter(i => i.variante_nom !== 'Offert').map(i => ({
       produit_id:   i.produit_id,
       quantite:     i.quantite,
       prix_applique: i.prix_applique,

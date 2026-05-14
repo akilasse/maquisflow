@@ -372,7 +372,7 @@ const Caisse = () => {
     const venteData = {
       mode_paiement: modePaiement,
       note,
-      lignes: panier.map(item => ({
+      lignes: panier.filter(item => item.variante_nom !== 'Offert').map(item => ({
         produit_id:    item.produit_id,
         quantite:      item.quantite,
         prix_applique: item.prix_applique,
