@@ -434,11 +434,10 @@ export default function Ventes() {
                 <div key={`cmd_${v.id}`} style={{ background:'#fff', borderRadius:14, boxShadow:'0 1px 6px rgba(0,0,0,0.07)', overflow:'hidden', borderLeft:'4px solid #fb923c' }}>
                   <div onClick={() => setOuverte(ouv ? null : `cmd_${v.id}`)}
                     style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 18px', cursor:'pointer', userSelect:'none' }}>
-                    <div style={{ width:36, height:36, borderRadius:10, background:'#fff7ed', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:16 }}>🍽️</div>
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                         <span style={{ fontSize:14, fontWeight:700, color:'#111827' }}>
-                          {v.table ? `Table ${v.table.numero}` : 'Comptoir'} — Cmd #{v.numero || v.id}
+                          {v.table ? `Table ${v.table.numero} — ` : ''}Cmd #{v.numero_journee || v.numero || v.id}
                         </span>
                         <span style={{ background:'#fef3c7', color:'#92400e', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700 }}>⏳ En attente</span>
                         <span style={{ background:'#fff7ed', color:'#ea580c', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:600 }}>Commande tablette</span>
@@ -531,16 +530,17 @@ export default function Ventes() {
                   className="vente-card-main"
                   style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 18px', cursor:'pointer', userSelect:'none' }}>
 
-                  {/* Numéro */}
-                  <div style={{ width:36, height:36, borderRadius:10, background:'#f3f4f6', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                    <span style={{ fontSize:12, fontWeight:800, color:'#374151' }}>#{v.id}</span>
-                  </div>
+                  {/* Numéro journalier */}
+                  {v.numero_journee ? (
+                    <div style={{ width:36, height:36, borderRadius:10, background:'#f3f4f6', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <span style={{ fontSize:12, fontWeight:800, color:'#374151' }}>N°{v.numero_journee}</span>
+                    </div>
+                  ) : null}
 
                   {/* Infos */}
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                       <span style={{ fontSize:14, fontWeight:700, color:'#111827' }}>{fmtDate(v.date_vente)}</span>
-                      {v.numero_journee && <span style={{ fontSize:12, fontWeight:700, color:'#6b7280' }}>N°{v.numero_journee}</span>}
                       <Badge statut={v.statut} />
                       <span style={{ fontSize:12, color: mode.color, fontWeight:600 }}>{mode.icone} {mode.label}</span>
                     </div>

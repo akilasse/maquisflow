@@ -403,6 +403,7 @@ model Commande {
   annule_par         Int?
   remise_montant     Decimal? @db.Decimal(10,2)
   remise_motif       String?  @db.Text
+  numero_journee     Int?
   created_at         DateTime @default(now())
   updated_at    DateTime       @updatedAt
 

@@ -16,6 +16,17 @@ const calculerNumeroJournee = async (tx, maquis_id) => {
   return count + 1
 }
 
+const calculerNumeroJourneeCommande = async (prisma, maquis_id) => {
+  const maquis = await prisma.maquis.findUnique({ where: { id: maquis_id }, select: { heure_debut_journee: true } })
+  const heureDebut = maquis?.heure_debut_journee || 0
+  const maintenant = new Date()
+  const debut = new Date(maintenant)
+  debut.setUTCHours(heureDebut, 0, 0, 0)
+  if (maintenant.getUTCHours() < heureDebut) debut.setUTCDate(debut.getUTCDate() - 1)
+  const count = await prisma.commande.count({ where: { maquis_id, created_at: { gte: debut } } })
+  return count + 1
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 
 const verifierModule = async (prisma, maquis_id) => {
@@ -203,6 +214,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
     orderBy: { numero: 'desc' }
   })
   const numero = (derniere?.numero || 0) + 1
+  const numero_journee = await calculerNumeroJourneeCommande(prisma, utilisateur.maquis_id)
 
   // Prépare les lignes avec station du produit par défaut
   const lignesPreparees = await Promise.all(lignes.map(async (l) => {
@@ -231,6 +243,7 @@ const creerCommande = async (prisma, io, data, utilisateur) => {
       statut:        'en_attente',
       caisse_id:     caisse_id ? parseInt(caisse_id) : null,
       numero,
+      numero_journee,
       note:          note || null,
       lignes: { create: lignesPreparees }
     },

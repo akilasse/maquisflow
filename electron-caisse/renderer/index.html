@@ -1257,7 +1257,7 @@ function renderPanier() {
     document.querySelector('.btn-vider').textContent = '← Changer'
   } else if (state.commandeActive) {
     const t = state.commandeActive.table
-    document.getElementById('panier-titre').textContent = `🍽️ ${t ? `Table ${t.numero}` : 'Comptoir'} — Cmd #${state.commandeActive.numero || state.commandeActive.id}`
+    document.getElementById('panier-titre').textContent = `🍽️ ${t ? `Table ${t.numero}` : 'Comptoir'} — Cmd #${state.commandeActive.numero_journee || state.commandeActive.numero || state.commandeActive.id}`
     document.querySelector('.btn-vider').textContent = '← Changer'
   } else {
     document.getElementById('panier-titre').textContent = `Panier (${state.panier.length})`

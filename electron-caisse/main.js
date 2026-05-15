@@ -185,7 +185,7 @@ const lignesHtml = bon.lignes.map(l => `
     </style></head><body>
       <h2>BON DE COMMANDE (En attente de paiement)</h2>
       <hr>
-      <div>N° ${bon.numero}</div>
+      <div>N° ${bon.numero_journee || bon.numero}</div>
       <div>${bon.table ? 'Table ' + bon.table : 'Comptoir'}</div>
       <div>Serveur : ${bon.serveur}</div>
       <div>${bon.date}</div>
