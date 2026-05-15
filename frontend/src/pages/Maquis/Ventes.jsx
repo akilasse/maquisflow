@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useSocket } from '../../context/SocketContext'
-import { useNavigate } from 'react-router-dom'
 import api from '../../utils/api'
 
 const fmtNum  = (n) => Number(n || 0).toLocaleString('fr-FR')
@@ -57,7 +56,6 @@ const Modal = ({ titre, onClose, children }) => (
 export default function Ventes() {
   const { utilisateur } = useAuth()
   const { socket }      = useSocket()
-  const navigate        = useNavigate()
   const estAdmin = ['gerant', 'patron'].includes(utilisateur?.role)
 
   const [ventes,         setVentes]         = useState([])
@@ -82,6 +80,8 @@ export default function Ventes() {
   const [montantReduc,   setMontantReduc]   = useState('')
   const [motifReduc,     setMotifReduc]     = useState('')
   const [motifAnnul,     setMotifAnnul]     = useState('')
+  const [modaleOffert,   setModaleOffert]   = useState(null)
+  const [motifOffert,    setMotifOffert]    = useState('')
   const [enCours,        setEnCours]        = useState(false)
 
   const appliquerPeriode = (p) => {
@@ -227,8 +227,27 @@ export default function Ventes() {
     if (!montantReduc || !motifReduc.trim()) return msg('erreur', 'Montant et motif requis')
     setEnCours(true)
     try {
-      await api.put(`/api/ventes/${modaleReduc.id}/reduction`, { montant: montantReduc, motif: motifReduc })
+      if (modaleReduc._type === 'commande') {
+        await api.put(`/api/commandes/${modaleReduc.id}/reduction`, { montant: montantReduc, motif: motifReduc })
+      } else {
+        await api.put(`/api/ventes/${modaleReduc.id}/reduction`, { montant: montantReduc, motif: motifReduc })
+      }
       msg('succes', 'Réduction appliquée'); setModaleReduc(null); charger()
+    } catch (e) { msg('erreur', e.response?.data?.message || 'Erreur') }
+    finally { setEnCours(false) }
+  }
+
+  const confirmerOffert = async () => {
+    if (!motifOffert.trim()) return msg('erreur', 'Motif obligatoire')
+    setEnCours(true)
+    try {
+      if (modaleOffert._type === 'commande') {
+        const total = (modaleOffert.lignes || []).reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
+        await api.put(`/api/commandes/${modaleOffert.id}/reduction`, { montant: total, motif: motifOffert })
+      } else {
+        await api.put(`/api/ventes/${modaleOffert.id}/reduction`, { montant: modaleOffert.total_net, motif: motifOffert })
+      }
+      msg('succes', 'Commande offerte'); setModaleOffert(null); charger()
     } catch (e) { msg('erreur', e.response?.data?.message || 'Erreur') }
     finally { setEnCours(false) }
   }
@@ -406,9 +425,11 @@ export default function Ventes() {
           {ventes.map(v => {
             // ── Carte commande tablette ──────────────────────────
             if (v._type === 'commande') {
-              const ouv   = ouverte === `cmd_${v.id}`
-              const total = v.total_net || 0
-              const tAgo  = v.created_at ? Math.floor((Date.now() - new Date(v.created_at)) / 60000) : 0
+              const ouv      = ouverte === `cmd_${v.id}`
+              const brut     = (v.lignes || []).reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
+              const remise   = parseFloat(v.remise_montant || 0)
+              const total    = Math.max(0, brut - remise)
+              const tAgo     = v.created_at ? Math.floor((Date.now() - new Date(v.created_at)) / 60000) : 0
               return (
                 <div key={`cmd_${v.id}`} style={{ background:'#fff', borderRadius:14, boxShadow:'0 1px 6px rgba(0,0,0,0.07)', overflow:'hidden', borderLeft:'4px solid #fb923c' }}>
                   <div onClick={() => setOuverte(ouv ? null : `cmd_${v.id}`)}
@@ -430,6 +451,7 @@ export default function Ventes() {
                     </div>
                     <div style={{ textAlign:'right', flexShrink:0 }}>
                       <div style={{ fontSize:16, fontWeight:800, color:'#111827' }}>{fmtNum(total)} FCFA</div>
+                      {remise > 0 && <div style={{ fontSize:11, color:'#9333ea', marginTop:2 }}>- {fmtNum(remise)} remise</div>}
                     </div>
                     <span style={{ color:'#d1d5db', fontSize:18, transition:'transform 0.2s', transform: ouv ? 'rotate(90deg)' : 'none' }}>›</span>
                   </div>
@@ -463,16 +485,27 @@ export default function Ventes() {
                           </tr>
                         </tfoot>
                       </table>
+                      {v.remise_motif && (
+                        <div style={{ background:'#fdf4ff', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#7e22ce', marginBottom:8 }}>
+                          Réduction : <strong>{fmtNum(v.remise_montant)} FCFA</strong> — {v.remise_motif}
+                        </div>
+                      )}
                       {v.note && (
                         <div style={{ background:'#f9fafb', borderRadius:8, padding:'8px 12px', fontSize:12, color:'#6b7280', marginBottom:8 }}>
                           Note : {v.note}
                         </div>
                       )}
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                        <button onClick={() => navigate('/caisse')}
-                          style={{ background:couleur, color:'white', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
-                          💳 Encaisser depuis la Caisse
+                        <button onClick={() => { setModaleReduc(v); setMontantReduc(''); setMotifReduc('') }}
+                          style={{ background:'#fdf4ff', color:'#7e22ce', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                          % Réduction
                         </button>
+                        {estAdmin && (
+                          <button onClick={() => { setModaleOffert(v); setMotifOffert('') }}
+                            style={{ background:'#f0fdf4', color:'#15803d', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                            🎁 Offert
+                          </button>
+                        )}
                         {estAdmin && (
                           <button onClick={() => { setModaleAnnul(v); setMotifAnnul('') }}
                             style={{ background:'#fef2f2', color:'#991b1b', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
@@ -580,31 +613,39 @@ export default function Ventes() {
                       </div>
                     )}
 
-                    {/* Actions admin */}
-                    {estAdmin && !annulee && (
+                    {/* Actions */}
+                    {!annulee && (
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:4 }} className="vente-actions">
-                        {/* Remettre en attente — seulement si encaissée */}
-                        {v.statut === 'encaissee' && (
+                        {/* Remettre en attente — seulement si encaissée, admin uniquement */}
+                        {estAdmin && v.statut === 'encaissee' && (
                           <button onClick={() => retourAttente(v)} style={{ background:'#fef9c3', color:'#713f12', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
                             ↩ Remettre en attente
                           </button>
                         )}
-                        {/* Modifier les articles — uniquement en attente */}
-                        {v.statut === 'en_attente' && (
+                        {/* Modifier les articles — uniquement en attente, admin uniquement */}
+                        {estAdmin && v.statut === 'en_attente' && (
                           <button onClick={() => ouvrirModifier(v)} style={{ background:'#eff6ff', color:'#1d4ed8', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
                             ✏️ Modifier
                           </button>
                         )}
-                        {/* Réduction — encaissée ou en attente */}
+                        {/* Réduction — tous les rôles */}
                         {['encaissee', 'en_attente', 'credit_en_cours'].includes(v.statut) && (
                           <button onClick={() => { setModaleReduc(v); setMontantReduc(''); setMotifReduc('') }} style={{ background:'#fdf4ff', color:'#7e22ce', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
                             % Réduction
                           </button>
                         )}
-                        {/* Annuler */}
-                        <button onClick={() => { setModaleAnnul(v); setMotifAnnul('') }} style={{ background:'#fef2f2', color:'#991b1b', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
-                          ✕ Annuler la vente
-                        </button>
+                        {/* Offert — admin, en attente uniquement */}
+                        {estAdmin && v.statut === 'en_attente' && (
+                          <button onClick={() => { setModaleOffert(v); setMotifOffert('') }} style={{ background:'#f0fdf4', color:'#15803d', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                            🎁 Offert
+                          </button>
+                        )}
+                        {/* Annuler — admin uniquement */}
+                        {estAdmin && (
+                          <button onClick={() => { setModaleAnnul(v); setMotifAnnul('') }} style={{ background:'#fef2f2', color:'#991b1b', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                            ✕ Annuler la vente
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
@@ -617,10 +658,12 @@ export default function Ventes() {
 
       {/* Modale réduction */}
       {modaleReduc && (
-        <Modal titre={`Réduction — Vente #${modaleReduc.id}`} onClose={() => setModaleReduc(null)}>
+        <Modal
+          titre={modaleReduc._type === 'commande' ? `Réduction — Commande #${modaleReduc.numero || modaleReduc.id}` : `Réduction — Vente #${modaleReduc.id}`}
+          onClose={() => setModaleReduc(null)}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div style={{ background:'#f9fafb', borderRadius:8, padding:'10px 14px', fontSize:14 }}>
-              Total actuel : <strong style={{ color:couleur }}>{fmtNum(modaleReduc.total_net)} FCFA</strong>
+              Total actuel : <strong style={{ color:couleur }}>{fmtNum(modaleReduc._type === 'commande' ? (modaleReduc.lignes || []).reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0) : modaleReduc.total_net)} FCFA</strong>
             </div>
             <div>
               <label style={{ fontSize:13, fontWeight:600, display:'block', marginBottom:6 }}>Montant de la réduction (FCFA)</label>
@@ -735,6 +778,29 @@ export default function Ventes() {
             <button onClick={confirmerAnnulation} disabled={enCours}
               style={{ background:'#dc2626', color:'#fff', border:'none', borderRadius:8, padding:'11px 20px', fontWeight:700, fontSize:15, cursor:'pointer', opacity: enCours ? .7 : 1 }}>
               {enCours ? 'Annulation...' : 'Confirmer l\'annulation'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Modale offert */}
+      {modaleOffert && (
+        <Modal
+          titre={modaleOffert._type === 'commande' ? `Offrir — Commande #${modaleOffert.numero || modaleOffert.id}` : `Offrir — Vente #${modaleOffert.id}`}
+          onClose={() => setModaleOffert(null)}>
+          <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+            <div style={{ background:'#f0fdf4', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#15803d', fontWeight:600 }}>
+              🎁 La commande sera offerte — total ramené à 0 FCFA
+            </div>
+            <div>
+              <label style={{ fontSize:13, fontWeight:600, display:'block', marginBottom:6 }}>Motif (obligatoire)</label>
+              <input type="text" value={motifOffert} onChange={e => setMotifOffert(e.target.value)}
+                placeholder="Cadeau client, geste commercial, erreur cuisine..."
+                style={{ width:'100%', border:'1.5px solid #e5e7eb', borderRadius:8, padding:'9px 12px', fontSize:14, boxSizing:'border-box' }} />
+            </div>
+            <button onClick={confirmerOffert} disabled={enCours}
+              style={{ background:'#16a34a', color:'#fff', border:'none', borderRadius:8, padding:'11px 20px', fontWeight:700, fontSize:15, cursor:'pointer', opacity: enCours ? .7 : 1 }}>
+              {enCours ? 'Enregistrement...' : '🎁 Confirmer — Offrir'}
             </button>
           </div>
         </Modal>

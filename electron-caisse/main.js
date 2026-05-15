@@ -143,7 +143,7 @@ const lignesHtml = t.lignes.map(l => `
       .footer { text-align: center; margin-top: 6px; font-size: 13px; }
     </style></head><body>
       <h2>${t.maquis || 'Flowix'}</h2>
-      <div class="sub">${t.copie ? '-- COPIE CAISSIER --' : '-- COPIE CLIENT --'}</div>
+      <div class="sub">${t.copie ? 'REÇU CAISSIER (Payé)' : 'REÇU CLIENT (Payé)'}</div>
       <hr>
       <div>${t.date}</div>
       <div>Caissier : ${t.caissier}</div>
@@ -182,7 +182,7 @@ const lignesHtml = bon.lignes.map(l => `
       table { width: 100%; border-collapse: collapse; }
       td { padding: 3px 0; color: #000; }
     </style></head><body>
-      <h2>BON DE COMMANDE</h2>
+      <h2>BON DE COMMANDE (En attente de paiement)</h2>
       <hr>
       <div>N° ${bon.numero}</div>
       <div>${bon.table ? 'Table ' + bon.table : 'Comptoir'}</div>

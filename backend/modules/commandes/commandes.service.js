@@ -397,6 +397,41 @@ const annulerCommande = async (prisma, io, commandeId, motif, utilisateur) => {
   return commandeMaj
 }
 
+const appliquerReductionCommande = async (prisma, io, commandeId, data, utilisateur) => {
+  const { montant, motif } = data
+  if (!montant || parseFloat(montant) <= 0) throw new Error('Montant de réduction invalide')
+  if (!motif || !motif.trim()) throw new Error('Le motif de réduction est obligatoire')
+
+  const commande = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
+  if (['encaissee', 'annulee'].includes(commande.statut)) {
+    throw new Error('Impossible de modifier une commande terminée')
+  }
+
+  const lignesActives = commande.lignes.filter(l => l.statut !== 'annulee')
+  const total = lignesActives.reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
+
+  const reduction = parseFloat(montant)
+  if (reduction > total) throw new Error('La réduction ne peut pas dépasser le total')
+
+  const commandeMaj = await prisma.commande.update({
+    where: { id: commandeId },
+    data: { remise_montant: reduction, remise_motif: motif.trim() },
+    include: {
+      table: true,
+      serveur: { select: { id: true, nom: true } },
+      lignes: {
+        include: {
+          produit: { select: { id: true, nom: true, unite: true } },
+          station: { select: { id: true, nom: true, couleur: true } }
+        }
+      }
+    }
+  })
+
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('commande:mise_a_jour', commandeMaj)
+  return commandeMaj
+}
+
 const encaisserCommande = async (prisma, io, commandeId, data, utilisateur) => {
   const { mode_paiement, note_vente } = data
   const modesValides = ['especes', 'wave', 'orange_money', 'mtn_money', 'credit', 'autre']
@@ -410,21 +445,26 @@ const encaisserCommande = async (prisma, io, commandeId, data, utilisateur) => {
   if (lignesActives.length === 0) throw new Error('Aucun article actif dans cette commande')
 
   const vente = await prisma.$transaction(async (tx) => {
-    const total = lignesActives.reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
+    const totalBrut   = lignesActives.reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
+    const remise      = parseFloat(commande.remise_montant || 0)
+    const total       = Math.max(0, parseFloat((totalBrut - remise).toFixed(2)))
 
     // Crée la vente liée à la commande
     const nouvelleVente = await tx.vente.create({
       data: {
-        maquis_id:     utilisateur.maquis_id,
-        caissier_id:   utilisateur.id,
-        total_brut:    parseFloat(total.toFixed(2)),
-        remise_globale: 0,
-        total_net:     parseFloat(total.toFixed(2)),
+        maquis_id:        utilisateur.maquis_id,
+        caissier_id:      utilisateur.id,
+        total_brut:       parseFloat(totalBrut.toFixed(2)),
+        remise_globale:   remise,
+        total_net:        total,
+        reduction_montant: remise > 0 ? remise : null,
+        reduction_motif:   remise > 0 ? (commande.remise_motif || null) : null,
+        reduction_par:     remise > 0 ? utilisateur.id : null,
         mode_paiement,
-        statut:        mode_paiement === 'credit' ? 'credit_en_cours' : 'encaissee',
-        note:          note_vente || commande.note || null,
-        commande_id:   commandeId,
-        serveur_nom:   commande.serveur?.nom || null,
+        statut:           mode_paiement === 'credit' ? 'credit_en_cours' : 'encaissee',
+        note:             note_vente || commande.note || null,
+        commande_id:      commandeId,
+        serveur_nom:      commande.serveur?.nom || null,
         lignes: {
           create: lignesActives.map(l => ({
             produit_id:     l.produit_id,
@@ -484,5 +524,5 @@ module.exports = {
   getTables, creerTable, modifierTable, supprimerTable,
   getCommandes, getCommandesKDS, getCommande,
   creerCommande, ajouterLignes, definirTemps,
-  changerStatutLigne, changerStatutCommande, annulerCommande, encaisserCommande
+  changerStatutLigne, changerStatutCommande, appliquerReductionCommande, annulerCommande, encaisserCommande
 }

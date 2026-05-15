@@ -400,6 +400,8 @@ model Commande {
   caisse             Station?            @relation("CommandeCaisse", fields: [caisse_id], references: [id])
   annulation_motif   String?  @db.Text
   annule_par         Int?
+  remise_montant     Decimal? @db.Decimal(10,2)
+  remise_motif       String?  @db.Text
   created_at         DateTime @default(now())
   updated_at    DateTime       @updatedAt
 

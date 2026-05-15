@@ -235,7 +235,7 @@ const appliquerReduction = async (prisma, io, venteId, data, utilisateur) => {
   if (['annulee'].includes(vente.statut)) throw new Error('Impossible de modifier une vente annulée')
 
   const reduction = parseFloat(montant)
-  if (reduction >= parseFloat(vente.total_net)) throw new Error('La réduction ne peut pas dépasser le total')
+  if (reduction > parseFloat(vente.total_net)) throw new Error('La réduction ne peut pas dépasser le total')
 
   const venteMaj = await prisma.vente.update({
     where: { id: venteId },
