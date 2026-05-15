@@ -1460,7 +1460,6 @@ async function validerVente() {
     offline
   }
 
-  afficherModal()
   viderPanier()
   await updatePendingBadge()
 
@@ -1473,8 +1472,6 @@ async function validerVente() {
   } else {
     console.log('Impression auto échouée:', r1.error)
   }
-  // Fermer le modal automatiquement après 3 secondes
-  setTimeout(fermerModal, 3000)
 }
 
 function buildTicketData(copie = false) {
