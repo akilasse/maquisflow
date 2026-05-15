@@ -28,6 +28,7 @@ router.post('/',   staff, ctrl.creerCommande)
 router.get('/:id', tous,  ctrl.getCommande)
 
 router.post('/:id/lignes',     staff, ctrl.ajouterLignes)
+router.put('/:id/lignes',      admin, ctrl.modifierLignesCommande)
 router.put('/:id/statut',      staff, ctrl.changerStatutCommande)
 router.put('/:id/temps',       staff, ctrl.definirTemps)
 router.put('/:id/reduction',   staff, ctrl.appliquerReductionCommande)

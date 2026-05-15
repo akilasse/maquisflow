@@ -421,6 +421,40 @@ const annulerCommande = async (prisma, io, commandeId, motif, utilisateur) => {
   return commandeMaj
 }
 
+const modifierLignesCommande = async (prisma, io, commandeId, lignes, utilisateur) => {
+  if (!lignes || lignes.length === 0) throw new Error('La commande doit contenir au moins un article')
+  const commande = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
+  if (!['en_attente', 'ouverte'].includes(commande.statut)) {
+    throw new Error('Impossible de modifier une commande dans ce statut')
+  }
+
+  await prisma.commandeLigne.deleteMany({ where: { commande_id: commandeId } })
+
+  const lignesPreparees = await Promise.all(lignes.map(async (l) => {
+    const produit = await prisma.produit.findFirst({
+      where: { id: l.produit_id, maquis_id: utilisateur.maquis_id, actif: true }
+    })
+    if (!produit) throw new Error(`Produit introuvable : ID ${l.produit_id}`)
+    return {
+      commande_id:   commandeId,
+      produit_id:    l.produit_id,
+      station_id:    produit.station_id || null,
+      quantite:      parseFloat(l.quantite) || 1,
+      prix_unitaire: l.prix_applique ? parseFloat(l.prix_applique) : parseFloat(produit.prix_vente),
+      variante_nom:  l.variante_nom || null,
+      coefficient:   null,
+      note:          null,
+      statut:        'en_attente'
+    }
+  }))
+
+  await prisma.commandeLigne.createMany({ data: lignesPreparees })
+
+  const commandeMaj = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('commande:mise_a_jour', commandeMaj)
+  return commandeMaj
+}
+
 const appliquerReductionCommande = async (prisma, io, commandeId, data, utilisateur) => {
   const { montant, motif } = data
   if (!montant || parseFloat(montant) <= 0) throw new Error('Montant de réduction invalide')
@@ -550,5 +584,5 @@ module.exports = {
   getTables, creerTable, modifierTable, supprimerTable,
   getCommandes, getCommandesKDS, getCommande,
   creerCommande, ajouterLignes, definirTemps,
-  changerStatutLigne, changerStatutCommande, appliquerReductionCommande, annulerCommande, encaisserCommande
+  changerStatutLigne, changerStatutCommande, modifierLignesCommande, appliquerReductionCommande, annulerCommande, encaisserCommande
 }

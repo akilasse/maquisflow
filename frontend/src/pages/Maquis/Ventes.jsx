@@ -204,13 +204,17 @@ export default function Ventes() {
   }
 
   const confirmerModification = async () => {
-    if (lignesEdit.length === 0) return msg('erreur', 'La vente doit avoir au moins un article')
+    if (lignesEdit.length === 0) return msg('erreur', 'Doit contenir au moins un article')
     setEnCours(true)
     try {
-      await api.put(`/api/ventes/${modaleModifier.id}/lignes`, {
-        lignes: lignesEdit.map(l => ({ produit_id: l.produit_id, quantite: l.quantite, prix_applique: l.prix_applique }))
-      })
-      msg('succes', 'Vente modifiée')
+      const lignes = lignesEdit.map(l => ({ produit_id: l.produit_id, quantite: l.quantite, prix_applique: l.prix_applique }))
+      if (modaleModifier._type === 'commande') {
+        await api.put(`/api/commandes/${modaleModifier.id}/lignes`, { lignes })
+        msg('succes', 'Commande modifiée')
+      } else {
+        await api.put(`/api/ventes/${modaleModifier.id}/lignes`, { lignes })
+        msg('succes', 'Vente modifiée')
+      }
       setModaleModifier(null)
       charger()
     } catch (e) { msg('erreur', e.response?.data?.message || 'Erreur') }
@@ -506,6 +510,12 @@ export default function Ventes() {
                           </button>
                         )}
                         {estAdmin && (
+                          <button onClick={() => ouvrirModifier(v)}
+                            style={{ background:'#eff6ff', color:'#1d4ed8', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                            ✏️ Modifier
+                          </button>
+                        )}
+                        {estAdmin && (
                           <button onClick={() => { setModaleAnnul(v); setMotifAnnul('') }}
                             style={{ background:'#fef2f2', color:'#991b1b', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
                             ✕ Annuler la commande
@@ -696,7 +706,7 @@ export default function Ventes() {
           <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
             <div style={{ background:'#fff', borderRadius:14, padding:24, width:520, maxWidth:'95vw', maxHeight:'90vh', display:'flex', flexDirection:'column', boxShadow:'0 20px 60px rgba(0,0,0,0.25)' }}>
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:18 }}>
-                <h3 style={{ margin:0, fontSize:16, fontWeight:700 }}>✏️ Modifier — Vente #{modaleModifier.id}</h3>
+                <h3 style={{ margin:0, fontSize:16, fontWeight:700 }}>✏️ Modifier — {modaleModifier._type === 'commande' ? `Cmd #${modaleModifier.numero_journee || modaleModifier.numero}` : `Vente #${modaleModifier.id}`}</h3>
                 <button onClick={() => setModaleModifier(null)} style={{ background:'none', border:'none', fontSize:22, cursor:'pointer', color:'#9ca3af' }}>×</button>
               </div>
 
