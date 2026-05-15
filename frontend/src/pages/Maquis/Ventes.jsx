@@ -237,8 +237,14 @@ export default function Ventes() {
     if (!motifAnnul.trim()) return msg('erreur', 'Motif obligatoire')
     setEnCours(true)
     try {
-      await api.put(`/api/ventes/${modaleAnnul.id}/annuler`, { motif: motifAnnul })
-      msg('succes', 'Vente annulée'); setModaleAnnul(null); charger()
+      if (modaleAnnul._type === 'commande') {
+        await api.put(`/api/commandes/${modaleAnnul.id}/annuler`, { motif: motifAnnul })
+        msg('succes', 'Commande annulée')
+      } else {
+        await api.put(`/api/ventes/${modaleAnnul.id}/annuler`, { motif: motifAnnul })
+        msg('succes', 'Vente annulée')
+      }
+      setModaleAnnul(null); charger()
     } catch (e) { msg('erreur', e.response?.data?.message || 'Erreur') }
     finally { setEnCours(false) }
   }
@@ -462,10 +468,18 @@ export default function Ventes() {
                           Note : {v.note}
                         </div>
                       )}
-                      <button onClick={() => navigate('/caisse')}
-                        style={{ background:'var(--couleur-principale)', color:'white', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
-                        💳 Encaisser depuis la Caisse
-                      </button>
+                      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        <button onClick={() => navigate('/caisse')}
+                          style={{ background:couleur, color:'white', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                          💳 Encaisser depuis la Caisse
+                        </button>
+                        {estAdmin && (
+                          <button onClick={() => { setModaleAnnul(v); setMotifAnnul('') }}
+                            style={{ background:'#fef2f2', color:'#991b1b', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                            ✕ Annuler la commande
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -707,7 +721,7 @@ export default function Ventes() {
 
       {/* Modale annulation */}
       {modaleAnnul && (
-        <Modal titre={`Annuler la vente #${modaleAnnul.id}`} onClose={() => setModaleAnnul(null)}>
+        <Modal titre={modaleAnnul._type === 'commande' ? `Annuler la commande #${modaleAnnul.numero || modaleAnnul.id}` : `Annuler la vente #${modaleAnnul.id}`} onClose={() => setModaleAnnul(null)}>
           <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
             <div style={{ background:'#fef2f2', borderRadius:8, padding:'10px 14px', fontSize:13, color:'#991b1b', fontWeight:600 }}>
               ⚠️ Cette action est irréversible. Le stock sera rétabli automatiquement.
