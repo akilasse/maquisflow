@@ -86,12 +86,18 @@ function imprimerHTML(html) {
       webPreferences: { nodeIntegration: false, contextIsolation: true }
     })
 
-    // Timeout de sécurité : 15s max pour imprimer
     const timeout = setTimeout(() => finish({ success: false, error: 'timeout' }), 15000)
 
     win.webContents.once('did-finish-load', () => {
       clearTimeout(timeout)
-      win.webContents.print({ silent: true, printBackground: true }, (success, err) => {
+      const printerName = store.get('printerName') || ''
+      win.webContents.print({
+        silent: true,
+        printBackground: true,
+        deviceName: printerName,
+        margins: { marginType: 'none' },
+        pageSize: { width: 80000, height: 297000 }
+      }, (success, err) => {
         finish({ success, error: err || null })
       })
     })
