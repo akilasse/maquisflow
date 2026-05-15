@@ -814,6 +814,7 @@ async function recupererBonsManques() {
       const bon = {
         numero:         commande.numero,
         numero_journee: commande.numero_journee || null,
+        maquis:         state.utilisateur?.maquis?.nom || 'Flowix',
         table:          commande.table?.numero || null,
         serveur:        commande.serveur?.nom || '',
         date:           new Date(commande.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
@@ -865,6 +866,7 @@ function connecterSocket() {
       const bon = {
         numero:         commande.numero,
         numero_journee: commande.numero_journee || null,
+        maquis:         state.utilisateur?.maquis?.nom || 'Flowix',
         table:          commande.table?.numero || null,
         serveur:        commande.serveur?.nom || '',
         date:           new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
@@ -1702,9 +1704,11 @@ async function chargerCommandesTablette() {
         for (const commande of nouvelles) {
           try {
             const bon = {
-              numero:  commande.numero,
-              table:   commande.table?.numero || null,
-              serveur: commande.serveur?.nom || '',
+              numero:         commande.numero,
+              numero_journee: commande.numero_journee || null,
+              maquis:         state.utilisateur?.maquis?.nom || 'Flowix',
+              table:          commande.table?.numero || null,
+              serveur:        commande.serveur?.nom || '',
               date:    new Date(commande.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
               lignes:  (commande.lignes || []).map(l => ({
                 nom:          l.produit?.nom || '?',

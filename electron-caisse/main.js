@@ -132,28 +132,30 @@ const lignesHtml = t.lignes.map(l => `
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
-      @page { margin: 2mm; size: 80mm auto; }
-      body { font-family: monospace; font-size: 14px; width: 72mm; margin: 0 auto; color: #000; font-weight: bold; }
-      h2 { text-align: center; font-size: 18px; margin: 4px 0; font-weight: bold; }
-      .sub { text-align: center; font-size: 13px; color: #000; margin-bottom: 4px; }
-      hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
-      table { width: 100%; border-collapse: collapse; }
-      td { padding: 2px 0; }
-      .total td { font-weight: bold; font-size: 16px; border-top: 1px solid #000; padding-top: 4px; }
-      .footer { text-align: center; margin-top: 6px; font-size: 13px; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      @page { margin: 0; size: 80mm auto; }
+      html, body { width: 80mm; text-align: center; font-family: monospace; font-size: 14px; color: #000; font-weight: bold; }
+      h2 { font-size: 18px; margin: 4px 0; }
+      .sub { font-size: 13px; margin-bottom: 4px; }
+      hr { border: none; border-top: 1px dashed #000; margin: 4px 2mm; }
+      table { width: 76mm; margin: 0 2mm; border-collapse: collapse; }
+      td { padding: 2px 0; text-align: left; }
+      td:last-child { text-align: right; }
+      .total td { font-size: 16px; border-top: 1px solid #000; padding-top: 4px; }
+      .footer { margin-top: 6px; font-size: 13px; }
     </style></head><body>
       <h2>${t.maquis || 'Flowix'}</h2>
       <div class="sub">${t.copie ? 'REÇU CAISSIER (Payé)' : 'REÇU CLIENT (Payé)'}</div>
       <hr>
-      ${t.numero_journee ? `<div style="text-align:center; font-size:16px; font-weight:bold;">Vente N° ${t.numero_journee}</div>` : ''}
+      ${t.numero_journee ? `<div style="font-size:16px;font-weight:bold;">Vente N° ${t.numero_journee}</div>` : ''}
       <div>${t.date}</div>
       <div>Caissier : ${t.caissier}</div>
       <hr>
       <table>${lignesHtml}</table>
       <hr>
       <table>
-        <tr class="total"><td>TOTAL</td><td style="text-align:right">${t.total.toLocaleString()} F</td></tr>
-        <tr><td>Paiement</td><td style="text-align:right">${t.mode_paiement}</td></tr>
+        <tr class="total"><td>TOTAL</td><td>${t.total.toLocaleString()} F</td></tr>
+        <tr><td>Paiement</td><td>${t.mode_paiement}</td></tr>
         ${monnaieHtml}
       </table>
       <div class="footer">${t.copie ? '' : 'Merci pour votre visite !'}</div>
@@ -182,30 +184,30 @@ ipcMain.handle('print:bon', async (_, bon) => {
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
-      @page { margin: 2mm; size: 80mm auto; }
-      body { font-family: monospace; font-size: 14px; width: 72mm; margin: 0 auto; color: #000; font-weight: bold; }
-      h2 { text-align: center; font-size: 16px; margin: 4px 0; font-weight: bold; }
-      .center { text-align: center; }
-      hr { border: none; border-top: 2px dashed #000; margin: 4px 0; }
-      table { width: 100%; border-collapse: collapse; }
-      td { padding: 2px 0; color: #000; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      @page { margin: 0; size: 80mm auto; }
+      html, body { width: 80mm; text-align: center; font-family: monospace; font-size: 14px; color: #000; font-weight: bold; }
+      h2 { font-size: 18px; margin: 4px 0; }
+      .sub { font-size: 12px; margin-bottom: 2px; }
+      hr { border: none; border-top: 2px dashed #000; margin: 4px 2mm; }
+      table { width: 76mm; margin: 0 2mm; border-collapse: collapse; }
+      td { padding: 2px 0; text-align: left; }
+      td:last-child { text-align: right; }
       .total td { font-size: 16px; border-top: 1px solid #000; padding-top: 4px; }
     </style></head><body>
-      <h2>BON DE COMMANDE</h2>
-      <div class="center" style="font-size:12px">(En attente de paiement)</div>
+      <h2>${bon.maquis || 'Flowix'}</h2>
+      <div class="sub">BON DE COMMANDE</div>
+      <div class="sub">(En attente de paiement)</div>
       <hr>
-      <div class="center" style="font-size:18px; font-weight:bold">N° ${bon.numero_journee || bon.numero}</div>
-      ${bon.table ? `<div class="center">Table ${bon.table}</div>` : ''}
-      <div class="center">${bon.date}</div>
-      <div class="center">Serveur : ${bon.serveur}</div>
+      <div style="font-size:18px;font-weight:bold">N° ${bon.numero_journee || bon.numero}</div>
+      ${bon.table ? `<div>Table ${bon.table}</div>` : ''}
+      <div>${bon.date}</div>
+      <div>Serveur : ${bon.serveur}</div>
       <hr>
       <table>${lignesHtml}</table>
       <hr>
       <table>
-        <tr class="total">
-          <td>TOTAL DÛ</td>
-          <td style="text-align:right">${total.toLocaleString()} F</td>
-        </tr>
+        <tr class="total"><td>TOTAL DÛ</td><td>${total.toLocaleString()} F</td></tr>
       </table>
       ${bon.note ? `<hr><div>Note : ${bon.note}</div>` : ''}
       <hr>
