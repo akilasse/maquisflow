@@ -437,14 +437,14 @@ export default function Ventes() {
                     <div style={{ flex:1, minWidth:0 }}>
                       <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                         <span style={{ fontSize:14, fontWeight:700, color:'#111827' }}>
-                          {v.table ? `Table ${v.table.numero} — ` : ''}Cmd #{v.numero_journee || v.numero || v.id}
+                          {v.table ? `Table ${v.table.numero} — Cmd #${v.numero_journee || v.numero || v.id}` : `${fmtDate(v.created_at)} · Cmd #${v.numero_journee || v.numero || v.id}`}
                         </span>
                         <span style={{ background:'#fef3c7', color:'#92400e', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:700 }}>⏳ En attente</span>
                         <span style={{ background:'#fff7ed', color:'#ea580c', padding:'3px 10px', borderRadius:20, fontSize:11, fontWeight:600 }}>Commande tablette</span>
                       </div>
                       <div style={{ fontSize:12, color:'#9ca3af', marginTop:3 }}>
                         {v.serveur_nom && <span>Serveur: {v.serveur_nom}</span>}
-                        <span> · il y a {tAgo} min</span>
+                        {v.table && <span> · il y a {tAgo} min</span>}
                         {v.lignes?.length > 0 && <span> · {v.lignes.length} article{v.lignes.length > 1 ? 's' : ''}</span>}
                       </div>
                     </div>
