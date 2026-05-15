@@ -145,6 +145,7 @@ const lignesHtml = t.lignes.map(l => `
       <h2>${t.maquis || 'Flowix'}</h2>
       <div class="sub">${t.copie ? 'REÇU CAISSIER (Payé)' : 'REÇU CLIENT (Payé)'}</div>
       <hr>
+      ${t.numero_journee ? `<div style="text-align:center; font-size:16px; font-weight:bold;">Vente N° ${t.numero_journee}</div>` : ''}
       <div>${t.date}</div>
       <div>Caissier : ${t.caissier}</div>
       <hr>

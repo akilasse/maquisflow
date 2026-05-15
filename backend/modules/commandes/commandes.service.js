@@ -5,6 +5,17 @@
 
 const STATUTS_OUVERTS = ['ouverte', 'en_attente', 'en_cours', 'prete', 'servie']
 
+const calculerNumeroJournee = async (tx, maquis_id) => {
+  const maquis = await tx.maquis.findUnique({ where: { id: maquis_id }, select: { heure_debut_journee: true } })
+  const heureDebut = maquis?.heure_debut_journee || 0
+  const maintenant = new Date()
+  const debut = new Date(maintenant)
+  debut.setUTCHours(heureDebut, 0, 0, 0)
+  if (maintenant.getUTCHours() < heureDebut) debut.setUTCDate(debut.getUTCDate() - 1)
+  const count = await tx.vente.count({ where: { maquis_id, date_vente: { gte: debut } } })
+  return count + 1
+}
+
 // ── Helpers ──────────────────────────────────────────────────
 
 const verifierModule = async (prisma, maquis_id) => {
@@ -445,9 +456,10 @@ const encaisserCommande = async (prisma, io, commandeId, data, utilisateur) => {
   if (lignesActives.length === 0) throw new Error('Aucun article actif dans cette commande')
 
   const vente = await prisma.$transaction(async (tx) => {
-    const totalBrut   = lignesActives.reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
-    const remise      = parseFloat(commande.remise_montant || 0)
-    const total       = Math.max(0, parseFloat((totalBrut - remise).toFixed(2)))
+    const totalBrut      = lignesActives.reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
+    const remise         = parseFloat(commande.remise_montant || 0)
+    const total          = Math.max(0, parseFloat((totalBrut - remise).toFixed(2)))
+    const numero_journee = await calculerNumeroJournee(tx, utilisateur.maquis_id)
 
     // Crée la vente liée à la commande
     const nouvelleVente = await tx.vente.create({
@@ -462,6 +474,7 @@ const encaisserCommande = async (prisma, io, commandeId, data, utilisateur) => {
         reduction_par:     remise > 0 ? utilisateur.id : null,
         mode_paiement,
         statut:           mode_paiement === 'credit' ? 'credit_en_cours' : 'encaissee',
+        numero_journee,
         note:             note_vente || commande.note || null,
         commande_id:      commandeId,
         serveur_nom:      commande.serveur?.nom || null,

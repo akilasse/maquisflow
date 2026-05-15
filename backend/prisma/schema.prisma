@@ -199,6 +199,7 @@ model Vente {
   reduction_par     Int?
   annulation_motif  String?      @db.Text
   annule_par        Int?
+  numero_journee    Int?
 
   lignes   VenteLigne[]
   commande Commande?    @relation(fields: [commande_id], references: [id])

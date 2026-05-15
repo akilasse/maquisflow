@@ -1383,6 +1383,7 @@ async function validerVente() {
 
   let offline = false
   let venteId = null
+  let numeroJournee = null
 
   try {
     if (!state.isOnline) throw new Error('OFFLINE')
@@ -1397,6 +1398,7 @@ async function validerVente() {
       const data = await res.json()
       if (!data.success) throw new Error(data.message)
       venteId = data.data?.id
+      numeroJournee = data.data?.numero_journee || null
       state.venteActive = null
       chargerCommandesTablette()
     } else if (state.commandeActive) {
@@ -1409,6 +1411,7 @@ async function validerVente() {
       const data = await res.json()
       if (!data.success) throw new Error(data.message)
       venteId = data.data?.vente_id || data.data?.id
+      numeroJournee = data.data?.numero_journee || null
       state.commandeActive = null
       chargerCommandesTablette()
     } else {
@@ -1420,6 +1423,7 @@ async function validerVente() {
       const data = await res.json()
       if (!data.success) throw new Error(data.message)
       venteId = data.data?.id
+      numeroJournee = data.data?.numero_journee || null
     }
 
     setTimeout(chargerProduits, 500)
@@ -1446,16 +1450,17 @@ async function validerVente() {
   // Préparer reçu
   const monnaie = state.modePaiement === 'especes' && montantRecu ? montantRecu - total : 0
   state.dernierRecu = {
-    id:            venteId || `OFF-${Date.now()}`,
-    date:          new Date(),
-    maquis:        state.utilisateur?.maquis?.nom || 'Flowix',
-    logo_url:      state.utilisateur?.maquis?.logo_url || null,
-    caissier:      state.utilisateur?.nom,
-    lignes:        [...state.panier],
+    id:             venteId || `OFF-${Date.now()}`,
+    numero_journee: numeroJournee,
+    date:           new Date(),
+    maquis:         state.utilisateur?.maquis?.nom || 'Flowix',
+    logo_url:       state.utilisateur?.maquis?.logo_url || null,
+    caissier:       state.utilisateur?.nom,
+    lignes:         [...state.panier],
     total,
-    mode_paiement: state.modePaiement,
-    montant_recu:  montantRecu || null,
-    monnaie:       monnaie > 0 ? monnaie : null,
+    mode_paiement:  state.modePaiement,
+    montant_recu:   montantRecu || null,
+    monnaie:        monnaie > 0 ? monnaie : null,
     note,
     offline
   }
@@ -1481,11 +1486,12 @@ function buildTicketData(copie = false) {
     logo_url:      r.logo_url,
     date:          r.date.toLocaleString('fr-FR'),
     caissier:      r.caissier,
-    lignes:        r.lignes.map(l => ({ nom: l.variante_nom ? `${l.nom} (${l.variante_nom})` : l.nom, quantite: l.quantite, total: l.prix_applique * l.quantite })),
-    total:         r.total,
-    mode_paiement: r.mode_paiement.replace('_', ' '),
-    montant_recu:  r.montant_recu,
-    monnaie:       r.monnaie || 0,
+    lignes:         r.lignes.map(l => ({ nom: l.variante_nom ? `${l.nom} (${l.variante_nom})` : l.nom, quantite: l.quantite, total: l.prix_applique * l.quantite })),
+    total:          r.total,
+    mode_paiement:  r.mode_paiement.replace('_', ' '),
+    montant_recu:   r.montant_recu,
+    monnaie:        r.monnaie || 0,
+    numero_journee: r.numero_journee,
     copie
   }
 }

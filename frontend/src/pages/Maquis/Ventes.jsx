@@ -540,6 +540,7 @@ export default function Ventes() {
                   <div style={{ flex:1, minWidth:0 }}>
                     <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                       <span style={{ fontSize:14, fontWeight:700, color:'#111827' }}>{fmtDate(v.date_vente)}</span>
+                      {v.numero_journee && <span style={{ fontSize:12, fontWeight:700, color:'#6b7280' }}>N°{v.numero_journee}</span>}
                       <Badge statut={v.statut} />
                       <span style={{ fontSize:12, color: mode.color, fontWeight:600 }}>{mode.icone} {mode.label}</span>
                     </div>
