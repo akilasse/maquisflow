@@ -531,8 +531,7 @@
     </div>
     <div class="recu-details" id="recu-details"></div>
     <div class="modal-btns">
-      <button class="btn-imprimer" onclick="imprimerTicket()">🖨️ Ré-imprimer</button>
-      <button class="btn-fermer" onclick="fermerModal()">Fermer</button>
+      <button class="btn-fermer" onclick="fermerModal()" style="flex:1">Fermer</button>
     </div>
   </div>
 </div>
@@ -1474,6 +1473,8 @@ async function validerVente() {
   } else {
     console.log('Impression auto échouée:', r1.error)
   }
+  // Fermer le modal automatiquement après 3 secondes
+  setTimeout(fermerModal, 3000)
 }
 
 function buildTicketData(copie = false) {
