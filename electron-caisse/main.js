@@ -168,29 +168,45 @@ const lignesHtml = t.lignes.map(l => `
 // ── IPC — Impression bon de commande ──────────────────────
 ipcMain.handle('print:bon', async (_, bon) => {
   try {
-const lignesHtml = bon.lignes.map(l => `
+    const total = bon.lignes.reduce((s, l) => s + (parseFloat(l.total) || parseFloat(l.prix_unitaire || 0) * parseFloat(l.quantite || 1)), 0)
+
+    const lignesHtml = bon.lignes.map(l => {
+      const sousTotal = parseFloat(l.total) || parseFloat(l.prix_unitaire || 0) * parseFloat(l.quantite || 1)
+      return `
       <tr>
-        <td>${l.quantite}× ${l.nom}</td>
-        <td style="text-align:right">${l.note || ''}</td>
-      </tr>`).join('')
+        <td style="text-align:left">${l.quantite}× ${l.nom}${l.variante_nom ? ` (${l.variante_nom})` : ''}</td>
+        <td style="text-align:right">${sousTotal.toLocaleString()} F</td>
+      </tr>
+      ${l.note ? `<tr><td colspan="2" style="font-size:12px;color:#333;padding-left:8px">↳ ${l.note}</td></tr>` : ''}`
+    }).join('')
 
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       @page { margin: 2mm; size: 80mm auto; }
-      body { font-family: monospace; font-size: 15px; width: 72mm; margin: 0 auto; color: #000; font-weight: bold; }
-      h2 { text-align: center; font-size: 20px; margin: 4px 0; font-weight: bold; }
+      body { font-family: monospace; font-size: 14px; width: 72mm; margin: 0 auto; color: #000; font-weight: bold; }
+      h2 { text-align: center; font-size: 16px; margin: 4px 0; font-weight: bold; }
+      .center { text-align: center; }
       hr { border: none; border-top: 2px dashed #000; margin: 4px 0; }
       table { width: 100%; border-collapse: collapse; }
-      td { padding: 3px 0; color: #000; }
+      td { padding: 2px 0; color: #000; }
+      .total td { font-size: 16px; border-top: 1px solid #000; padding-top: 4px; }
     </style></head><body>
-      <h2>BON DE COMMANDE (En attente de paiement)</h2>
+      <h2>BON DE COMMANDE</h2>
+      <div class="center" style="font-size:12px">(En attente de paiement)</div>
       <hr>
-      <div>N° ${bon.numero_journee || bon.numero}</div>
-      <div>${bon.table ? 'Table ' + bon.table : 'Comptoir'}</div>
-      <div>Serveur : ${bon.serveur}</div>
-      <div>${bon.date}</div>
+      <div class="center" style="font-size:18px; font-weight:bold">N° ${bon.numero_journee || bon.numero}</div>
+      ${bon.table ? `<div class="center">Table ${bon.table}</div>` : ''}
+      <div class="center">${bon.date}</div>
+      <div class="center">Serveur : ${bon.serveur}</div>
       <hr>
       <table>${lignesHtml}</table>
+      <hr>
+      <table>
+        <tr class="total">
+          <td>TOTAL DÛ</td>
+          <td style="text-align:right">${total.toLocaleString()} F</td>
+        </tr>
+      </table>
       ${bon.note ? `<hr><div>Note : ${bon.note}</div>` : ''}
       <hr>
     </body></html>`

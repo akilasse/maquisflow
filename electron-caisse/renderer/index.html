@@ -812,12 +812,20 @@ async function recupererBonsManques() {
     const commandes = (data.data || []).filter(c => !dejaPrints.includes(c.id))
     for (const commande of commandes) {
       const bon = {
-        numero:  commande.numero,
-        table:   commande.table?.numero || null,
-        serveur: commande.serveur?.nom || '',
-        date:    new Date(commande.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        lignes:  commande.lignes.map(l => ({ nom: l.variante_nom ? `${l.produit.nom} (${l.variante_nom})` : l.produit.nom, quantite: l.quantite, note: l.note || '' })),
-        note:    commande.note || null
+        numero:         commande.numero,
+        numero_journee: commande.numero_journee || null,
+        table:          commande.table?.numero || null,
+        serveur:        commande.serveur?.nom || '',
+        date:           new Date(commande.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        lignes:         commande.lignes.map(l => ({
+          nom:          l.produit?.nom || '?',
+          variante_nom: l.variante_nom || null,
+          quantite:     parseFloat(l.quantite),
+          prix_unitaire: parseFloat(l.prix_unitaire || 0),
+          total:        parseFloat(l.prix_unitaire || 0) * parseFloat(l.quantite || 1),
+          note:         l.note || ''
+        })),
+        note: commande.note || null
       }
       await window.electronAPI.printBon(bon)
       dejaPrints.push(commande.id)
@@ -855,12 +863,20 @@ function connecterSocket() {
       chargerCommandesTablette()
       // Impression automatique du bon
       const bon = {
-        numero:  commande.numero,
-        table:   commande.table?.numero || null,
-        serveur: commande.serveur?.nom || '',
-        date:    new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
-        lignes:  commande.lignes.map(l => ({ nom: l.variante_nom ? `${l.produit.nom} (${l.variante_nom})` : l.produit.nom, quantite: l.quantite, note: l.note || '' })),
-        note:    commande.note || null
+        numero:         commande.numero,
+        numero_journee: commande.numero_journee || null,
+        table:          commande.table?.numero || null,
+        serveur:        commande.serveur?.nom || '',
+        date:           new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+        lignes:         commande.lignes.map(l => ({
+          nom:          l.produit?.nom || '?',
+          variante_nom: l.variante_nom || null,
+          quantite:     parseFloat(l.quantite),
+          prix_unitaire: parseFloat(l.prix_unitaire || 0),
+          total:        parseFloat(l.prix_unitaire || 0) * parseFloat(l.quantite || 1),
+          note:         l.note || ''
+        })),
+        note: commande.note || null
       }
       const result = await window.electronAPI.printBon(bon)
       if (!result.success) console.log('Impression bon échouée:', result.error)
@@ -1691,9 +1707,12 @@ async function chargerCommandesTablette() {
               serveur: commande.serveur?.nom || '',
               date:    new Date(commande.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
               lignes:  (commande.lignes || []).map(l => ({
-                nom: l.variante_nom ? `${l.produit?.nom || '?'} (${l.variante_nom})` : (l.produit?.nom || '?'),
-                quantite: l.quantite,
-                note: l.note || ''
+                nom:          l.produit?.nom || '?',
+                variante_nom: l.variante_nom || null,
+                quantite:     parseFloat(l.quantite),
+                prix_unitaire: parseFloat(l.prix_unitaire || 0),
+                total:        parseFloat(l.prix_unitaire || 0) * parseFloat(l.quantite || 1),
+                note:         l.note || ''
               })),
               note: commande.note || null
             }
