@@ -99,7 +99,7 @@ function imprimerHTML(html) {
         printBackground: true,
         deviceName: printerName,
         margins: { marginType: 'none' },
-        pageSize: { width: 76200, height: Math.max(hauteurMicrons, 50000) }
+        pageSize: { width: 76200, height: Math.max(hauteurMicrons, 150000) }
       }, (success, err) => {
         finish({ success, error: err || null })
       })
@@ -144,7 +144,7 @@ const lignesHtml = t.lignes.map(l => `
       * { margin: 0; padding: 0; box-sizing: border-box; }
       @page { margin: 0; }
       html { width: 76mm; }
-      body { width: 70mm; margin: 0 auto; text-align: center; font-family: monospace; font-size: 16px; color: #000; font-weight: bold; }
+      body { width: 70mm; margin: 0 auto; padding: 15mm 0; text-align: center; font-family: monospace; font-size: 16px; color: #000; font-weight: bold; }
       h2 { font-size: 20px; margin: 4px 0; }
       .sub { font-size: 14px; margin-bottom: 4px; }
       hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
@@ -197,7 +197,7 @@ ipcMain.handle('print:bon', async (_, bon) => {
       * { margin: 0; padding: 0; box-sizing: border-box; }
       @page { margin: 0; }
       html { width: 76mm; }
-      body { width: 70mm; margin: 0 auto; text-align: center; font-family: monospace; font-size: 16px; color: #000; font-weight: bold; }
+      body { width: 70mm; margin: 0 auto; padding: 15mm 0; text-align: center; font-family: monospace; font-size: 16px; color: #000; font-weight: bold; }
       h2 { font-size: 20px; margin: 4px 0; }
       .sub { font-size: 14px; margin-bottom: 2px; }
       hr { border: none; border-top: 2px dashed #000; margin: 4px 0; }
