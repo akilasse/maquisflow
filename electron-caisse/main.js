@@ -158,7 +158,7 @@ const lignesHtml = t.lignes.map(l => `
       td:last-child { text-align: right; }
       .total td { font-size: 18px; border-top: 1px solid #000; padding-top: 4px; }
       .footer { margin-top: 6px; font-size: 14px; }
-      .contact { font-size: 13px; font-weight: normal; margin-top: 4px; }
+      .contact { font-size: 14px; font-weight: bold; margin-top: 10mm; }
     </style></head><body>
       ${logoHtml}
       <h2>${t.maquis || 'Flowix'}</h2>
@@ -218,7 +218,7 @@ ipcMain.handle('print:bon', async (_, bon) => {
       td { padding: 2px 0; text-align: left; }
       td:last-child { text-align: right; }
       .total td { font-size: 18px; border-top: 1px solid #000; padding-top: 4px; }
-      .contact { font-size: 13px; font-weight: normal; margin-top: 4px; }
+      .contact { font-size: 14px; font-weight: bold; margin-top: 10mm; }
     </style></head><body>
       ${logoHtml}
       <h2>${bon.maquis || 'Flowix'}</h2>

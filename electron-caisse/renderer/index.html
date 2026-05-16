@@ -1510,6 +1510,8 @@ function buildTicketData(copie = false) {
   return {
     maquis:        r.maquis,
     logo_url:      r.logo_url,
+    adresse:       r.adresse || null,
+    telephone:     r.telephone || null,
     date:          r.date.toLocaleString('fr-FR'),
     caissier:      r.caissier,
     lignes:         r.lignes.map(l => ({ nom: l.variante_nom ? `${l.nom} (${l.variante_nom})` : l.nom, quantite: l.quantite, total: l.prix_applique * l.quantite })),
