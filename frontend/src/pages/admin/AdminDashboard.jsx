@@ -191,7 +191,7 @@ const AdminDashboard = () => {
   <div>
     <div class="brand-name">FLOWIX</div>
     <div class="brand-sub">Logiciel de gestion commerciale</div>
-    <div class="brand-contact">WhatsApp : +225 07 70 12 75 43 · maquisflow.com</div>
+    <div class="brand-contact">WhatsApp : +225 07 79 12 75 43 · maquisflow.com</div>
   </div>
   <div class="facture-info">
     <div class="facture-title">FACTURE</div>
@@ -269,7 +269,7 @@ const AdminDashboard = () => {
 </div>
 
 <div class="footer">
-  Flowix — Logiciel de gestion commerciale · maquisflow.com · WhatsApp : +225 07 70 12 75 43<br>
+  Flowix — Logiciel de gestion commerciale · maquisflow.com · WhatsApp : +225 07 79 12 75 43<br>
   Merci pour votre confiance
 </div>
 
