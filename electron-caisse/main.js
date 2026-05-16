@@ -96,7 +96,7 @@ function imprimerHTML(html) {
         printBackground: true,
         deviceName: printerName,
         margins: { marginType: 'none' },
-        pageSize: { width: 80000, height: 297000 }
+        pageSize: { width: 76200, height: 250000 }
       }, (success, err) => {
         finish({ success, error: err || null })
       })
@@ -140,11 +140,11 @@ const lignesHtml = t.lignes.map(l => `
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       @page { margin: 0; size: 80mm auto; }
-      html, body { width: 80mm; text-align: center; font-family: monospace; font-size: 14px; color: #000; font-weight: bold; }
+      html, body { width: 72mm; text-align: center; font-family: monospace; font-size: 14px; color: #000; font-weight: bold; }
       h2 { font-size: 18px; margin: 4px 0; }
       .sub { font-size: 13px; margin-bottom: 4px; }
-      hr { border: none; border-top: 1px dashed #000; margin: 4px 2mm; }
-      table { width: 76mm; margin: 0 2mm; border-collapse: collapse; }
+      hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
+      table { width: 72mm; border-collapse: collapse; }
       td { padding: 2px 0; text-align: left; }
       td:last-child { text-align: right; }
       .total td { font-size: 16px; border-top: 1px solid #000; padding-top: 4px; }
@@ -192,11 +192,11 @@ ipcMain.handle('print:bon', async (_, bon) => {
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       @page { margin: 0; size: 80mm auto; }
-      html, body { width: 80mm; text-align: center; font-family: monospace; font-size: 14px; color: #000; font-weight: bold; }
+      html, body { width: 72mm; text-align: center; font-family: monospace; font-size: 14px; color: #000; font-weight: bold; }
       h2 { font-size: 18px; margin: 4px 0; }
       .sub { font-size: 12px; margin-bottom: 2px; }
-      hr { border: none; border-top: 2px dashed #000; margin: 4px 2mm; }
-      table { width: 76mm; margin: 0 2mm; border-collapse: collapse; }
+      hr { border: none; border-top: 2px dashed #000; margin: 4px 0; }
+      table { width: 72mm; border-collapse: collapse; }
       td { padding: 2px 0; text-align: left; }
       td:last-child { text-align: right; }
       .total td { font-size: 16px; border-top: 1px solid #000; padding-top: 4px; }
