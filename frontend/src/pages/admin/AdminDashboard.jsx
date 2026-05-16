@@ -49,7 +49,9 @@ const AdminDashboard = () => {
   const [modal, setModal]                         = useState(null)
   const [logoFichier, setLogoFichier]             = useState(null)
   const [logoPreview, setLogoPreview]             = useState(null)
-  const [editMaquis, setEditMaquis]               = useState(null) // { id, nom, couleur_primaire, activite, devise }
+  const [editMaquis, setEditMaquis]               = useState(null)
+  const [modalFacture, setModalFacture]           = useState(null) // maquis cible
+  const [optFacture, setOptFacture]               = useState({ dev: false, montant_dev: '' })
 
   const [formMaquis, setFormMaquis] = useState({
     nom: '', activite: '', couleur_primaire: '#FF6B35', type_acces: 'abonnement', periodicite: 'mensuel', montant: '35000',
@@ -121,6 +123,162 @@ const AdminDashboard = () => {
       afficherMessage('succes', 'Abonnement suspendu')
       charger()
     } catch { afficherMessage('erreur', 'Erreur') }
+  }
+
+  const genererFacture = (m, opts = {}) => {
+    const now        = new Date()
+    const numFacture = `FLOW-${now.getFullYear()}-${String(m.id).padStart(3, '0')}`
+    const dateStr    = now.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
+    const abo        = m.abonnement
+    const nbUsers    = m.utilisateurs?.length || m.nb_utilisateurs || 0
+
+    const FRAIS_INSTALL  = 50000
+    const ABO_MENSUEL    = 30000
+    const montantDev     = opts.dev ? (parseFloat(opts.montant_dev) || 0) : 0
+
+    const modules = [
+      { label: 'Gestion des ventes et caisse enregistreuse', inclus: true },
+      { label: 'Historique ventes et rapports (web + mobile)', inclus: true },
+      { label: 'Gestion du stock et des produits', inclus: true },
+      { label: 'Application caisse Electron (PC dédié)', inclus: true },
+      { label: 'Dashboard patron (web et mobile)', inclus: true },
+      { label: 'Module commandes tablette serveur', inclus: !!m.module_commandes_actif },
+      { label: 'Module KDS écran cuisine', inclus: !!m.module_kds_actif },
+      { label: 'Mode paiement avant commande', inclus: !!m.paiement_avant },
+    ].filter(mod => mod.inclus)
+
+    const lignesModules = modules.map(mod =>
+      `<tr><td style="padding:5px 8px;color:#374151">✓ ${mod.label}</td></tr>`
+    ).join('')
+
+    const html = `<!DOCTYPE html><html lang="fr"><head>
+<meta charset="UTF-8">
+<title>Facture ${numFacture} — ${m.nom}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 13px; color: #1e293b; background: white; padding: 40px; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; padding-bottom: 24px; border-bottom: 3px solid #6366f1; }
+  .brand-name { font-size: 32px; font-weight: 900; color: #6366f1; letter-spacing: -1px; }
+  .brand-sub { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .brand-contact { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+  .facture-info { text-align: right; }
+  .facture-title { font-size: 22px; font-weight: 800; color: #0f172a; }
+  .facture-num { font-size: 13px; color: #6366f1; font-weight: 700; margin-top: 4px; }
+  .facture-date { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .client-box { background: #f8fafc; border-left: 4px solid #6366f1; border-radius: 6px; padding: 16px 20px; margin-bottom: 32px; }
+  .client-label { font-size: 10px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .client-name { font-size: 18px; font-weight: 800; color: #0f172a; }
+  .client-detail { font-size: 12px; color: #64748b; margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  .table-head th { background: #6366f1; color: white; padding: 10px 12px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
+  .table-head th:last-child, .table-head th:nth-child(3) { text-align: right; }
+  td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; font-size: 13px; }
+  td:last-child, td:nth-child(3) { text-align: right; }
+  .row-alt { background: #fafbff; }
+  .section-title { font-size: 12px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin: 24px 0 10px; }
+  .modules-table td { padding: 5px 8px; border-bottom: 1px solid #f8fafc; font-size: 12px; color: #374151; }
+  .total-box { background: #f8fafc; border-radius: 8px; padding: 20px 24px; margin-top: 24px; }
+  .total-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+  .total-row.main { font-size: 16px; font-weight: 800; color: #6366f1; border-top: 2px solid #e2e8f0; margin-top: 8px; padding-top: 12px; }
+  .conditions { margin-top: 32px; padding: 16px 20px; background: #fffbeb; border-radius: 8px; border: 1px solid #fde68a; }
+  .conditions p { font-size: 11px; color: #92400e; line-height: 1.6; }
+  .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 20px; }
+  @media print { body { padding: 20px; } }
+</style></head><body>
+
+<div class="header">
+  <div>
+    <div class="brand-name">FLOWIX</div>
+    <div class="brand-sub">Logiciel de gestion commerciale</div>
+    <div class="brand-contact">contact@maquisflow.com · maquisflow.com</div>
+  </div>
+  <div class="facture-info">
+    <div class="facture-title">FACTURE</div>
+    <div class="facture-num">N° ${numFacture}</div>
+    <div class="facture-date">Date : ${dateStr}</div>
+  </div>
+</div>
+
+<div class="client-box">
+  <div class="client-label">Facturer à</div>
+  <div class="client-name">${m.nom}</div>
+  <div class="client-detail">${m.activite || m.type || 'Commerce'}${m.adresse ? ' · ' + m.adresse : ''}${m.telephone ? ' · ' + m.telephone : ''}</div>
+</div>
+
+<div class="section-title">Détail des prestations</div>
+<table>
+  <thead class="table-head">
+    <tr>
+      <th style="width:55%">Désignation</th>
+      <th style="width:10%;text-align:center">Qté</th>
+      <th style="width:15%">Prix unitaire</th>
+      <th style="width:20%">Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Frais d'installation et configuration</strong><br><span style="font-size:11px;color:#64748b">Mise en place initiale · Formation · Paramétrage</span></td>
+      <td style="text-align:center">1</td>
+      <td>${fmtNum(FRAIS_INSTALL)} FCFA</td>
+      <td><strong>${fmtNum(FRAIS_INSTALL)} FCFA</strong></td>
+    </tr>
+    <tr class="row-alt">
+      <td><strong>Abonnement mensuel Flowix</strong><br><span style="font-size:11px;color:#64748b">Accès logiciel complet · Support technique · Mises à jour</span></td>
+      <td style="text-align:center">1 mois</td>
+      <td>${fmtNum(ABO_MENSUEL)} FCFA</td>
+      <td><strong>${fmtNum(ABO_MENSUEL)} FCFA</strong></td>
+    </tr>
+    ${opts.dev && montantDev > 0 ? `
+    <tr>
+      <td><strong>Développements sur mesure</strong><br><span style="font-size:11px;color:#64748b">${opts.desc_dev ? opts.desc_dev.replace(/\n/g, ' · ') : 'Ajustements cahier des charges · Fonctionnalités spécifiques'}</span></td>
+      <td style="text-align:center">1</td>
+      <td>${fmtNum(montantDev)} FCFA</td>
+      <td><strong>${fmtNum(montantDev)} FCFA</strong></td>
+    </tr>` : ''}
+  </tbody>
+</table>
+
+<div class="section-title">Modules et fonctionnalités activés</div>
+<table class="modules-table">
+  <tbody>
+    ${lignesModules}
+    <tr><td style="padding:5px 8px;color:#374151;font-weight:600">🎁 8 utilisateurs offerts (accès inclus dans l'abonnement)</td></tr>
+  </tbody>
+</table>
+
+<div class="total-box">
+  <div class="total-row">
+    <span>Frais d'installation (unique)</span>
+    <strong>${fmtNum(FRAIS_INSTALL)} FCFA</strong>
+  </div>
+  <div class="total-row">
+    <span>Abonnement mensuel</span>
+    <strong>${fmtNum(ABO_MENSUEL)} FCFA / mois</strong>
+  </div>
+  ${opts.dev && montantDev > 0 ? `<div class="total-row"><span>Développements sur mesure</span><strong>${fmtNum(montantDev)} FCFA</strong></div>` : ''}
+  ${abo && abo.date_echeance ? `<div class="total-row"><span style="color:#64748b;font-size:12px">Prochaine échéance</span><span style="font-size:12px;color:#64748b">${fmtDate(abo.date_echeance)}</span></div>` : ''}
+  <div class="total-row main">
+    <span>Total dû à la mise en service</span>
+    <strong>${fmtNum(FRAIS_INSTALL + ABO_MENSUEL + montantDev)} FCFA</strong>
+  </div>
+</div>
+
+<div class="conditions">
+  <p><strong>Conditions :</strong> Les frais d'installation sont dus à la mise en service du logiciel. L'abonnement mensuel de ${fmtNum(ABO_MENSUEL)} FCFA est renouvelable chaque mois. Tout développement spécifique (ajustement cahier des charges, fonctionnalité sur mesure) fera l'objet d'un devis séparé. Le non-renouvellement de l'abonnement entraîne la suspension de l'accès.</p>
+</div>
+
+<div class="footer">
+  Flowix — Logiciel de gestion commerciale · maquisflow.com · contact@maquisflow.com<br>
+  Merci pour votre confiance
+</div>
+
+<script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script>
+</body></html>`
+
+    const w = window.open('', '_blank', 'width=900,height=800')
+    if (!w) { afficherMessage('erreur', 'Popup bloquée — autoriser les popups pour ce site'); return }
+    w.document.write(html)
+    w.document.close()
   }
 
   const calculerEcheance = (periodicite) => {
@@ -479,7 +637,10 @@ const AdminDashboard = () => {
         {/* DETAIL */}
         {onglet === 'detail' && maquisSelectionne && (
           <div>
-            <button onClick={() => { setOnglet('maquis'); setMaquisSelectionne(null) }} style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: 14, marginBottom: 16, fontWeight: 600 }}>← Retour</button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <button onClick={() => { setOnglet('maquis'); setMaquisSelectionne(null) }} style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>← Retour</button>
+              <button onClick={() => { setOptFacture({ dev: false, montant_dev: '' }); setModalFacture(maquisSelectionne) }} style={{ padding: '8px 18px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📄 Générer Facture PDF</button>
+            </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
               {maquisSelectionne.logo_url ? (
                 <img src={maquisSelectionne.logo_url} alt={maquisSelectionne.nom} style={{ width: 64, height: 64, borderRadius: 14, objectFit: 'cover' }} />
@@ -720,6 +881,69 @@ const AdminDashboard = () => {
         )}
 
       </main>
+
+      {/* Modal génération facture */}
+      {modalFacture && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: 'white', borderRadius: 14, padding: 28, width: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', margin: '0 0 4px' }}>Générer la facture</h2>
+            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 20px' }}>{modalFacture.nom}</p>
+
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: 16, marginBottom: 20 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={optFacture.dev}
+                  onChange={e => setOptFacture({ ...optFacture, dev: e.target.checked, montant_dev: '', desc_dev: '' })}
+                  style={{ width: 18, height: 18, cursor: 'pointer' }}
+                />
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#1e293b' }}>Développements sur mesure</span>
+              </label>
+              {optFacture.dev && (
+                <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>Description</label>
+                    <textarea
+                      placeholder="Ex : Intégration module fidélité, ajout rapport hebdomadaire..."
+                      value={optFacture.desc_dev || ''}
+                      onChange={e => setOptFacture({ ...optFacture, desc_dev: e.target.value })}
+                      rows={3}
+                      style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 13, outline: 'none', boxSizing: 'border-box', resize: 'vertical', fontFamily: 'inherit' }}
+                      autoFocus
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 6 }}>Montant (FCFA)</label>
+                    <input
+                      type="number"
+                      placeholder="Ex : 75000"
+                      value={optFacture.montant_dev}
+                      onChange={e => setOptFacture({ ...optFacture, montant_dev: e.target.value })}
+                      style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => { genererFacture(modalFacture, optFacture); setModalFacture(null) }}
+                style={{ flex: 1, padding: '10px 0', background: '#6366f1', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 14, cursor: 'pointer' }}
+              >
+                📄 Générer
+              </button>
+              <button
+                onClick={() => setModalFacture(null)}
+                style={{ padding: '10px 18px', background: '#f1f5f9', color: '#64748b', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 14, cursor: 'pointer' }}
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
