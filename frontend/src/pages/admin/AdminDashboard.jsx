@@ -131,6 +131,7 @@ const AdminDashboard = () => {
     const dateStr    = now.toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' })
     const abo        = m.abonnement
     const nbUsers    = m.utilisateurs?.length || m.nb_utilisateurs || 0
+    const activiteLabel = ACTIVITES.find(a => a.value === m.activite)?.label?.replace(/^.\s/, '') || m.activite || m.type || 'Commerce'
 
     const FRAIS_INSTALL  = 50000
     const ABO_MENSUEL    = 30000
@@ -190,7 +191,7 @@ const AdminDashboard = () => {
   <div>
     <div class="brand-name">FLOWIX</div>
     <div class="brand-sub">Logiciel de gestion commerciale</div>
-    <div class="brand-contact">contact@maquisflow.com · maquisflow.com</div>
+    <div class="brand-contact">WhatsApp : +225 07 70 12 75 43 · maquisflow.com</div>
   </div>
   <div class="facture-info">
     <div class="facture-title">FACTURE</div>
@@ -202,7 +203,7 @@ const AdminDashboard = () => {
 <div class="client-box">
   <div class="client-label">Facturer à</div>
   <div class="client-name">${m.nom}</div>
-  <div class="client-detail">${m.activite || m.type || 'Commerce'}${m.adresse ? ' · ' + m.adresse : ''}${m.telephone ? ' · ' + m.telephone : ''}</div>
+  <div class="client-detail">${activiteLabel}${m.adresse ? ' · ' + m.adresse : ''}${m.telephone ? ' · ' + m.telephone : ''}</div>
 </div>
 
 <div class="section-title">Détail des prestations</div>
@@ -268,7 +269,7 @@ const AdminDashboard = () => {
 </div>
 
 <div class="footer">
-  Flowix — Logiciel de gestion commerciale · maquisflow.com · contact@maquisflow.com<br>
+  Flowix — Logiciel de gestion commerciale · maquisflow.com · WhatsApp : +225 07 70 12 75 43<br>
   Merci pour votre confiance
 </div>
 
