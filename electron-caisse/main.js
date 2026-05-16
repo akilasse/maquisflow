@@ -88,15 +88,18 @@ function imprimerHTML(html) {
 
     const timeout = setTimeout(() => finish({ success: false, error: 'timeout' }), 15000)
 
-    win.webContents.once('did-finish-load', () => {
+    win.webContents.once('did-finish-load', async () => {
       clearTimeout(timeout)
       const printerName = store.get('printerName') || ''
+      // Mesure la hauteur réelle du contenu pour éviter le papier blanc
+      const hauteurPx = await win.webContents.executeJavaScript('document.body.scrollHeight')
+      const hauteurMicrons = Math.ceil(hauteurPx * 264.583) + 5000 // px → microns + 5mm marge
       win.webContents.print({
         silent: true,
         printBackground: true,
         deviceName: printerName,
         margins: { marginType: 'none' },
-        pageSize: { width: 76200, height: 250000 }
+        pageSize: { width: 76200, height: Math.max(hauteurMicrons, 50000) }
       }, (success, err) => {
         finish({ success, error: err || null })
       })
