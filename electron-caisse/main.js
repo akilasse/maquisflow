@@ -142,16 +142,17 @@ const lignesHtml = t.lignes.map(l => `
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      @page { margin: 0; size: 80mm auto; }
-      html, body { width: 72mm; text-align: center; font-family: monospace; font-size: 14px; color: #000; font-weight: bold; }
-      h2 { font-size: 18px; margin: 4px 0; }
-      .sub { font-size: 13px; margin-bottom: 4px; }
+      @page { margin: 0; }
+      html { width: 76mm; }
+      body { width: 70mm; margin: 0 auto; text-align: center; font-family: monospace; font-size: 16px; color: #000; font-weight: bold; }
+      h2 { font-size: 20px; margin: 4px 0; }
+      .sub { font-size: 14px; margin-bottom: 4px; }
       hr { border: none; border-top: 1px dashed #000; margin: 4px 0; }
-      table { width: 72mm; border-collapse: collapse; }
+      table { width: 100%; border-collapse: collapse; }
       td { padding: 2px 0; text-align: left; }
       td:last-child { text-align: right; }
-      .total td { font-size: 16px; border-top: 1px solid #000; padding-top: 4px; }
-      .footer { margin-top: 6px; font-size: 13px; }
+      .total td { font-size: 18px; border-top: 1px solid #000; padding-top: 4px; }
+      .footer { margin-top: 6px; font-size: 14px; }
     </style></head><body>
       <h2>${t.maquis || 'Flowix'}</h2>
       <div class="sub">${t.copie ? 'REÇU CAISSIER (Payé)' : 'REÇU CLIENT (Payé)'}</div>
@@ -194,15 +195,16 @@ ipcMain.handle('print:bon', async (_, bon) => {
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      @page { margin: 0; size: 80mm auto; }
-      html, body { width: 72mm; text-align: center; font-family: monospace; font-size: 14px; color: #000; font-weight: bold; }
-      h2 { font-size: 18px; margin: 4px 0; }
-      .sub { font-size: 12px; margin-bottom: 2px; }
+      @page { margin: 0; }
+      html { width: 76mm; }
+      body { width: 70mm; margin: 0 auto; text-align: center; font-family: monospace; font-size: 16px; color: #000; font-weight: bold; }
+      h2 { font-size: 20px; margin: 4px 0; }
+      .sub { font-size: 14px; margin-bottom: 2px; }
       hr { border: none; border-top: 2px dashed #000; margin: 4px 0; }
-      table { width: 72mm; border-collapse: collapse; }
+      table { width: 100%; border-collapse: collapse; }
       td { padding: 2px 0; text-align: left; }
       td:last-child { text-align: right; }
-      .total td { font-size: 16px; border-top: 1px solid #000; padding-top: 4px; }
+      .total td { font-size: 18px; border-top: 1px solid #000; padding-top: 4px; }
     </style></head><body>
       <h2>${bon.maquis || 'Flowix'}</h2>
       <div class="sub">BON DE COMMANDE</div>
