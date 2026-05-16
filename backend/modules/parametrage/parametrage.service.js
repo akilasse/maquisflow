@@ -266,6 +266,8 @@ const modifierMaquis = async (prisma, maquis_id, data) => {
     where: { id: maquis_id },
     data: {
       nom:                    data.nom,
+      adresse:                data.adresse !== undefined ? data.adresse : undefined,
+      telephone:              data.telephone !== undefined ? data.telephone : undefined,
       logo_url:               data.logo_url,
       couleur_primaire:       data.couleur_primaire,
       devise:                 data.devise,

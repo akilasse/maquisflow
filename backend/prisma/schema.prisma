@@ -36,6 +36,8 @@ model Maquis {
   module_commandes_direct Boolean    @default(false)
   paiement_avant          Boolean    @default(false)
   heure_debut_journee     Int        @default(0)
+  adresse                 String?    @db.VarChar(255)
+  telephone               String?    @db.VarChar(50)
   categories_custom       Json?
   unites_custom           Json?
   variantes_gabarits      Json?

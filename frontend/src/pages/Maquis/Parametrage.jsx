@@ -165,7 +165,7 @@ const Parametrage = () => {
   const NOMS_VARIANTES_SUGGERES = ['Casier', 'Carton', 'Bouteille', 'Verre', 'Demi', 'Coupe', 'Dose', 'Portion', 'Litre', '50cl', '33cl', 'Pack']
   const [formFournisseur, setFormFournisseur] = useState({ nom: '', telephone: '', email: '', adresse: '' })
   const [formUtilisateur, setFormUtilisateur] = useState({ nom: '', email: '', login: '', mot_de_passe: '', role: 'serveur' })
-  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false, heure_debut_journee: 0, categories_custom: [], unites_custom: [], variantes_gabarits: [], conditionnements_custom: [] })
+  const [formMaquis, setFormMaquis] = useState({ nom: '', couleur_primaire: '', devise: '', fuseau_horaire: '', type: 'maquis', activite: '', adresse: '', telephone: '', module_commandes_actif: false, module_kds_actif: false, module_commandes_direct: false, paiement_avant: false, heure_debut_journee: 0, categories_custom: [], unites_custom: [], variantes_gabarits: [], conditionnements_custom: [] })
   const [stations, setStations] = useState([])
   const [tables, setTables]     = useState([])
   const [formStation, setFormStation] = useState({ nom: '', couleur: '#6b7280', type: 'preparation' })
@@ -208,6 +208,8 @@ const Parametrage = () => {
         fuseau_horaire: maquisData.fuseau_horaire || 'Africa/Abidjan',
         type: maquisData.type || 'maquis',
         activite: maquisData.activite || '',
+        adresse: maquisData.adresse || '',
+        telephone: maquisData.telephone || '',
         module_commandes_actif:  maquisData.module_commandes_actif  || false,
         module_kds_actif:        maquisData.module_kds_actif        || false,
         module_commandes_direct: maquisData.module_commandes_direct || false,
@@ -883,6 +885,8 @@ const Parametrage = () => {
             <option value="autre">🏪 Autre</option>
           </select>
           <input placeholder="Description (ex: Chez Yigo, Bar de la paix...)" value={formMaquis.activite} onChange={e => setFormMaquis({ ...formMaquis, activite: e.target.value })} style={styleInput} />
+          <input placeholder="Adresse (ex: Rue des Cocotiers, Abidjan)" value={formMaquis.adresse} onChange={e => setFormMaquis({ ...formMaquis, adresse: e.target.value })} style={styleInput} />
+          <input placeholder="Téléphone (ex: +225 07 00 00 00 00)" value={formMaquis.telephone} onChange={e => setFormMaquis({ ...formMaquis, telephone: e.target.value })} style={styleInput} />
 
           <div style={{ marginBottom: '10px' }}>
             <label style={{ fontSize: '13px', color: '#374151', marginBottom: '4px', display: 'block' }}>Couleur principale</label>

@@ -139,6 +139,11 @@ const lignesHtml = t.lignes.map(l => `
       <tr><td>Reçu</td><td style="text-align:right">${t.montant_recu.toLocaleString()} F</td></tr>
       <tr><td><b>Monnaie</b></td><td style="text-align:right"><b>${t.monnaie.toLocaleString()} F</b></td></tr>` : ''
 
+    const logoHtml = t.logo_url ? `<img src="${t.logo_url}" style="max-width:60mm;max-height:22mm;object-fit:contain;margin-bottom:4px;">` : ''
+    const contactHtml = (t.adresse || t.telephone) ? `
+      <hr>
+      <div class="contact">${t.adresse ? `${t.adresse}` : ''}${t.adresse && t.telephone ? '<br>' : ''}${t.telephone ? `Tél : ${t.telephone}` : ''}</div>` : ''
+
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -153,7 +158,9 @@ const lignesHtml = t.lignes.map(l => `
       td:last-child { text-align: right; }
       .total td { font-size: 18px; border-top: 1px solid #000; padding-top: 4px; }
       .footer { margin-top: 6px; font-size: 14px; }
+      .contact { font-size: 13px; font-weight: normal; margin-top: 4px; }
     </style></head><body>
+      ${logoHtml}
       <h2>${t.maquis || 'Flowix'}</h2>
       <div class="sub">${t.copie ? 'REÇU CAISSIER (Payé)' : 'REÇU CLIENT (Payé)'}</div>
       <hr>
@@ -169,6 +176,7 @@ const lignesHtml = t.lignes.map(l => `
         ${monnaieHtml}
       </table>
       <div class="footer">${t.copie ? '' : 'Merci pour votre visite !'}</div>
+      ${contactHtml}
     </body></html>`
 
     return await imprimerHTML(html)
@@ -192,6 +200,11 @@ ipcMain.handle('print:bon', async (_, bon) => {
       ${l.note ? `<tr><td colspan="2" style="font-size:12px;color:#333;padding-left:8px">↳ ${l.note}</td></tr>` : ''}`
     }).join('')
 
+    const logoHtml = bon.logo_url ? `<img src="${bon.logo_url}" style="max-width:60mm;max-height:22mm;object-fit:contain;margin-bottom:4px;">` : ''
+    const contactHtml = (bon.adresse || bon.telephone) ? `
+      <hr>
+      <div class="contact">${bon.adresse ? `${bon.adresse}` : ''}${bon.adresse && bon.telephone ? '<br>' : ''}${bon.telephone ? `Tél : ${bon.telephone}` : ''}</div>` : ''
+
     const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -205,7 +218,9 @@ ipcMain.handle('print:bon', async (_, bon) => {
       td { padding: 2px 0; text-align: left; }
       td:last-child { text-align: right; }
       .total td { font-size: 18px; border-top: 1px solid #000; padding-top: 4px; }
+      .contact { font-size: 13px; font-weight: normal; margin-top: 4px; }
     </style></head><body>
+      ${logoHtml}
       <h2>${bon.maquis || 'Flowix'}</h2>
       <div class="sub">BON DE COMMANDE</div>
       <div class="sub">(En attente de paiement)</div>
@@ -222,6 +237,7 @@ ipcMain.handle('print:bon', async (_, bon) => {
       </table>
       ${bon.note ? `<hr><div>Note : ${bon.note}</div>` : ''}
       <hr>
+      ${contactHtml}
     </body></html>`
 
     return await imprimerHTML(html)
