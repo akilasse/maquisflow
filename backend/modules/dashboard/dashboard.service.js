@@ -13,10 +13,10 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
   const maquisConfig = await prisma.maquis.findUnique({ where: { id: maquis_id }, select: { heure_debut_journee: true } })
   const hDebut = maquisConfig?.heure_debut_journee ?? 0
 
-  // ── Période jour (respecte heure_debut_journee) ──
+  // ── Période jour (respecte heure_debut_journee) — UTC pour cohérence avec la DB ──
   const debutJour = new Date(now)
-  if (now.getHours() < hDebut) debutJour.setDate(debutJour.getDate() - 1)
-  debutJour.setHours(hDebut, 0, 0, 0)
+  if (now.getUTCHours() < hDebut) debutJour.setUTCDate(debutJour.getUTCDate() - 1)
+  debutJour.setUTCHours(hDebut, 0, 0, 0)
   const finJour = new Date(debutJour.getTime() + 24 * 60 * 60 * 1000 - 1)
 
   // ── Période filtre manuel (optionnel) ──
@@ -25,12 +25,12 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
 
   // ── Période semaine : lundi de la semaine en cours ──
   const debutSemaine = new Date(now)
-  const jourSemaine  = debutSemaine.getDay() === 0 ? 6 : debutSemaine.getDay() - 1
-  debutSemaine.setDate(debutSemaine.getDate() - jourSemaine)
-  debutSemaine.setHours(hDebut, 0, 0, 0)
+  const jourSemaine  = debutSemaine.getUTCDay() === 0 ? 6 : debutSemaine.getUTCDay() - 1
+  debutSemaine.setUTCDate(debutSemaine.getUTCDate() - jourSemaine)
+  debutSemaine.setUTCHours(hDebut, 0, 0, 0)
 
   // ── Période mois : 1er du mois en cours ──
-  const debutMois = new Date(now.getFullYear(), now.getMonth(), 1, hDebut, 0, 0, 0)
+  const debutMois = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, hDebut, 0, 0, 0))
 
   // ── Requêtes en parallèle ──
   const [
