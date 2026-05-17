@@ -84,17 +84,44 @@ export default function Ventes() {
   const [motifOffert,    setMotifOffert]    = useState('')
   const [enCours,        setEnCours]        = useState(false)
 
-  const appliquerPeriode = (p) => {
-    const auj = new Date()
+  const appliquerPeriode = useCallback((p) => {
+    const now    = new Date()
+    const hDebut = utilisateur?.maquis?.heure_debut_journee ?? 0
     setPeriode(p)
-    if (p === 'aujourd_hui') { setDateDebut(fmt(auj)); setDateFin(fmt(auj)) }
-    else if (p === 'semaine') {
-      const lun = new Date(auj); lun.setDate(auj.getDate() - ((auj.getDay() + 6) % 7))
-      setDateDebut(fmt(lun)); setDateFin(fmt(auj))
+
+    if (p === 'aujourd_hui') {
+      if (hDebut === 0) {
+        setDateDebut(fmt(now)); setDateFin(fmt(now))
+        setHeureDebut(''); setHeureFin('')
+      } else {
+        const hDebutStr = `${String(hDebut).padStart(2, '0')}:00`
+        const hFinStr   = `${String(hDebut - 1).padStart(2, '0')}:59`
+        if (now.getUTCHours() >= hDebut) {
+          // Heure dépassée → journée commence aujourd'hui
+          const fin = new Date(now); fin.setUTCDate(fin.getUTCDate() + 1)
+          setDateDebut(fmt(now)); setDateFin(fmt(fin))
+        } else {
+          // Heure pas encore atteinte → journée commencée hier
+          const debut = new Date(now); debut.setUTCDate(debut.getUTCDate() - 1)
+          setDateDebut(fmt(debut)); setDateFin(fmt(now))
+        }
+        setHeureDebut(hDebutStr); setHeureFin(hFinStr)
+      }
+    } else if (p === 'semaine') {
+      const lun = new Date(now); lun.setUTCDate(now.getUTCDate() - ((now.getUTCDay() + 6) % 7))
+      setDateDebut(fmt(lun)); setDateFin(fmt(now))
+      setHeureDebut(''); setHeureFin('')
     } else if (p === 'mois') {
-      setDateDebut(fmt(new Date(auj.getFullYear(), auj.getMonth(), 1))); setDateFin(fmt(auj))
+      const debut = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
+      setDateDebut(fmt(debut)); setDateFin(fmt(now))
+      setHeureDebut(''); setHeureFin('')
     }
-  }
+  }, [utilisateur?.maquis?.heure_debut_journee])
+
+  // Recalculer dès que le maquis est disponible
+  useEffect(() => {
+    if (utilisateur?.maquis) appliquerPeriode('aujourd_hui')
+  }, [utilisateur?.maquis?.heure_debut_journee])
 
   const charger = useCallback(async () => {
     setChargement(true)
