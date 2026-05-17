@@ -641,7 +641,7 @@ const AdminDashboard = () => {
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <button onClick={() => { setOnglet('maquis'); setMaquisSelectionne(null) }} style={{ background: 'none', border: 'none', color: '#6366f1', cursor: 'pointer', fontSize: 14, fontWeight: 600 }}>← Retour</button>
-              <button onClick={() => { setOptFacture({ dev: false, montant_dev: '' }); setModalFacture(maquisSelectionne) }} style={{ padding: '8px 18px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📄 Générer Facture PDF</button>
+              <button onClick={() => { setOptFacture({ devLignes: [], noteAbo: '' }); setModalFacture(maquisSelectionne) }} style={{ padding: '8px 18px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>📄 Générer Facture PDF</button>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20 }}>
               {maquisSelectionne.logo_url ? (
