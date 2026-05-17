@@ -137,10 +137,10 @@ const getHistorique = async (prisma, maquis_id, filtres = {}) => {
 
   const debut = date_debut
     ? new Date(date_debut)
-    : new Date(new Date().setHours(0, 0, 0, 0))
+    : (() => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d })()
   const fin = date_fin
     ? new Date(date_fin)
-    : new Date(new Date().setHours(23, 59, 59, 999))
+    : (() => { const d = new Date(); d.setUTCHours(23, 59, 59, 999); return d })()
 
   const where = {
     maquis_id,

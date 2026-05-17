@@ -142,7 +142,7 @@ const getCommandes = async (prisma, maquis_id, filtres = {}) => {
     where.created_at = {}
     if (date_debut) where.created_at.gte = new Date(date_debut)
     if (date_fin) {
-      const fin = new Date(date_fin); fin.setHours(23, 59, 59, 999)
+      const fin = new Date(date_fin); fin.setUTCHours(23, 59, 59, 999)
       where.created_at.lte = fin
     }
   }

@@ -115,7 +115,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
             SUM(total_net)    AS ca
           FROM Vente
           WHERE maquis_id = ${maquis_id}
-            AND date_vente >= ${new Date(now.getFullYear(), 0, 1)}
+            AND date_vente >= ${new Date(Date.UTC(now.getUTCFullYear(), 0, 1))}
             AND date_vente <= ${now}
             AND statut IN ('encaissee', 'credit_en_cours')
           GROUP BY YEAR(date_vente), MONTH(date_vente)
