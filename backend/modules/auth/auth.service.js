@@ -49,6 +49,7 @@ const login = async (prisma, identifiant, mot_de_passe) => {
               logo_url: true, couleur_primaire: true, devise: true,
               adresse: true, telephone: true,
               actif: true, abonnement: true,
+              heure_debut_journee: true,
               module_commandes_actif: true, module_kds_actif: true,
               module_commandes_direct: true, paiement_avant: true
             }
@@ -112,7 +113,7 @@ const selectionnerEtablissement = async (prisma, utilisateur_id, maquis_id) => {
     where: { utilisateur_id, maquis_id, actif: true },
     include: {
       maquis: {
-        select: { id: true, nom: true, type: true, activite: true, logo_url: true, couleur_primaire: true, devise: true, adresse: true, telephone: true, actif: true, abonnement: true, module_commandes_actif: true, module_kds_actif: true, module_commandes_direct: true, paiement_avant: true }
+        select: { id: true, nom: true, type: true, activite: true, logo_url: true, couleur_primaire: true, devise: true, adresse: true, telephone: true, actif: true, abonnement: true, heure_debut_journee: true, module_commandes_actif: true, module_kds_actif: true, module_commandes_direct: true, paiement_avant: true }
       },
       utilisateur: { select: { id: true, nom: true, email: true } }
     }
