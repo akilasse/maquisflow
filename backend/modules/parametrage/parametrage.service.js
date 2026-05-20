@@ -164,6 +164,16 @@ const getUtilisateurs = async (prisma, maquis_id) => {
   }))
 }
 
+const genererLogin = async (prisma, base) => {
+  const slug = base.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
+  let login = slug
+  let i = 1
+  while (await prisma.utilisateur.findUnique({ where: { login } })) {
+    login = `${slug}${i++}`
+  }
+  return login
+}
+
 const creerUtilisateur = async (prisma, maquis_id, data) => {
   const { nom, email, mot_de_passe, role, login } = data
 
@@ -176,12 +186,14 @@ const creerUtilisateur = async (prisma, maquis_id, data) => {
     if (loginExiste) throw new Error(`Le login "${login}" est déjà utilisé`)
   }
 
+  const loginFinal = login || await genererLogin(prisma, email.split('@')[0])
+
   const hash = await bcrypt.hash(mot_de_passe, 10)
   let utilisateur = await prisma.utilisateur.findUnique({ where: { email } })
 
   if (!utilisateur) {
     utilisateur = await prisma.utilisateur.create({
-      data: { nom, email, login: login || null, mot_de_passe: hash, actif: true }
+      data: { nom, email, login: loginFinal, mot_de_passe: hash, actif: true }
     })
   }
 

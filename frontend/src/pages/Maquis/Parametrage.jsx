@@ -341,8 +341,14 @@ const Parametrage = () => {
 
   const soumettreUtilisateur = async () => {
     try {
-      await api.put(`/api/parametrage/utilisateurs/${modal.id}`, formUtilisateur)
-      afficherMessage('succes', 'Utilisateur modifié !')
+      if (modal?.id) {
+        await api.put(`/api/parametrage/utilisateurs/${modal.id}`, formUtilisateur)
+        afficherMessage('succes', 'Utilisateur modifié !')
+      } else {
+        if (!formUtilisateur.mot_de_passe) return afficherMessage('erreur', 'Mot de passe requis')
+        await api.post('/api/parametrage/utilisateurs', formUtilisateur)
+        afficherMessage('succes', 'Utilisateur créé !')
+      }
       setModal(null)
       setFormUtilisateur({ nom: '', email: '', login: '', mot_de_passe: '', role: 'serveur' })
       await chargerDonnees()
@@ -751,13 +757,18 @@ const Parametrage = () => {
       {/* UTILISATEURS */}
       {onglet === 'utilisateurs' && (
         <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Utilisateurs ({utilisateurs.length})</h2>
-            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#9ca3af' }}>Pour ajouter un utilisateur, contactez l'administrateur</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>Utilisateurs ({utilisateurs.length}/8)</h2>
+              {utilisateur?.role === 'patron' && <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#9ca3af' }}>{8 - utilisateurs.length} place(s) restante(s)</p>}
+            </div>
+            {utilisateur?.role === 'patron' && utilisateurs.length < 8 && (
+              <button onClick={() => { setModal({ type: 'utilisateur' }); setFormUtilisateur({ nom: '', email: '', login: '', mot_de_passe: '', role: 'serveur' }) }} style={styleBouton()}>+ Nouvel utilisateur</button>
+            )}
           </div>
-          {modal?.type === 'utilisateur' && modal.id && (
+          {modal?.type === 'utilisateur' && (
             <div style={{ backgroundColor: '#f9fafb', borderRadius: '10px', padding: '16px', marginBottom: '16px', border: '1px solid #e5e7eb' }}>
-              <h3 style={{ margin: '0 0 12px', fontSize: '15px' }}>Modifier utilisateur</h3>
+              <h3 style={{ margin: '0 0 12px', fontSize: '15px' }}>{modal?.id ? 'Modifier utilisateur' : 'Nouvel utilisateur'}</h3>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Nom complet *</label>
@@ -765,16 +776,22 @@ const Parametrage = () => {
                 </div>
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Email *</label>
-                  <input type="email" value={formUtilisateur.email} onChange={e => setFormUtilisateur({ ...formUtilisateur, email: e.target.value })} style={styleInput} />
+                  <input type="email" value={formUtilisateur.email} onChange={e => {
+                    const email = e.target.value
+                    const loginAuto = !modal?.id ? email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') : formUtilisateur.login
+                    setFormUtilisateur({ ...formUtilisateur, email, login: loginAuto })
+                  }} style={styleInput} />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Login court <span style={{ fontWeight: '400', color: '#9ca3af' }}>(optionnel — pour se connecter sans email)</span></label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Login <span style={{ fontWeight: '400', color: '#9ca3af' }}>{modal?.id ? '(laisser vide = supprimer)' : '(auto-généré depuis email)'}</span></label>
                   <input placeholder="ex: lamine, vivian..." value={formUtilisateur.login} onChange={e => setFormUtilisateur({ ...formUtilisateur, login: e.target.value.toLowerCase().replace(/\s/g, '') })}
                     style={styleInput} autoComplete="off" />
-                  {formUtilisateur.login && <p style={{ fontSize: '11px', color: '#6b7280', margin: '3px 0 0' }}>Laisser vide pour supprimer le login</p>}
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>Nouveau mot de passe <span style={{ fontWeight: '400', color: '#9ca3af' }}>(laisser vide = inchangé)</span></label>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px' }}>
+                    {modal?.id ? 'Nouveau mot de passe' : 'Mot de passe *'}
+                    {modal?.id && <span style={{ fontWeight: '400', color: '#9ca3af' }}> (laisser vide = inchangé)</span>}
+                  </label>
                   <input type="password" placeholder="••••••••" value={formUtilisateur.mot_de_passe} onChange={e => setFormUtilisateur({ ...formUtilisateur, mot_de_passe: e.target.value })} style={styleInput} />
                 </div>
                 <div>
@@ -836,8 +853,16 @@ const Parametrage = () => {
                   </td>
                   <td style={{ padding: '10px' }}>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <button onClick={() => { setModal({ type: 'utilisateur', id: u.id }); setFormUtilisateur({ nom: u.nom, email: u.email, login: u.login || '', mot_de_passe: '', role: u.role }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
-                      <button onClick={() => toggleActifUtilisateur(u)} style={{ padding: '4px 10px', backgroundColor: u.actif ? '#fef2f2' : '#f0fdf4', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: u.actif ? '#dc2626' : '#16a34a' }}>{u.actif ? 'Désactiver' : 'Activer'}</button>
+                      {(() => {
+                        const monRole = utilisateur?.role
+                        const monId = utilisateur?.id
+                        const estSoiMeme = monId === u.id
+                        const peutModifier = monRole === 'patron' ? (estSoiMeme || u.role !== 'patron') : monRole === 'gerant' ? (estSoiMeme || u.role === 'serveur' || u.role === 'caissier') : false
+                        return peutModifier ? (<>
+                          <button onClick={() => { setModal({ type: 'utilisateur', id: u.id }); setFormUtilisateur({ nom: u.nom, email: u.email, login: u.login || '', mot_de_passe: '', role: u.role }) }} style={{ padding: '4px 10px', backgroundColor: '#f3f4f6', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}>Modifier</button>
+                          {!estSoiMeme && <button onClick={() => toggleActifUtilisateur(u)} style={{ padding: '4px 10px', backgroundColor: u.actif ? '#fef2f2' : '#f0fdf4', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: u.actif ? '#dc2626' : '#16a34a' }}>{u.actif ? 'Désactiver' : 'Activer'}</button>}
+                        </>) : null
+                      })()}
                     </div>
                   </td>
                 </tr>

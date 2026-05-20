@@ -84,7 +84,11 @@ const getUtilisateurs = async (req, res) => {
 
 const creerUtilisateur = async (req, res) => {
   try {
-    const data = await service.creerUtilisateur(req.prisma, req.utilisateur.maquis_id, req.body)
+    const { id: acteurId, role: roleActeur, maquis_id } = req.utilisateur
+    if (roleActeur !== 'patron') return res.status(403).json({ success: false, message: 'Seul le patron peut créer des utilisateurs' })
+    const count = await req.prisma.utilisateurMaquis.count({ where: { maquis_id, actif: true } })
+    if (count >= 8) return res.status(400).json({ success: false, message: 'Quota de 8 utilisateurs atteint' })
+    const data = await service.creerUtilisateur(req.prisma, maquis_id, req.body)
     res.status(201).json({ success: true, message: 'Utilisateur créé', data })
   } catch (error) {
     res.status(400).json({ success: false, message: error.message })
@@ -93,7 +97,30 @@ const creerUtilisateur = async (req, res) => {
 
 const modifierUtilisateur = async (req, res) => {
   try {
-    const data = await service.modifierUtilisateur(req.prisma, parseInt(req.params.id), req.utilisateur.maquis_id, req.body)
+    const { id: acteurId, role: roleActeur, maquis_id } = req.utilisateur
+    const cibleId = parseInt(req.params.id)
+    const estSoiMeme = acteurId === cibleId
+
+    if (roleActeur === 'serveur' || roleActeur === 'caissier') {
+      return res.status(403).json({ success: false, message: 'Accès refusé' })
+    }
+
+    if (!estSoiMeme) {
+      const liaison = await req.prisma.utilisateurMaquis.findUnique({
+        where: { utilisateur_id_maquis_id: { utilisateur_id: cibleId, maquis_id } }
+      })
+      if (!liaison) return res.status(404).json({ success: false, message: 'Utilisateur introuvable' })
+      const roleCible = liaison.role
+
+      if (roleActeur === 'gerant' && (roleCible === 'patron' || roleCible === 'gerant')) {
+        return res.status(403).json({ success: false, message: 'Un gérant ne peut modifier que les serveurs' })
+      }
+      if (roleActeur === 'patron' && roleCible === 'patron') {
+        return res.status(403).json({ success: false, message: 'Un patron ne peut pas modifier un autre patron' })
+      }
+    }
+
+    const data = await service.modifierUtilisateur(req.prisma, cibleId, maquis_id, req.body)
     res.json({ success: true, message: 'Utilisateur modifié', data })
   } catch (error) {
     res.status(400).json({ success: false, message: error.message })
