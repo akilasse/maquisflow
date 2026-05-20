@@ -5,6 +5,7 @@
 // ============================================================
 
 const bcrypt = require('bcryptjs')
+const { envoyerCredentialsUtilisateur } = require('../../utils/mailer')
 
 // ============================================================
 // PRODUITS
@@ -210,6 +211,16 @@ const creerUtilisateur = async (prisma, maquis_id, data) => {
   await prisma.utilisateurMaquis.create({
     data: { utilisateur_id: utilisateur.id, maquis_id, role, actif: true }
   })
+
+  // Envoi email credentials (silencieux si SMTP non configuré)
+  const maquis = await prisma.maquis.findUnique({ where: { id: maquis_id }, select: { nom: true } })
+  envoyerCredentialsUtilisateur({
+    nom: utilisateur.nom,
+    email: utilisateur.email,
+    login: utilisateur.login,
+    mot_de_passe,
+    nom_maquis: maquis?.nom
+  }).catch(() => {}) // ne bloque pas la création si l'email échoue
 
   return { id: utilisateur.id, nom: utilisateur.nom, email: utilisateur.email, login: utilisateur.login, role, actif: true }
 }

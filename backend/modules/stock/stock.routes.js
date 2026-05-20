@@ -65,5 +65,13 @@ router.get(
   bonController.getBons
 )
 
+// GET /api/stock/alertes - Stocks sous le seuil minimum
+router.get(
+  '/alertes',
+  verifierToken,
+  requireMaquis,
+  autoriserRoles('caissier', 'gerant', 'patron'),
+  stockController.getAlertes
+)
 
 module.exports = router

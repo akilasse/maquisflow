@@ -251,23 +251,6 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Stocks critiques */}
-      {data?.stocks_critiques?.length > 0 && (
-        <div style={{ background:'#FEF2F2', border:'1px solid #fecaca', borderRadius:16, padding:'20px 24px' }}>
-          <h2 style={{ fontSize:18, fontWeight:700, color:'#991b1b', fontFamily:'Georgia, serif', margin:'0 0 12px' }}>
-            Stocks critiques
-            <span style={{ fontSize:12, background:'#fee2e2', color:'#b91c1c', padding:'2px 10px', borderRadius:20, marginLeft:10, fontWeight:600 }}>{data.stocks_critiques.length}</span>
-          </h2>
-          <ul style={{ listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:8 }}>
-            {data.stocks_critiques.map(p => (
-              <li key={p.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                <span style={{ fontSize:14, color:'#374151', fontWeight:500 }}>{p.nom}</span>
-                <span style={{ fontSize:14, fontWeight:700, color:'#dc2626' }}>{fmtNum(p.stock_actuel)} {p.unite} restant(s)</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
 
     </div>
   )

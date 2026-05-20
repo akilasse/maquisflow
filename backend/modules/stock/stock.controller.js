@@ -88,9 +88,23 @@ const getProduits = async (req, res) => {
   }
 }
 
+const getAlertes = async (req, res) => {
+  try {
+    const produits = await req.prisma.produit.findMany({
+      where: { maquis_id: req.utilisateur.maquis_id, actif: true, stock_min: { gt: 0 } },
+      select: { id: true, nom: true, stock_actuel: true, stock_min: true, unite: true }
+    })
+    const alertes = produits.filter(p => parseFloat(p.stock_actuel) <= parseFloat(p.stock_min))
+    res.json({ success: true, data: alertes })
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
 module.exports = {
   entreeStock,
   sortieStock,
   getHistorique,
-  getProduits
+  getProduits,
+  getAlertes
 }
