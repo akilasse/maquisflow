@@ -1,5 +1,6 @@
 const bcrypt = require('bcryptjs')
 const jwt    = require('jsonwebtoken')
+const { envoyerCredentialsUtilisateur } = require('../../utils/mailer')
 
 const login = async (prisma, email, mot_de_passe) => {
   const admin = await prisma.superAdmin.findUnique({ where: { email } })
@@ -104,16 +105,36 @@ const modifierAbonnement = async (prisma, maquis_id, data) => {
   })
 }
 
+const genererLoginAdmin = async (prisma, base) => {
+  const slug = base.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '')
+  let login = slug, i = 1
+  while (await prisma.utilisateur.findUnique({ where: { login } })) { login = `${slug}${i++}` }
+  return login
+}
+
 const creerUtilisateur = async (prisma, data) => {
   const { nom, email, mot_de_passe, role, maquis_id } = data
   if (!nom || !email || !mot_de_passe || !role || !maquis_id) throw new Error('Tous les champs sont requis')
   const hash = await bcrypt.hash(mot_de_passe, 10)
   let utilisateur = await prisma.utilisateur.findUnique({ where: { email } })
-  if (!utilisateur) utilisateur = await prisma.utilisateur.create({ data: { nom, email, mot_de_passe: hash, actif: true } })
+  if (!utilisateur) {
+    const loginFinal = await genererLoginAdmin(prisma, email.split('@')[0])
+    utilisateur = await prisma.utilisateur.create({ data: { nom, email, login: loginFinal, mot_de_passe: hash, actif: true } })
+  }
   const liaisonExiste = await prisma.utilisateurMaquis.findUnique({ where: { utilisateur_id_maquis_id: { utilisateur_id: utilisateur.id, maquis_id: parseInt(maquis_id) } } })
   if (liaisonExiste) throw new Error('Cet utilisateur a déjà accès à cet établissement')
   await prisma.utilisateurMaquis.create({ data: { utilisateur_id: utilisateur.id, maquis_id: parseInt(maquis_id), role, actif: true } })
-  return { id: utilisateur.id, nom: utilisateur.nom, email: utilisateur.email, role }
+
+  const maquis = await prisma.maquis.findUnique({ where: { id: parseInt(maquis_id) }, select: { nom: true } })
+  envoyerCredentialsUtilisateur({
+    nom: utilisateur.nom,
+    email: utilisateur.email,
+    login: utilisateur.login,
+    mot_de_passe,
+    nom_maquis: maquis?.nom
+  }).catch(() => {})
+
+  return { id: utilisateur.id, nom: utilisateur.nom, email: utilisateur.email, login: utilisateur.login, role }
 }
 
 const toggleUtilisateur = async (prisma, utilisateur_id, maquis_id, actif) => {
