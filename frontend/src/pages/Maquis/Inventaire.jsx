@@ -3,9 +3,13 @@
 // ============================================================
 
 import { useState, useEffect } from 'react'
+import { useAuth } from '../../context/AuthContext'
 import api from '../../utils/api'
 
+const fmtDate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+
 const Inventaire = () => {
+  const { utilisateur } = useAuth()
   const [inventaires, setInventaires] = useState([])
   const [inventaireActif, setInventaireActif] = useState(null)
   const [onglet, setOnglet] = useState('actif')
@@ -15,6 +19,9 @@ const Inventaire = () => {
   const [rechercheInv, setRechercheInv] = useState('')
   const [filtreCatInv, setFiltreCatInv] = useState('')
   const [filtreEcartInv, setFiltreEcartInv] = useState('')
+  const [modalPDF, setModalPDF] = useState(null)
+  const [participants, setParticipants] = useState([])
+  const [newParticipant, setNewParticipant] = useState('')
 
   useEffect(() => { chargerDonnees() }, [])
 
@@ -102,6 +109,107 @@ const Inventaire = () => {
     } finally {
       setChargementAction(false)
     }
+  }
+
+  const ouvrirModalPDF = async (inv) => {
+    if (!inv.createur_nom) {
+      try {
+        const r = await api.get(`/api/inventaire/${inv.id}`)
+        inv = r.data.data
+      } catch {}
+    }
+    setModalPDF(inv)
+    setParticipants([utilisateur?.nom || ''])
+    setNewParticipant('')
+  }
+
+  const genererPDF = (inv, parts) => {
+    const lignesTableau = (inv.lignes || []).map((l, i) => {
+      const ecart = parseFloat(l.ecart)
+      const couleurEcart = ecart > 0 ? '#16a34a' : ecart < 0 ? '#dc2626' : '#374151'
+      const bgRow = i % 2 === 0 ? '#ffffff' : '#f8fafc'
+      return `<tr style="background:${bgRow}">
+        <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9">${l.produit?.nom || ''}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:center">${l.produit?.categorie || '—'}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right">${parseFloat(l.qte_theorique)} ${l.produit?.unite || ''}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right">${parseFloat(l.qte_reelle)} ${l.produit?.unite || ''}</td>
+        <td style="padding:7px 10px;border-bottom:1px solid #f1f5f9;text-align:right;font-weight:700;color:${couleurEcart}">${ecart > 0 ? '+' : ''}${ecart} ${l.produit?.unite || ''}</td>
+      </tr>`
+    }).join('')
+
+    const avecEcart = (inv.lignes || []).filter(l => parseFloat(l.ecart) !== 0).length
+    const signaturesHTML = parts.filter(p => p.trim()).map(p => `
+      <div style="flex:1;min-width:180px;border:1.5px solid #e2e8f0;border-radius:8px;padding:16px">
+        <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#374151">${p}</p>
+        <p style="margin:0 0 16px;font-size:11px;color:#9ca3af">Date : _______________</p>
+        <div style="height:64px;border:1px dashed #cbd5e1;border-radius:4px"></div>
+        <p style="margin:4px 0 0;font-size:10px;color:#9ca3af;text-align:center">Signature</p>
+      </div>`).join('')
+
+    const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>Inventaire #INV-${String(inv.id).padStart(4,'0')}</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Helvetica Neue',Arial,sans-serif; font-size:13px; color:#1e293b; background:white; padding:32px; }
+  @media print { body { padding:16px; } }
+</style></head><body>
+<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:32px;padding-bottom:20px;border-bottom:3px solid #6366f1">
+  <div>
+    <div style="font-size:28px;font-weight:900;color:#6366f1;letter-spacing:-1px">FLOWIX</div>
+    <div style="font-size:12px;color:#64748b;margin-top:2px">Rapport d'inventaire physique</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:20px;font-weight:800;color:#0f172a">INVENTAIRE</div>
+    <div style="font-size:13px;color:#6366f1;font-weight:700">N° INV-${String(inv.id).padStart(4,'0')}</div>
+    <div style="font-size:12px;color:#64748b;margin-top:2px">Statut : <strong>${inv.statut === 'cloture' ? 'Clôturé' : 'En cours'}</strong></div>
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px">
+  <div style="background:#f8fafc;border-left:4px solid #6366f1;border-radius:6px;padding:14px 18px">
+    <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Démarré par</div>
+    <div style="font-size:16px;font-weight:800;color:#0f172a">${inv.createur_nom || utilisateur?.nom || '—'}</div>
+    <div style="font-size:12px;color:#64748b;margin-top:4px">Le ${fmtDate(inv.date_debut)}</div>
+  </div>
+  <div style="background:#f8fafc;border-left:4px solid #6366f1;border-radius:6px;padding:14px 18px">
+    <div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Résumé</div>
+    <div style="font-size:14px;color:#0f172a">${(inv.lignes||[]).length} produits comptés</div>
+    <div style="font-size:12px;color:${avecEcart > 0 ? '#dc2626' : '#16a34a'};margin-top:4px;font-weight:600">${avecEcart} écart(s) détecté(s)</div>
+    ${inv.date_fin ? `<div style="font-size:12px;color:#64748b;margin-top:4px">Clôturé le ${fmtDate(inv.date_fin)}</div>` : ''}
+  </div>
+</div>
+
+<table style="width:100%;border-collapse:collapse;margin-bottom:28px">
+  <thead>
+    <tr style="background:#6366f1">
+      <th style="padding:9px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:white">Produit</th>
+      <th style="padding:9px 10px;text-align:center;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:white">Catégorie</th>
+      <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:white">Qté théorique</th>
+      <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:white">Qté réelle</th>
+      <th style="padding:9px 10px;text-align:right;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:white">Écart</th>
+    </tr>
+  </thead>
+  <tbody>${lignesTableau}</tbody>
+</table>
+
+${parts.filter(p => p.trim()).length > 0 ? `
+<div style="margin-top:32px">
+  <div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px">Signatures des participants</div>
+  <div style="display:flex;gap:16px;flex-wrap:wrap">${signaturesHTML}</div>
+</div>` : ''}
+
+<div style="margin-top:36px;text-align:center;font-size:11px;color:#94a3b8;border-top:1px solid #f1f5f9;padding-top:16px">
+  Flowix — Logiciel de gestion commerciale · maquisflow.com
+</div>
+
+<script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script>
+</body></html>`
+
+    const w = window.open('', '_blank', 'width=1000,height=800')
+    if (!w) { afficherMessage('erreur', 'Popup bloquée — autoriser les popups pour ce site'); return }
+    w.document.write(html)
+    w.document.close()
+    setModalPDF(null)
   }
 
   const styleOnglet = (actif) => ({
@@ -287,6 +395,10 @@ const Inventaire = () => {
                   style={{ flex: 1, padding: '14px', backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                   {chargementAction ? '...' : '❌ Annuler l\'inventaire'}
                 </button>
+                <button onClick={() => ouvrirModalPDF(inventaireActif)}
+                  style={{ flex: 1, padding: '14px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
+                  📄 Générer PDF
+                </button>
                 <button onClick={cloturerInventaire} disabled={chargementAction}
                   style={{ flex: 2, padding: '14px', backgroundColor: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                   {chargementAction ? 'Clôture en cours...' : '🔒 Clôturer et ajuster les stocks'}
@@ -314,11 +426,86 @@ const Inventaire = () => {
                       Du {new Date(inv.date_debut).toLocaleDateString('fr-FR')} au {new Date(inv.date_fin).toLocaleDateString('fr-FR')}
                     </p>
                   </div>
-                  <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', backgroundColor: '#f0fdf4', color: '#16a34a' }}>✅ Clôturé</span>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <button onClick={() => ouvrirModalPDF(inv)}
+                      style={{ padding: '6px 14px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                      📄 PDF
+                    </button>
+                    <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', backgroundColor: '#f0fdf4', color: '#16a34a' }}>✅ Clôturé</span>
+                  </div>
                 </div>
               </div>
             ))
           )}
+        </div>
+      )}
+      {/* Modal PDF — participants */}
+      {modalPDF && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#111827' }}>📄 Rapport PDF</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#9ca3af' }}>Inventaire N° INV-{String(modalPDF.id).padStart(4, '0')}</p>
+              </div>
+              <button onClick={() => setModalPDF(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#9ca3af', lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>Participants (zones de signature)</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                <input
+                  value={newParticipant}
+                  onChange={e => setNewParticipant(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newParticipant.trim()) {
+                      setParticipants(prev => [...prev, newParticipant.trim()])
+                      setNewParticipant('')
+                    }
+                  }}
+                  placeholder="Nom du participant..."
+                  style={{ flex: 1, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+                />
+                <button
+                  onClick={() => {
+                    if (newParticipant.trim()) {
+                      setParticipants(prev => [...prev, newParticipant.trim()])
+                      setNewParticipant('')
+                    }
+                  }}
+                  style={{ padding: '9px 16px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                  + Ajouter
+                </button>
+              </div>
+              {participants.length === 0 ? (
+                <p style={{ fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '12px', background: '#f9fafb', borderRadius: '8px' }}>Aucun participant — le PDF n'aura pas de zones de signature</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
+                  {participants.map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                      <span style={{ fontSize: '14px', color: '#374151', fontWeight: i === 0 ? '600' : '400' }}>
+                        {p} {i === 0 && <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: '600' }}>· initiateur</span>}
+                      </span>
+                      <button onClick={() => setParticipants(prev => prev.filter((_, j) => j !== i))}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setModalPDF(null)}
+                style={{ flex: 1, padding: '12px', backgroundColor: '#f3f4f6', color: '#374151', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
+                Annuler
+              </button>
+              <button onClick={() => genererPDF(modalPDF, participants)}
+                style={{ flex: 2, padding: '12px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
+                📄 Générer et imprimer
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

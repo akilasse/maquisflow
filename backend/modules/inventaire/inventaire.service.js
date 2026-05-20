@@ -146,12 +146,16 @@ const getInventaire = async (prisma, inventaire_id, maquis_id) => {
     where: { id: inventaire_id, maquis_id },
     include: {
       lignes: {
-        include: { produit: { select: { nom: true, unite: true, categorie: true } } }
+        include: { produit: { select: { nom: true, unite: true, categorie: true } } },
+        orderBy: { produit: { nom: 'asc' } }
       }
     }
   })
 
   if (!inventaire) throw new Error('Inventaire introuvable')
+
+  const createur = await prisma.utilisateur.findUnique({ where: { id: inventaire.cree_par }, select: { nom: true } })
+  inventaire.createur_nom = createur?.nom || 'Inconnu'
 
   return inventaire
 }
