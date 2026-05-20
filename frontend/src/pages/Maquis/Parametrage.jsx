@@ -146,7 +146,7 @@ function ImportCSV({ couleur, onImporte, onAnnuler }) {
 }
 
 const Parametrage = () => {
-  const { mettreAJourMaquis } = useAuth()
+  const { mettreAJourMaquis, utilisateur } = useAuth()
   const [onglet, setOnglet] = useState('produits')
   const [produits, setProduits] = useState([])
   const [filtreCat, setFiltreCat] = useState('')
