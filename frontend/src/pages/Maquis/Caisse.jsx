@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useSocket } from '../../context/SocketContext'
+import { useToast } from '../../context/ToastContext'
 import api from '../../utils/api'
 import { sauvegarderVenteOffline, getVentesPending, marquerVenteSynced, compterVentesPending } from '../../utils/offlineDB'
 
@@ -24,7 +25,8 @@ const Caisse = () => {
   const [montantRecu, setMontantRecu]         = useState('')
   const [chargement, setChargement]           = useState(false)
   const [chargementProduits, setChargementProduits] = useState(true)
-  const [message, setMessage]                 = useState(null)
+  const { showToast: _toast } = useToast()
+  const setMessage = (m) => { if (m) _toast(m.type, m.texte) }
   const [dernierRecu, setDernierRecu]         = useState(null)
   const [afficherRecu, setAfficherRecu]       = useState(false)
   const [isOnline, setIsOnline]               = useState(navigator.onLine)
@@ -878,16 +880,6 @@ const Caisse = () => {
             )}
           </div>
 
-          {message && (
-            <div style={{
-              padding: '12px 14px', borderRadius: '8px', marginBottom: '12px', fontSize: '14px',
-              backgroundColor: message.type === 'succes' ? '#f0fdf4' : message.type === 'info' ? '#eff6ff' : '#fef2f2',
-              color: message.type === 'succes' ? '#16a34a' : message.type === 'info' ? '#1d4ed8' : '#dc2626',
-              border: `1px solid ${message.type === 'succes' ? '#bbf7d0' : message.type === 'info' ? '#bfdbfe' : '#fecaca'}`
-            }}>
-              {message.texte}
-            </div>
-          )}
 
           <div style={{ flex: 1, overflowY: 'auto', marginBottom: '12px', minHeight: 0 }}>
             {panier.length === 0 ? (

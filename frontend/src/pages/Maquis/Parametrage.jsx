@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { useToast } from '../../context/ToastContext'
 import api from '../../utils/api'
 
 const WHATSAPP = '2250779127543'
@@ -152,9 +153,9 @@ const Parametrage = () => {
   const [rechercheP, setRechercheP] = useState('')
   const [fournisseurs, setFournisseurs] = useState([])
   const [utilisateurs, setUtilisateurs] = useState([])
+  const { showToast: afficherMessage } = useToast()
   const [maquis, setMaquis] = useState(null)
   const [abonnement, setAbonnement] = useState(null)
-  const [message, setMessage] = useState(null)
   const [modal, setModal] = useState(null)
 
   const [formProduit, setFormProduit] = useState({
@@ -233,13 +234,8 @@ const Parametrage = () => {
         } catch {}
       }
     } catch (error) {
-      setMessage({ type: 'erreur', texte: 'Erreur chargement données' })
+      afficherMessage('erreur', 'Erreur chargement données')
     }
-  }
-
-  const afficherMessage = (type, texte) => {
-    setMessage({ type, texte })
-    setTimeout(() => setMessage(null), 3000)
   }
 
   const styleInput = { width: '100%', padding: '10px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', boxSizing: 'border-box', marginBottom: '10px' }
@@ -494,11 +490,6 @@ const Parametrage = () => {
         </button>
       </div>
 
-      {message && (
-        <div style={{ padding: '10px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px', backgroundColor: message.type === 'succes' ? '#f0fdf4' : '#fef2f2', color: message.type === 'succes' ? '#16a34a' : '#dc2626', border: `1px solid ${message.type === 'succes' ? '#bbf7d0' : '#fecaca'}` }}>
-          {message.texte}
-        </div>
-      )}
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
         {[

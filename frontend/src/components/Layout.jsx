@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import Navbar from './Navbar'
 import { useAuth } from '../context/AuthContext'
+import { ToastProvider } from '../context/ToastContext'
 
 const Layout = ({ children }) => {
   const { utilisateur } = useAuth()
@@ -14,6 +15,7 @@ const Layout = ({ children }) => {
   }, [utilisateur])
 
   return (
+    <ToastProvider>
     <div style={{ minHeight: '100vh', backgroundColor: '#f3f4f6' }}>
       <Navbar />
       <main className="main-content" style={{ marginLeft: '224px', padding: '16px' }}>
@@ -32,6 +34,7 @@ const Layout = ({ children }) => {
         }
       `}</style>
     </div>
+    </ToastProvider>
   )
 }
 

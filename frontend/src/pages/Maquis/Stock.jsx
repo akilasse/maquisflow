@@ -1,14 +1,15 @@
 import { useState, useEffect } from 'react'
 import api from '../../utils/api'
+import { useToast } from '../../context/ToastContext'
 
 const Stock = () => {
+  const { showToast: afficherMessage } = useToast()
   const [produits, setProduits] = useState([])
   const [fournisseurs, setFournisseurs] = useState([])
   const [historique, setHistorique] = useState([])
   const [bons, setBons] = useState([])
   const [onglet, setOnglet] = useState('produits')
   const [chargement, setChargement] = useState(true)
-  const [message, setMessage] = useState(null)
 
   // Approvisionnement
   const [fournisseurId, setFournisseurId] = useState('')
@@ -43,15 +44,10 @@ const Stock = () => {
       setHistorique(h.data.data.mouvements)
       setBons(b.data.data)
     } catch (error) {
-      setMessage({ type: 'erreur', texte: 'Erreur chargement données' })
+      afficherMessage('erreur', 'Erreur chargement données')
     } finally {
       setChargement(false)
     }
-  }
-
-  const afficherMessage = (type, texte) => {
-    setMessage({ type, texte })
-    setTimeout(() => setMessage(null), 4000)
   }
 
   const modifierLigne = (index, champ, valeur) => {
@@ -153,14 +149,6 @@ const Stock = () => {
         </button>
       </div>
 
-      {message && (
-        <div style={{
-          padding: '10px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px',
-          backgroundColor: message.type === 'succes' ? '#f0fdf4' : '#fef2f2',
-          color: message.type === 'succes' ? '#16a34a' : '#dc2626',
-          border: `1px solid ${message.type === 'succes' ? '#bbf7d0' : '#fecaca'}`
-        }}>{message.texte}</div>
-      )}
 
       {/* Onglets */}
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>

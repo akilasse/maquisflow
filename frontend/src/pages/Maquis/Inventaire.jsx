@@ -4,18 +4,19 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../context/AuthContext'
+import { useToast } from '../../context/ToastContext'
 import api from '../../utils/api'
 
 const fmtDate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 const Inventaire = () => {
   const { utilisateur } = useAuth()
+  const { showToast: afficherMessage } = useToast()
   const [inventaires, setInventaires] = useState([])
   const [inventaireActif, setInventaireActif] = useState(null)
   const [onglet, setOnglet] = useState('actif')
   const [chargement, setChargement] = useState(true)
   const [chargementAction, setChargementAction] = useState(false)
-  const [message, setMessage] = useState(null)
   const [rechercheInv, setRechercheInv] = useState('')
   const [filtreCatInv, setFiltreCatInv] = useState('')
   const [filtreEcartInv, setFiltreEcartInv] = useState('')
@@ -47,15 +48,10 @@ const Inventaire = () => {
         setInventaireActif(null)
       }
     } catch (error) {
-      setMessage({ type: 'erreur', texte: 'Erreur chargement données' })
+      afficherMessage('erreur', 'Erreur chargement données')
     } finally {
       setChargement(false)
     }
-  }
-
-  const afficherMessage = (type, texte) => {
-    setMessage({ type, texte })
-    setTimeout(() => setMessage(null), 4000)
   }
 
   const ouvrirModalDemarrer = () => {
@@ -266,15 +262,6 @@ ${parts.filter(p => p.trim()).length > 0 ? `
       <p style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '20px' }}>
         Comptage physique des stocks et ajustement des écarts
       </p>
-
-      {message && (
-        <div style={{
-          padding: '10px 16px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px',
-          backgroundColor: message.type === 'succes' ? '#f0fdf4' : '#fef2f2',
-          color: message.type === 'succes' ? '#16a34a' : '#dc2626',
-          border: `1px solid ${message.type === 'succes' ? '#bbf7d0' : '#fecaca'}`
-        }}>{message.texte}</div>
-      )}
 
       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
         <button onClick={() => setOnglet('actif')} style={styleOnglet(onglet === 'actif')}>📋 Inventaire en cours</button>

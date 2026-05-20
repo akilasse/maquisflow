@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useToast } from '../../context/ToastContext'
 import { useAuth } from '../../context/AuthContext'
 import { useSocket } from '../../context/SocketContext'
 import api from '../../utils/api'
@@ -69,7 +70,7 @@ export default function Ventes() {
   const [rechercheServ,  setRechercheServ]  = useState('')
   const [periode,        setPeriode]        = useState('aujourd_hui')
   const [ouverte,        setOuverte]        = useState(null)
-  const [message,        setMessage]        = useState(null)
+  const { showToast: msg } = useToast()
 
   const [modaleReduc,    setModaleReduc]    = useState(null)
   const [modaleAnnul,    setModaleAnnul]    = useState(null)
@@ -173,11 +174,6 @@ export default function Ventes() {
       socket.off('commande:mise_a_jour', refresh)
     }
   }, [socket, charger])
-
-  const msg = (type, texte) => {
-    setMessage({ type, texte })
-    setTimeout(() => setMessage(null), 4000)
-  }
 
   const ouvrirModifier = async (v) => {
     try {
@@ -349,15 +345,6 @@ export default function Ventes() {
   return (
     <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }} className="ventes-page">
 
-      {/* Toast */}
-      {message && (
-        <div style={{ position:'fixed', top:20, right:20, zIndex:9999, padding:'12px 20px', borderRadius:10, fontWeight:600, fontSize:14,
-          background: message.type === 'succes' ? '#d1fae5' : '#fee2e2',
-          color:      message.type === 'succes' ? '#065f46' : '#991b1b',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
-          {message.texte}
-        </div>
-      )}
 
       {/* Titre */}
       <div style={{ marginBottom: 20 }}>
