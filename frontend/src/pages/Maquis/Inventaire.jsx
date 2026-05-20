@@ -28,6 +28,9 @@ const Inventaire = () => {
   const [partsDemarrer, setPartsDemarrer] = useState([])
   const [newPartDemarrer, setNewPartDemarrer] = useState('')
   const [participantsActifs, setParticipantsActifs] = useState([])
+  const [filtreHistMois, setFiltreHistMois] = useState('')
+  const [filtreHistDebut, setFiltreHistDebut] = useState('')
+  const [filtreHistFin, setFiltreHistFin] = useState('')
 
   useEffect(() => { chargerDonnees() }, [])
 
@@ -422,10 +425,6 @@ ${parts.filter(p => p.trim()).length > 0 ? `
                   style={{ flex: 1, padding: '14px', backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                   {chargementAction ? '...' : '❌ Annuler l\'inventaire'}
                 </button>
-                <button onClick={() => genererPDF(inventaireActif, participantsActifs.length > 0 ? participantsActifs : [utilisateur?.nom || ''])}
-                  style={{ flex: 1, padding: '14px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
-                  📄 Générer PDF
-                </button>
                 <button onClick={cloturerInventaire} disabled={chargementAction}
                   style={{ flex: 2, padding: '14px', backgroundColor: '#dc2626', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                   {chargementAction ? 'Clôture en cours...' : '🔒 Clôturer et ajuster les stocks'}
@@ -437,14 +436,74 @@ ${parts.filter(p => p.trim()).length > 0 ? `
       )}
 
       {onglet === 'historique' && (() => {
-        const historique = inventaires.filter(i => i.statut !== 'en_cours')
+        const MOIS_FR = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre']
+        const tousHistoriques = inventaires.filter(i => i.statut !== 'en_cours')
+
+        // Mois uniques disponibles dans l'historique
+        const moisDispo = [...new Set(tousHistoriques.map(i => {
+          const d = new Date(i.date_debut)
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        }))].sort().reverse()
+
+        // Appliquer les filtres
+        const historique = tousHistoriques.filter(inv => {
+          const d = new Date(inv.date_debut)
+          if (filtreHistMois) {
+            const [y, m] = filtreHistMois.split('-')
+            if (d.getFullYear() !== parseInt(y) || d.getMonth() + 1 !== parseInt(m)) return false
+          }
+          if (filtreHistDebut) {
+            if (d < new Date(filtreHistDebut)) return false
+          }
+          if (filtreHistFin) {
+            const fin = new Date(filtreHistFin); fin.setHours(23, 59, 59)
+            if (d > fin) return false
+          }
+          return true
+        })
+
         return (
           <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-            <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600' }}>
-              Historique des inventaires ({historique.length})
-            </h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: '600' }}>
+                Historique des inventaires
+              </h2>
+              <span style={{ fontSize: '13px', color: '#9ca3af' }}>{historique.length} / {tousHistoriques.length}</span>
+            </div>
+
+            {/* Filtres */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center', marginBottom: '16px', padding: '12px', background: '#f8fafc', borderRadius: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', fontWeight: '600', color: '#374151' }}>Mois :</span>
+                <select value={filtreHistMois} onChange={e => { setFiltreHistMois(e.target.value); setFiltreHistDebut(''); setFiltreHistFin('') }}
+                  style={{ padding: '6px 10px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', background: 'white', cursor: 'pointer' }}>
+                  <option value=''>Tous</option>
+                  {moisDispo.map(ym => {
+                    const [y, m] = ym.split('-')
+                    return <option key={ym} value={ym}>{MOIS_FR[parseInt(m) - 1]} {y}</option>
+                  })}
+                </select>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '12px', fontWeight: '600', color: '#374151' }}>Du :</span>
+                <input type='date' value={filtreHistDebut}
+                  onChange={e => { setFiltreHistDebut(e.target.value); setFiltreHistMois('') }}
+                  style={{ padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', background: 'white' }} />
+                <span style={{ fontSize: '12px', fontWeight: '600', color: '#374151' }}>Au :</span>
+                <input type='date' value={filtreHistFin}
+                  onChange={e => { setFiltreHistFin(e.target.value); setFiltreHistMois('') }}
+                  style={{ padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', background: 'white' }} />
+              </div>
+              {(filtreHistMois || filtreHistDebut || filtreHistFin) && (
+                <button onClick={() => { setFiltreHistMois(''); setFiltreHistDebut(''); setFiltreHistFin('') }}
+                  style={{ padding: '6px 12px', borderRadius: '7px', border: 'none', cursor: 'pointer', fontSize: '12px', backgroundColor: '#f3f4f6', color: '#6b7280' }}>
+                  ✕ Réinitialiser
+                </button>
+              )}
+            </div>
+
             {historique.length === 0 ? (
-              <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px' }}>Aucun inventaire dans l'historique</p>
+              <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px' }}>Aucun inventaire pour cette période</p>
             ) : historique.map(inv => (
               <div key={inv.id} style={{ border: `1px solid ${inv.statut === 'annule' ? '#fecaca' : '#e5e7eb'}`, borderRadius: '10px', padding: '16px', marginBottom: '12px', backgroundColor: inv.statut === 'annule' ? '#fff8f8' : 'white' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
