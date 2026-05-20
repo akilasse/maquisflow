@@ -342,7 +342,9 @@ const Parametrage = () => {
   const soumettreUtilisateur = async () => {
     try {
       if (modal?.id) {
-        await api.put(`/api/parametrage/utilisateurs/${modal.id}`, formUtilisateur)
+        const payload = { ...formUtilisateur }
+        if (!payload.mot_de_passe) delete payload.mot_de_passe
+        await api.put(`/api/parametrage/utilisateurs/${modal.id}`, payload)
         afficherMessage('succes', 'Utilisateur modifié !')
       } else {
         if (!formUtilisateur.mot_de_passe) return afficherMessage('erreur', 'Mot de passe requis')
