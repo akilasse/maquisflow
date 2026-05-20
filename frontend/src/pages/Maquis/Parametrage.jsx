@@ -259,6 +259,14 @@ const Parametrage = () => {
   const styleOnglet = (actif) => ({ padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: '500', fontSize: '14px', backgroundColor: actif ? 'var(--couleur-principale)' : '#f3f4f6', color: actif ? 'white' : '#374151' })
 
   const soumettreProdukt = async () => {
+    if (!formProduit.nom || !formProduit.prix_vente) {
+      afficherMessage('erreur', 'Nom et prix de vente sont obligatoires')
+      return
+    }
+    if (formProduit.prix_achat === '' || formProduit.prix_achat === null || formProduit.prix_achat === undefined) {
+      afficherMessage('erreur', "Le prix d'achat est obligatoire")
+      return
+    }
     try {
       const payload = {
         ...formProduit,
@@ -546,7 +554,7 @@ const Parametrage = () => {
                   : <input placeholder="Ex : Boissons" value={formProduit.categorie} onChange={e => setFormProduit({ ...formProduit, categorie: e.target.value })} style={inp} />
                 }</>)}
                 {wrap(<>{lbl('Prix de vente', true)}<input type="number" placeholder="0" value={formProduit.prix_vente} onChange={e => setFormProduit({ ...formProduit, prix_vente: e.target.value })} style={inp} /></>)}
-                {wrap(<>{lbl("Prix d'achat")}<input type="number" placeholder="Optionnel" value={formProduit.prix_achat} onChange={e => setFormProduit({ ...formProduit, prix_achat: e.target.value })} style={inp} /></>)}
+                {wrap(<>{lbl("Prix d'achat", true)}<input type="number" placeholder="0" value={formProduit.prix_achat} onChange={e => setFormProduit({ ...formProduit, prix_achat: e.target.value })} style={inp} /></>)}
                 {wrap(<>{lbl('Seuil alerte stock')}<input type="number" placeholder="0" value={formProduit.stock_min} onChange={e => setFormProduit({ ...formProduit, stock_min: e.target.value })} style={inp} /></>)}
                 {wrap(<>{lbl('Unité de base')}{(maquis?.unites_custom || []).length > 0
                   ? <SelectRecherche valeur={formProduit.unite} onChange={v => setFormProduit({ ...formProduit, unite: v })} options={maquis.unites_custom} placeholder="Choisir..." style={inp} />

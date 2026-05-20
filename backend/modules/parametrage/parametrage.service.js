@@ -24,8 +24,8 @@ const getProduits = async (prisma, maquis_id) => {
 const creerProduit = async (prisma, maquis_id, data) => {
   const { nom, categorie, prix_vente, prix_achat, stock_actuel, stock_min, unite, station_id, variantes } = data
 
-  if (!nom || !prix_vente) {
-    throw new Error('Nom et prix de vente requis')
+  if (!nom || !prix_vente || prix_achat === undefined || prix_achat === null || prix_achat === '') {
+    throw new Error('Nom, prix de vente et prix d\'achat sont obligatoires')
   }
 
   const produit = await prisma.produit.create({
@@ -68,13 +68,17 @@ const modifierProduit = async (prisma, produit_id, maquis_id, data) => {
 
   if (!produit) throw new Error('Produit introuvable')
 
+  if (data.prix_achat === '' || data.prix_achat === null || data.prix_achat === undefined) {
+    throw new Error('Le prix d\'achat est obligatoire')
+  }
+
   const produitMaj = await prisma.produit.update({
     where: { id: produit_id },
     data: {
       nom:        data.nom,
       categorie:  data.categorie,
       prix_vente: data.prix_vente ? parseFloat(data.prix_vente) : undefined,
-      prix_achat: data.prix_achat ? parseFloat(data.prix_achat) : undefined,
+      prix_achat: data.prix_achat !== undefined ? parseFloat(data.prix_achat) : undefined,
       stock_min:  data.stock_min !== undefined ? parseFloat(data.stock_min) : undefined,
       unite:      data.unite,
       actif:      data.actif !== undefined ? data.actif : undefined,
