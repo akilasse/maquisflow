@@ -90,11 +90,17 @@ const getProduits = async (req, res) => {
 
 const getAlertes = async (req, res) => {
   try {
+    // Récupère tous les produits actifs avec leur stock
     const produits = await req.prisma.produit.findMany({
-      where: { maquis_id: req.utilisateur.maquis_id, actif: true, stock_min: { gt: 0 } },
+      where: { maquis_id: req.utilisateur.maquis_id, actif: true },
       select: { id: true, nom: true, stock_actuel: true, stock_min: true, unite: true }
     })
-    const alertes = produits.filter(p => parseFloat(p.stock_actuel) <= parseFloat(p.stock_min))
+    // Alerte si : stock à zéro/négatif (rupture) OU en-dessous du seuil configuré
+    const alertes = produits.filter(p => {
+      const actuel = parseFloat(p.stock_actuel)
+      const min = parseFloat(p.stock_min)
+      return actuel <= 0 || (min > 0 && actuel <= min)
+    })
     res.json({ success: true, data: alertes })
   } catch (error) {
     res.status(400).json({ success: false, message: error.message })
