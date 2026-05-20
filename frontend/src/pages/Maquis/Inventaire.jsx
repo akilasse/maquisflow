@@ -24,6 +24,10 @@ const Inventaire = () => {
   const [newParticipant, setNewParticipant] = useState('')
   const [detailModal, setDetailModal] = useState(null)
   const [chargementDetail, setChargementDetail] = useState(false)
+  const [modalDemarrer, setModalDemarrer] = useState(false)
+  const [partsDemarrer, setPartsDemarrer] = useState([])
+  const [newPartDemarrer, setNewPartDemarrer] = useState('')
+  const [participantsActifs, setParticipantsActifs] = useState([])
 
   useEffect(() => { chargerDonnees() }, [])
 
@@ -51,7 +55,15 @@ const Inventaire = () => {
     setTimeout(() => setMessage(null), 4000)
   }
 
+  const ouvrirModalDemarrer = () => {
+    setPartsDemarrer([utilisateur?.nom || ''])
+    setNewPartDemarrer('')
+    setModalDemarrer(true)
+  }
+
   const demarrerInventaire = async () => {
+    setModalDemarrer(false)
+    setParticipantsActifs([...partsDemarrer])
     setChargementAction(true)
     try {
       await api.post('/api/inventaire', {})
@@ -273,7 +285,7 @@ ${parts.filter(p => p.trim()).length > 0 ? `
               <p style={{ fontSize: '48px', marginBottom: '16px' }}>📦</p>
               <h2 style={{ fontSize: '18px', fontWeight: '600', color: '#111827', marginBottom: '8px' }}>Aucun inventaire en cours</h2>
               <p style={{ color: '#9ca3af', fontSize: '14px', marginBottom: '24px' }}>Démarrez un inventaire pour compter physiquement vos stocks</p>
-              <button onClick={demarrerInventaire} disabled={chargementAction}
+              <button onClick={ouvrirModalDemarrer} disabled={chargementAction}
                 style={{ padding: '12px 32px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                 {chargementAction ? 'Démarrage...' : '🚀 Démarrer un inventaire'}
               </button>
@@ -410,7 +422,7 @@ ${parts.filter(p => p.trim()).length > 0 ? `
                   style={{ flex: 1, padding: '14px', backgroundColor: '#6b7280', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                   {chargementAction ? '...' : '❌ Annuler l\'inventaire'}
                 </button>
-                <button onClick={() => ouvrirModalPDF(inventaireActif)}
+                <button onClick={() => genererPDF(inventaireActif, participantsActifs.length > 0 ? participantsActifs : [utilisateur?.nom || ''])}
                   style={{ flex: 1, padding: '14px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
                   📄 Générer PDF
                 </button>
@@ -486,6 +498,71 @@ ${parts.filter(p => p.trim()).length > 0 ? `
           </div>
         )
       })()}
+      {/* Modal démarrage inventaire — saisie des participants */}
+      {modalDemarrer && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', padding: '28px', width: '100%', maxWidth: '480px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#111827' }}>🚀 Démarrer l'inventaire</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#9ca3af' }}>Ajoutez les participants — ils apparaîtront dans le rapport PDF</p>
+              </div>
+              <button onClick={() => setModalDemarrer(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#9ca3af', lineHeight: 1 }}>✕</button>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '8px' }}>Participants</label>
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                <input
+                  value={newPartDemarrer}
+                  onChange={e => setNewPartDemarrer(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newPartDemarrer.trim()) {
+                      setPartsDemarrer(prev => [...prev, newPartDemarrer.trim()])
+                      setNewPartDemarrer('')
+                    }
+                  }}
+                  placeholder="Nom du participant..."
+                  style={{ flex: 1, padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
+                />
+                <button
+                  onClick={() => { if (newPartDemarrer.trim()) { setPartsDemarrer(prev => [...prev, newPartDemarrer.trim()]); setNewPartDemarrer('') } }}
+                  style={{ padding: '9px 16px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                  + Ajouter
+                </button>
+              </div>
+              {partsDemarrer.length === 0 ? (
+                <p style={{ fontSize: '13px', color: '#9ca3af', textAlign: 'center', padding: '12px', background: '#f9fafb', borderRadius: '8px' }}>Aucun participant — le rapport PDF n'aura pas de zones de signature</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '200px', overflowY: 'auto' }}>
+                  {partsDemarrer.map((p, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                      <span style={{ fontSize: '14px', color: '#374151', fontWeight: i === 0 ? '600' : '400' }}>
+                        {p} {i === 0 && <span style={{ fontSize: '11px', color: '#6366f1', fontWeight: '600' }}>· initiateur</span>}
+                      </span>
+                      <button onClick={() => setPartsDemarrer(prev => prev.filter((_, j) => j !== i))}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: '16px', lineHeight: 1, padding: '0 4px' }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setModalDemarrer(false)}
+                style={{ flex: 1, padding: '12px', backgroundColor: '#f3f4f6', color: '#374151', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
+                Annuler
+              </button>
+              <button onClick={demarrerInventaire} disabled={chargementAction}
+                style={{ flex: 2, padding: '12px', backgroundColor: 'var(--couleur-principale)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' }}>
+                {chargementAction ? 'Démarrage...' : '🚀 Démarrer l\'inventaire'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal Détails inventaire clôturé */}
       {detailModal && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
