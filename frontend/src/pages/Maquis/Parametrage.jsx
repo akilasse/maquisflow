@@ -875,112 +875,157 @@ const Parametrage = () => {
 
       {/* MON COMMERCE */}
       {onglet === 'maquis' && (
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', maxWidth: '500px' }}>
-          <h2 style={{ margin: '0 0 20px', fontSize: '16px', fontWeight: '600' }}>Paramètres de mon commerce</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-          {/* Logo */}
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ fontSize: '13px', color: '#374151', marginBottom: '8px', display: 'block', fontWeight: '600' }}>Logo</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* En-tête avec logo */}
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <div>
               {maquis?.logo_url ? (
-                <img src={maquis.logo_url} alt="Logo" style={{ width: 64, height: 64, borderRadius: 12, objectFit: 'cover', border: '2px solid #e5e7eb' }} />
+                <img src={maquis.logo_url} alt="Logo" style={{ width: 80, height: 80, borderRadius: 16, objectFit: 'cover', border: '2px solid #e5e7eb' }} />
               ) : (
-                <div style={{ width: 64, height: 64, borderRadius: 12, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24, border: '2px dashed #e5e7eb' }}>🏪</div>
+                <div style={{ width: 80, height: 80, borderRadius: 16, backgroundColor: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, border: '2px dashed #e5e7eb' }}>🏪</div>
               )}
-              <label style={{ padding: '8px 16px', backgroundColor: '#f3f4f6', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151' }}>
+            </div>
+            <div style={{ flex: 1 }}>
+              <h2 style={{ margin: '0 0 4px', fontSize: '18px', fontWeight: '700', color: '#111827' }}>{maquis?.nom || 'Mon Commerce'}</h2>
+              <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#6b7280' }}>{maquis?.activite || 'Aucune description'} · {maquis?.adresse || 'Adresse non renseignée'}</p>
+              <label style={{ padding: '8px 16px', backgroundColor: '#f3f4f6', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, color: '#374151', display: 'inline-block' }}>
                 📷 Changer le logo
                 <input type="file" accept="image/*" style={{ display: 'none' }} onChange={e => e.target.files[0] && uploadLogoMaquis(e.target.files[0])} />
               </label>
             </div>
-          </div>
-
-          <input placeholder="Nom du commerce" value={formMaquis.nom} onChange={e => setFormMaquis({ ...formMaquis, nom: e.target.value })} style={styleInput} />
-
-          <select value={formMaquis.type} onChange={e => {
-            const t = e.target.value
-            const couleurs = { maquis: '#FF6B35', restaurant: '#1D4ED8', bar: '#7C3AED', fast_food: '#ea580c', boutique: '#7C3AED', pharmacie: '#16A34A', salon: '#EC4899', autre: '#6b7280' }
-            setFormMaquis({ ...formMaquis, type: t, couleur_primaire: couleurs[t] || formMaquis.couleur_primaire })
-          }} style={styleInput}>
-            <option value="maquis">🍺 Maquis / Gargote</option>
-            <option value="restaurant">🍽️ Restaurant</option>
-            <option value="bar">🍸 Bar / Café</option>
-            <option value="fast_food">🍔 Fast Food</option>
-            <option value="boutique">🛍️ Boutique / Commerce</option>
-            <option value="pharmacie">💊 Pharmacie</option>
-            <option value="salon">💅 Salon de beauté</option>
-            <option value="autre">🏪 Autre</option>
-          </select>
-          <input placeholder="Description (ex: Chez Yigo, Bar de la paix...)" value={formMaquis.activite} onChange={e => setFormMaquis({ ...formMaquis, activite: e.target.value })} style={styleInput} />
-          <input placeholder="Adresse (ex: Rue des Cocotiers, Abidjan)" value={formMaquis.adresse} onChange={e => setFormMaquis({ ...formMaquis, adresse: e.target.value })} style={styleInput} />
-          <input placeholder="Téléphone (ex: +225 07 00 00 00 00)" value={formMaquis.telephone} onChange={e => setFormMaquis({ ...formMaquis, telephone: e.target.value })} style={styleInput} />
-
-          <div style={{ marginBottom: '10px' }}>
-            <label style={{ fontSize: '13px', color: '#374151', marginBottom: '4px', display: 'block' }}>Couleur principale</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <input type="color" value={formMaquis.couleur_primaire} onChange={e => setFormMaquis({ ...formMaquis, couleur_primaire: e.target.value })} style={{ width: '50px', height: '40px', border: 'none', borderRadius: '8px', cursor: 'pointer' }} />
-              <span style={{ fontSize: '14px', color: '#374151' }}>{formMaquis.couleur_primaire}</span>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', backgroundColor: formMaquis.couleur_primaire, border: '3px solid white', boxShadow: '0 0 0 2px #e5e7eb' }} />
+              <span style={{ fontSize: '13px', color: '#6b7280', fontWeight: 600 }}>{formMaquis.couleur_primaire}</span>
             </div>
           </div>
 
-          <select value={formMaquis.devise} onChange={e => setFormMaquis({ ...formMaquis, devise: e.target.value })} style={styleInput}>
-            <option value="XOF">XOF - Franc CFA</option>
-            <option value="GNF">GNF - Franc Guinéen</option>
-            <option value="EUR">EUR - Euro</option>
-            <option value="USD">USD - Dollar</option>
-          </select>
+          {/* Grille deux colonnes */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
 
-          <select value={formMaquis.fuseau_horaire} onChange={e => setFormMaquis({ ...formMaquis, fuseau_horaire: e.target.value })} style={styleInput}>
-            <option value="Africa/Abidjan">Abidjan (GMT+0)</option>
-            <option value="Africa/Dakar">Dakar (GMT+0)</option>
-            <option value="Africa/Lagos">Lagos (GMT+1)</option>
-            <option value="Africa/Douala">Douala (GMT+1)</option>
-          </select>
+            {/* Colonne gauche — Identité */}
+            <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: '700', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🏪 Identité</h3>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', color: '#374151', marginBottom: '6px' }}>
-              Début de journée
-              <span style={{ fontWeight: '400', color: '#9ca3af', marginLeft: '6px' }}>— pour les établissements qui travaillent la nuit</span>
-            </label>
-            <select value={formMaquis.heure_debut_journee} onChange={e => setFormMaquis({ ...formMaquis, heure_debut_journee: parseInt(e.target.value) })} style={styleInput}>
-              {Array.from({ length: 24 }, (_, h) => (
-                <option key={h} value={h}>
-                  {h === 0 ? '00h00 — Minuit (défaut)' : `${String(h).padStart(2, '0')}h00`}
-                </option>
-              ))}
-            </select>
-            {formMaquis.heure_debut_journee !== 0 && (
-              <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
-                La journée du dashboard va de {String(formMaquis.heure_debut_journee).padStart(2,'0')}h00 à {String((formMaquis.heure_debut_journee + 23) % 24).padStart(2,'0')}h59
-              </p>
-            )}
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '6px' }}>Nom du commerce</label>
+                <input placeholder="Ex : Chez Yigo, Bar de la paix..." value={formMaquis.nom} onChange={e => setFormMaquis({ ...formMaquis, nom: e.target.value })} style={{ ...styleInput, marginBottom: 0 }} />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '6px' }}>Type d'établissement</label>
+                <select value={formMaquis.type} onChange={e => {
+                  const t = e.target.value
+                  const couleurs = { maquis: '#FF6B35', restaurant: '#1D4ED8', bar: '#7C3AED', fast_food: '#ea580c', boutique: '#7C3AED', pharmacie: '#16A34A', salon: '#EC4899', autre: '#6b7280' }
+                  setFormMaquis({ ...formMaquis, type: t, couleur_primaire: couleurs[t] || formMaquis.couleur_primaire })
+                }} style={{ ...styleInput, marginBottom: 0 }}>
+                  <option value="maquis">🍺 Maquis / Gargote</option>
+                  <option value="restaurant">🍽️ Restaurant</option>
+                  <option value="bar">🍸 Bar / Café</option>
+                  <option value="fast_food">🍔 Fast Food</option>
+                  <option value="boutique">🛍️ Boutique / Commerce</option>
+                  <option value="pharmacie">💊 Pharmacie</option>
+                  <option value="salon">💅 Salon de beauté</option>
+                  <option value="autre">🏪 Autre</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '6px' }}>Description</label>
+                <input placeholder="Ex: Bar restaurant, Chez Yigo..." value={formMaquis.activite} onChange={e => setFormMaquis({ ...formMaquis, activite: e.target.value })} style={{ ...styleInput, marginBottom: 0 }} />
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '6px' }}>Adresse</label>
+                <input placeholder="Ex: Rue des Cocotiers, Abidjan" value={formMaquis.adresse} onChange={e => setFormMaquis({ ...formMaquis, adresse: e.target.value })} style={{ ...styleInput, marginBottom: 0 }} />
+              </div>
+
+              <div style={{ marginBottom: '0' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '6px' }}>Téléphone</label>
+                <input placeholder="Ex: +225 07 00 00 00 00" value={formMaquis.telephone} onChange={e => setFormMaquis({ ...formMaquis, telephone: e.target.value })} style={{ ...styleInput, marginBottom: 0 }} />
+              </div>
+            </div>
+
+            {/* Colonne droite — Configuration */}
+            <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ margin: '0 0 16px', fontSize: '14px', fontWeight: '700', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>⚙️ Configuration</h3>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '6px' }}>Couleur principale</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#f9fafb' }}>
+                  <input type="color" value={formMaquis.couleur_primaire} onChange={e => setFormMaquis({ ...formMaquis, couleur_primaire: e.target.value })} style={{ width: '44px', height: '36px', border: 'none', borderRadius: '6px', cursor: 'pointer', backgroundColor: 'transparent' }} />
+                  <span style={{ fontSize: '13px', fontWeight: '600', color: '#374151' }}>{formMaquis.couleur_primaire}</span>
+                  <span style={{ fontSize: '12px', color: '#9ca3af', marginLeft: 'auto' }}>Couleur de l'interface</span>
+                </div>
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '6px' }}>Devise</label>
+                <select value={formMaquis.devise} onChange={e => setFormMaquis({ ...formMaquis, devise: e.target.value })} style={{ ...styleInput, marginBottom: 0 }}>
+                  <option value="XOF">XOF - Franc CFA</option>
+                  <option value="GNF">GNF - Franc Guinéen</option>
+                  <option value="EUR">EUR - Euro</option>
+                  <option value="USD">USD - Dollar</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '14px' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '6px' }}>Fuseau horaire</label>
+                <select value={formMaquis.fuseau_horaire} onChange={e => setFormMaquis({ ...formMaquis, fuseau_horaire: e.target.value })} style={{ ...styleInput, marginBottom: 0 }}>
+                  <option value="Africa/Abidjan">Abidjan (GMT+0)</option>
+                  <option value="Africa/Dakar">Dakar (GMT+0)</option>
+                  <option value="Africa/Lagos">Lagos (GMT+1)</option>
+                  <option value="Africa/Douala">Douala (GMT+1)</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '0' }}>
+                <label style={{ fontSize: '12px', fontWeight: '600', color: '#6b7280', display: 'block', marginBottom: '6px' }}>
+                  Début de journée
+                  <span style={{ fontWeight: '400', color: '#9ca3af', marginLeft: '6px' }}>— pour les établissements qui travaillent la nuit</span>
+                </label>
+                <select value={formMaquis.heure_debut_journee} onChange={e => setFormMaquis({ ...formMaquis, heure_debut_journee: parseInt(e.target.value) })} style={{ ...styleInput, marginBottom: 0 }}>
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>
+                      {h === 0 ? '00h00 — Minuit (défaut)' : `${String(h).padStart(2, '0')}h00`}
+                    </option>
+                  ))}
+                </select>
+                {formMaquis.heure_debut_journee !== 0 && (
+                  <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '6px', padding: '6px 10px', backgroundColor: '#f0fdf4', borderRadius: '6px', border: '1px solid #bbf7d0' }}>
+                    📅 La journée va de {String(formMaquis.heure_debut_journee).padStart(2,'0')}h00 à {String((formMaquis.heure_debut_journee + 23) % 24).padStart(2,'0')}h59
+                  </p>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Modules — visibles seulement pour les activités de service */}
+          {/* Modules commandes — pleine largeur */}
           {['maquis','restaurant','bar','fast_food'].includes(formMaquis.type) && (
-            <div style={{ marginBottom: '16px', padding: '16px', backgroundColor: '#f9fafb', borderRadius: '10px', border: '1px solid #e5e7eb' }}>
-              <p style={{ fontSize: '13px', fontWeight: '700', color: '#374151', margin: '0 0 4px' }}>Modules commandes</p>
-              <p style={{ fontSize: '12px', color: '#9ca3af', margin: '0 0 14px' }}>Activez selon votre mode de fonctionnement</p>
-
-              {/* Master toggle tablette */}
-              {toggleModule('Prise de commande tablette', 'Serveurs sur tablette, gestion des tables', 'module_commandes_actif', formMaquis, setFormMaquis)}
-
-              {formMaquis.module_commandes_actif && (
-                <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-
-                  {/* Option KDS */}
-                  {toggleModule('🍳 Tablette → KDS → Caisse', 'Commandes passent par l\'écran cuisine/bar avant la caisse', 'module_kds_actif', formMaquis, setFormMaquis, '#7C3AED')}
-
-                  {/* Option Direct */}
-                  {toggleModule('💳 Tablette → Direct en caisse', 'Commandes arrivent directement à la caisse sans KDS', 'module_commandes_direct', formMaquis, setFormMaquis, '#16a34a')}
-
-                  {/* Paiement avant */}
-                  {toggleModule('⚡ Paiement avant service', 'Mode fast food — client paie à la commande', 'paiement_avant', formMaquis, setFormMaquis, '#f59e0b')}
+            <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+              <h3 style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: '700', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>📱 Modules commandes</h3>
+              <p style={{ fontSize: '13px', color: '#9ca3af', margin: '0 0 16px' }}>Activez selon votre mode de fonctionnement</p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr', gap: '16px', alignItems: 'start' }}>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  {toggleModule('Prise de commande tablette', 'Serveurs sur tablette, gestion des tables', 'module_commandes_actif', formMaquis, setFormMaquis)}
                 </div>
-              )}
+                {formMaquis.module_commandes_actif && (<>
+                  <div style={{ gridColumn: '1 / -1', borderTop: '1px solid #e5e7eb', paddingTop: '14px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px' }}>
+                    {toggleModule('🍳 Tablette → KDS → Caisse', 'Commandes passent par l\'écran cuisine/bar avant la caisse', 'module_kds_actif', formMaquis, setFormMaquis, '#7C3AED')}
+                    {toggleModule('💳 Tablette → Direct en caisse', 'Commandes arrivent directement à la caisse sans KDS', 'module_commandes_direct', formMaquis, setFormMaquis, '#16a34a')}
+                    {toggleModule('⚡ Paiement avant service', 'Mode fast food — client paie à la commande', 'paiement_avant', formMaquis, setFormMaquis, '#f59e0b')}
+                  </div>
+                </>)}
+              </div>
             </div>
           )}
 
-          <button onClick={soumettreMaquis} style={{ ...styleBouton(), width: '100%', padding: '12px' }}>Sauvegarder les paramètres</button>
+          {/* Bouton sauvegarder */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button onClick={soumettreMaquis} style={{ ...styleBouton(), padding: '12px 32px', fontSize: '15px' }}>
+              💾 Sauvegarder les paramètres
+            </button>
+          </div>
         </div>
       )}
 

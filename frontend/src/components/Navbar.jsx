@@ -111,22 +111,29 @@ const Navbar = ({ menuOuvert, setMenuOuvert }) => {
 
         {/* Footer utilisateur */}
         <div style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.2)' }} ref={alerteRef}>
-          {/* Cloche alertes */}
-          {alertes.length > 0 && (
+          {/* Cloche alertes — toujours visible pour gerant/patron/caissier */}
+          {['caissier','gerant','patron'].includes(utilisateur?.role) && (
             <div style={{ position: 'relative', marginBottom: '8px' }}>
               <button onClick={() => setPanneauAlerte(v => !v)} style={{
                 width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                backgroundColor: panneauAlerte ? 'rgba(239,68,68,0.3)' : 'rgba(239,68,68,0.2)',
+                backgroundColor: alertes.length > 0
+                  ? (panneauAlerte ? 'rgba(239,68,68,0.35)' : 'rgba(239,68,68,0.2)')
+                  : 'rgba(255,255,255,0.1)',
                 color: 'white', padding: '8px 12px', borderRadius: '10px',
-                border: '1px solid rgba(239,68,68,0.5)', cursor: 'pointer', fontSize: '13px', fontWeight: '600'
+                border: alertes.length > 0 ? '1px solid rgba(239,68,68,0.5)' : '1px solid rgba(255,255,255,0.2)',
+                cursor: 'pointer', fontSize: '13px', fontWeight: '600'
               }}>
                 <span>🔔 Alertes stock</span>
-                <span style={{
-                  backgroundColor: '#ef4444', color: 'white',
-                  borderRadius: '50%', width: '20px', height: '20px',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '11px', fontWeight: '700', flexShrink: 0
-                }}>{alertes.length}</span>
+                {alertes.length > 0 ? (
+                  <span style={{
+                    backgroundColor: '#ef4444', color: 'white',
+                    borderRadius: '50%', width: '20px', height: '20px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '11px', fontWeight: '700', flexShrink: 0
+                  }}>{alertes.length}</span>
+                ) : (
+                  <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.5)', fontWeight: '400' }}>OK</span>
+                )}
               </button>
               {panneauAlerte && (
                 <div style={{
@@ -134,21 +141,27 @@ const Navbar = ({ menuOuvert, setMenuOuvert }) => {
                   backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
                   overflow: 'hidden', zIndex: 200
                 }}>
-                  <div style={{ padding: '10px 14px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fecaca' }}>
-                    <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: '#991b1b' }}>
-                      ⚠️ {alertes.length} produit(s) en rupture ou sous seuil
-                    </p>
-                  </div>
-                  <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: '200px', overflowY: 'auto' }}>
-                    {alertes.map(p => (
-                      <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 14px', borderBottom: '1px solid #f9fafb' }}>
-                        <span style={{ fontSize: '13px', color: '#374151', fontWeight: '500' }}>{p.nom}</span>
-                        <span style={{ fontSize: '12px', fontWeight: '700', color: parseFloat(p.stock_actuel) <= 0 ? '#dc2626' : '#f59e0b', whiteSpace: 'nowrap', marginLeft: '8px' }}>
-                          {parseFloat(p.stock_actuel)} {p.unite}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
+                  {alertes.length === 0 ? (
+                    <div style={{ padding: '16px 14px', textAlign: 'center' }}>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#16a34a', fontWeight: '600' }}>✅ Tous les stocks sont OK</p>
+                    </div>
+                  ) : (<>
+                    <div style={{ padding: '10px 14px', backgroundColor: '#fef2f2', borderBottom: '1px solid #fecaca' }}>
+                      <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: '#991b1b' }}>
+                        ⚠️ {alertes.length} produit(s) en rupture ou sous seuil
+                      </p>
+                    </div>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, maxHeight: '200px', overflowY: 'auto' }}>
+                      {alertes.map(p => (
+                        <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 14px', borderBottom: '1px solid #f9fafb' }}>
+                          <span style={{ fontSize: '13px', color: '#374151', fontWeight: '500' }}>{p.nom}</span>
+                          <span style={{ fontSize: '12px', fontWeight: '700', color: parseFloat(p.stock_actuel) <= 0 ? '#dc2626' : '#f59e0b', whiteSpace: 'nowrap', marginLeft: '8px' }}>
+                            {parseFloat(p.stock_actuel)} {p.unite}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>)}
                 </div>
               )}
             </div>
@@ -178,13 +191,15 @@ const Navbar = ({ menuOuvert, setMenuOuvert }) => {
             </Link>
           )
         })}
-        {/* Cloche alertes mobile */}
-        {alertes.length > 0 && (
+        {/* Cloche alertes mobile — toujours visible pour gerant/patron/caissier */}
+        {['caissier','gerant','patron'].includes(utilisateur?.role) && (
           <button onClick={() => setPanneauAlerte(v => !v)} className="bottom-nav-item"
-            style={{ color: '#ef4444', borderTop: panneauAlerte ? '3px solid #ef4444' : '3px solid transparent', background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
-            <span style={{ fontSize: 22, position: 'relative' }}>
+            style={{ color: alertes.length > 0 ? '#ef4444' : '#9ca3af', borderTop: panneauAlerte ? `3px solid ${alertes.length > 0 ? '#ef4444' : couleur}` : '3px solid transparent', background: 'none', border: 'none', cursor: 'pointer', position: 'relative' }}>
+            <span style={{ fontSize: 22, position: 'relative', display: 'inline-block' }}>
               🔔
-              <span style={{ position: 'absolute', top: -4, right: -4, backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', width: 15, height: 15, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{alertes.length}</span>
+              {alertes.length > 0 && (
+                <span style={{ position: 'absolute', top: -4, right: -6, backgroundColor: '#ef4444', color: 'white', borderRadius: '50%', width: 15, height: 15, fontSize: 9, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>{alertes.length}</span>
+              )}
             </span>
             <span style={{ fontSize: 10, fontWeight: 500 }}>Alertes</span>
           </button>
