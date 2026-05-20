@@ -265,20 +265,24 @@ enum TypeMouvement {
 }
 
 model Inventaire {
-  id          Int              @id @default(autoincrement())
-  maquis_id   Int
-  maquis      Maquis           @relation(fields: [maquis_id], references: [id])
-  date_debut  DateTime         @default(now())
-  date_fin    DateTime?
-  statut      StatutInventaire @default(en_cours)
-  cree_par    Int
-  cloture_par Int?
-  lignes      InventaireLigne[]
+  id                 Int              @id @default(autoincrement())
+  maquis_id          Int
+  maquis             Maquis           @relation(fields: [maquis_id], references: [id])
+  date_debut         DateTime         @default(now())
+  date_fin           DateTime?
+  statut             StatutInventaire @default(en_cours)
+  cree_par           Int
+  cloture_par        Int?
+  motif_annulation   String?          @db.Text
+  annule_par         Int?
+  date_annulation    DateTime?
+  lignes             InventaireLigne[]
 }
 
 enum StatutInventaire {
   en_cours
   cloture
+  annule
 }
 
 model InventaireLigne {

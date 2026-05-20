@@ -22,6 +22,8 @@ const Inventaire = () => {
   const [modalPDF, setModalPDF] = useState(null)
   const [participants, setParticipants] = useState([])
   const [newParticipant, setNewParticipant] = useState('')
+  const [detailModal, setDetailModal] = useState(null)
+  const [chargementDetail, setChargementDetail] = useState(false)
 
   useEffect(() => { chargerDonnees() }, [])
 
@@ -98,16 +100,29 @@ const Inventaire = () => {
   }
 
   const annulerInventaire = async () => {
-    if (!window.confirm('Annuler l\'inventaire en cours ? Toutes les saisies seront perdues.')) return
+    const motif = window.prompt('Motif d\'annulation (optionnel) — laissez vide si aucun :')
+    if (motif === null) return // l'utilisateur a cliqué Annuler
     setChargementAction(true)
     try {
-      await api.delete(`/api/inventaire/${inventaireActif.id}`)
+      await api.delete(`/api/inventaire/${inventaireActif.id}`, { data: { motif: motif.trim() || null } })
       afficherMessage('succes', 'Inventaire annulé.')
       chargerDonnees()
     } catch (error) {
       afficherMessage('erreur', error.response?.data?.message || 'Erreur lors de l\'annulation')
     } finally {
       setChargementAction(false)
+    }
+  }
+
+  const ouvrirDetails = async (inv) => {
+    setChargementDetail(true)
+    try {
+      const r = await api.get(`/api/inventaire/${inv.id}`)
+      setDetailModal(r.data.data)
+    } catch {
+      afficherMessage('erreur', 'Impossible de charger les détails')
+    } finally {
+      setChargementDetail(false)
     }
   }
 
@@ -409,36 +424,144 @@ ${parts.filter(p => p.trim()).length > 0 ? `
         </div>
       )}
 
-      {onglet === 'historique' && (
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600' }}>
-            Historique des inventaires ({inventaires.filter(i => i.statut === 'cloture').length})
-          </h2>
-          {inventaires.filter(i => i.statut === 'cloture').length === 0 ? (
-            <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px' }}>Aucun inventaire clôturé</p>
-          ) : (
-            inventaires.filter(i => i.statut === 'cloture').map(inv => (
-              <div key={inv.id} style={{ border: '1px solid #e5e7eb', borderRadius: '10px', padding: '16px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ margin: 0, fontWeight: '600', fontSize: '15px' }}>Inventaire #{inv.id}</p>
-                    <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#6b7280' }}>
-                      Du {new Date(inv.date_debut).toLocaleDateString('fr-FR')} au {new Date(inv.date_fin).toLocaleDateString('fr-FR')}
+      {onglet === 'historique' && (() => {
+        const historique = inventaires.filter(i => i.statut !== 'en_cours')
+        return (
+          <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+            <h2 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: '600' }}>
+              Historique des inventaires ({historique.length})
+            </h2>
+            {historique.length === 0 ? (
+              <p style={{ color: '#9ca3af', textAlign: 'center', padding: '40px' }}>Aucun inventaire dans l'historique</p>
+            ) : historique.map(inv => (
+              <div key={inv.id} style={{ border: `1px solid ${inv.statut === 'annule' ? '#fecaca' : '#e5e7eb'}`, borderRadius: '10px', padding: '16px', marginBottom: '12px', backgroundColor: inv.statut === 'annule' ? '#fff8f8' : 'white' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <p style={{ margin: 0, fontWeight: '700', fontSize: '15px' }}>Inventaire N° INV-{String(inv.id).padStart(4, '0')}</p>
+                      {inv.statut === 'cloture' ? (
+                        <span style={{ padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', backgroundColor: '#f0fdf4', color: '#16a34a' }}>✅ Clôturé</span>
+                      ) : (
+                        <span style={{ padding: '2px 10px', borderRadius: '20px', fontSize: '11px', fontWeight: '600', backgroundColor: '#fef2f2', color: '#dc2626' }}>❌ Annulé</span>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#6b7280' }}>
+                      Démarré le {new Date(inv.date_debut).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      {inv.statut === 'cloture' && inv.date_fin && ` · Clôturé le ${new Date(inv.date_fin).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
+                      {inv.statut === 'annule' && inv.date_annulation && ` · Annulé le ${new Date(inv.date_annulation).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })}`}
                     </p>
+                    {inv.statut === 'annule' && (
+                      <div style={{ marginTop: '8px' }}>
+                        {inv.annuleur_nom && (
+                          <p style={{ margin: '0 0 4px', fontSize: '13px', color: '#374151' }}>
+                            <span style={{ fontWeight: '600' }}>Annulé par :</span> {inv.annuleur_nom}
+                          </p>
+                        )}
+                        {inv.motif_annulation && (
+                          <p style={{ margin: 0, fontSize: '13px', color: '#dc2626' }}>
+                            <span style={{ fontWeight: '600' }}>Motif :</span> {inv.motif_annulation}
+                          </p>
+                        )}
+                        {!inv.motif_annulation && (
+                          <p style={{ margin: 0, fontSize: '12px', color: '#9ca3af', fontStyle: 'italic' }}>Aucun motif renseigné</p>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    <button onClick={() => ouvrirModalPDF(inv)}
-                      style={{ padding: '6px 14px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
-                      📄 PDF
-                    </button>
-                    <span style={{ padding: '4px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '500', backgroundColor: '#f0fdf4', color: '#16a34a' }}>✅ Clôturé</span>
-                  </div>
+                  {inv.statut === 'cloture' && (
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexShrink: 0 }}>
+                      <button onClick={() => ouvrirDetails(inv)} disabled={chargementDetail}
+                        style={{ padding: '7px 14px', backgroundColor: '#f3f4f6', color: '#374151', border: '1px solid #e5e7eb', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                        {chargementDetail ? '...' : '🔍 Détails'}
+                      </button>
+                      <button onClick={() => ouvrirModalPDF(inv)}
+                        style={{ padding: '7px 14px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
+                        📄 PDF
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            ))
-          )}
+            ))}
+          </div>
+        )
+      })()}
+      {/* Modal Détails inventaire clôturé */}
+      {detailModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '16px', width: '100%', maxWidth: '780px', maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '24px 28px 16px', borderBottom: '1px solid #f1f5f9' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#111827' }}>Inventaire N° INV-{String(detailModal.id).padStart(4, '0')}</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#9ca3af' }}>
+                  Démarré par {detailModal.createur_nom || '—'} · Clôturé le {fmtDate(detailModal.date_fin)}
+                </p>
+              </div>
+              <button onClick={() => setDetailModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px', color: '#9ca3af', lineHeight: 1 }}>✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', padding: '16px 28px', flex: 1 }}>
+              {(() => {
+                const avecEcart = (detailModal.lignes || []).filter(l => parseFloat(l.ecart) !== 0).length
+                return (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+                      {[
+                        { label: 'Produits comptés', val: (detailModal.lignes || []).length, color: '#374151' },
+                        { label: 'Écarts détectés', val: avecEcart, color: avecEcart > 0 ? '#dc2626' : '#16a34a' },
+                        { label: 'Sans écart', val: (detailModal.lignes || []).length - avecEcart, color: '#16a34a' },
+                      ].map(s => (
+                        <div key={s.label} style={{ background: '#f8fafc', borderRadius: '8px', padding: '12px', textAlign: 'center' }}>
+                          <p style={{ margin: 0, fontSize: '22px', fontWeight: '700', color: s.color }}>{s.val}</p>
+                          <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9ca3af' }}>{s.label}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#f8fafc', borderBottom: '2px solid #e5e7eb' }}>
+                          <th style={{ padding: '9px 10px', textAlign: 'left', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>Produit</th>
+                          <th style={{ padding: '9px 10px', textAlign: 'center', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>Catégorie</th>
+                          <th style={{ padding: '9px 10px', textAlign: 'right', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>Qté théorique</th>
+                          <th style={{ padding: '9px 10px', textAlign: 'right', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>Qté réelle</th>
+                          <th style={{ padding: '9px 10px', textAlign: 'right', fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>Écart</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(detailModal.lignes || []).map((l, i) => {
+                          const ecart = parseFloat(l.ecart)
+                          return (
+                            <tr key={l.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
+                              <td style={{ padding: '9px 10px', fontSize: '13px', fontWeight: '500' }}>{l.produit?.nom}</td>
+                              <td style={{ padding: '9px 10px', fontSize: '12px', color: '#6b7280', textAlign: 'center' }}>{l.produit?.categorie || '—'}</td>
+                              <td style={{ padding: '9px 10px', fontSize: '13px', color: '#6b7280', textAlign: 'right' }}>{parseFloat(l.qte_theorique)} {l.produit?.unite}</td>
+                              <td style={{ padding: '9px 10px', fontSize: '13px', textAlign: 'right' }}>{parseFloat(l.qte_reelle)} {l.produit?.unite}</td>
+                              <td style={{ padding: '9px 10px', fontSize: '13px', fontWeight: '700', textAlign: 'right', color: ecart > 0 ? '#16a34a' : ecart < 0 ? '#dc2626' : '#9ca3af' }}>
+                                {ecart > 0 ? `+${ecart}` : ecart}
+                              </td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </>
+                )
+              })()}
+            </div>
+            <div style={{ display: 'flex', gap: '10px', padding: '16px 28px', borderTop: '1px solid #f1f5f9' }}>
+              <button onClick={() => setDetailModal(null)}
+                style={{ flex: 1, padding: '11px', backgroundColor: '#f3f4f6', color: '#374151', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                Fermer
+              </button>
+              <button onClick={() => { setDetailModal(null); ouvrirModalPDF(detailModal) }}
+                style={{ flex: 1, padding: '11px', backgroundColor: '#6366f1', color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' }}>
+                📄 Générer PDF
+              </button>
+            </div>
+          </div>
         </div>
       )}
+
       {/* Modal PDF — participants */}
       {modalPDF && (
         <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '16px' }}>

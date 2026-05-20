@@ -36,7 +36,8 @@ const cloturerInventaire = async (req, res) => {
 const annulerInventaire = async (req, res) => {
   try {
     const { id } = req.params
-    await inventaireService.annulerInventaire(req.prisma, parseInt(id), req.utilisateur)
+    const { motif } = req.body || {}
+    await inventaireService.annulerInventaire(req.prisma, parseInt(id), req.utilisateur, motif)
     return res.status(200).json({ success: true, message: 'Inventaire annulé avec succès' })
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message })

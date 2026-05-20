@@ -122,8 +122,8 @@ const cloturerInventaire = async (prisma, io, inventaire_id, utilisateur) => {
   return resultat
 }
 
-// Annule un inventaire en cours sans ajuster les stocks
-const annulerInventaire = async (prisma, inventaire_id, utilisateur) => {
+// Annule un inventaire en cours sans ajuster les stocks (conserve l'historique avec motif)
+const annulerInventaire = async (prisma, inventaire_id, utilisateur, motif) => {
   if (utilisateur.role === 'caissier') {
     throw new Error('Accès refusé - Gérant ou patron requis pour annuler')
   }
@@ -134,9 +134,16 @@ const annulerInventaire = async (prisma, inventaire_id, utilisateur) => {
 
   if (!inventaire) throw new Error('Inventaire introuvable ou déjà clôturé')
 
-  // Supprime les lignes puis l'inventaire
   await prisma.inventaireLigne.deleteMany({ where: { inventaire_id } })
-  await prisma.inventaire.delete({ where: { id: inventaire_id } })
+  await prisma.inventaire.update({
+    where: { id: inventaire_id },
+    data: {
+      statut: 'annule',
+      motif_annulation: motif || null,
+      annule_par: utilisateur.id,
+      date_annulation: new Date()
+    }
+  })
 
   return true
 }
@@ -161,10 +168,21 @@ const getInventaire = async (prisma, inventaire_id, maquis_id) => {
 }
 
 const getInventaires = async (prisma, maquis_id) => {
-  return await prisma.inventaire.findMany({
+  const inventaires = await prisma.inventaire.findMany({
     where: { maquis_id },
     orderBy: { date_debut: 'desc' }
   })
+
+  const ids = [...new Set(inventaires.filter(i => i.annule_par).map(i => i.annule_par))]
+  const users = ids.length > 0
+    ? await prisma.utilisateur.findMany({ where: { id: { in: ids } }, select: { id: true, nom: true } })
+    : []
+  const userMap = Object.fromEntries(users.map(u => [u.id, u.nom]))
+
+  return inventaires.map(inv => ({
+    ...inv,
+    annuleur_nom: inv.annule_par ? (userMap[inv.annule_par] || 'Inconnu') : null
+  }))
 }
 
 module.exports = {
