@@ -301,6 +301,85 @@ export default function Ventes() {
   const nbCommandes = ventes.filter(v => v._type === 'commande').length
   const couleur     = utilisateur?.maquis?.couleur_primaire || '#FF6B35'
 
+  // ── Réimpression d'un bon (commande ou vente en attente) ──
+  const reimprimer = (v) => {
+    const nomMaquis  = utilisateur?.maquis?.nom || 'Mon Commerce'
+    const devise     = utilisateur?.maquis?.devise || 'FCFA'
+    const isCmd      = v._type === 'commande'
+    const lignes     = v.lignes || []
+    const brut       = lignes.reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0)
+    const remise     = parseFloat(v.remise_montant || v.reduction_montant || 0)
+    const total      = Math.max(0, brut - remise)
+    const ref        = isCmd
+      ? (v.table ? `Table ${v.table.numero} — Cmd #${v.numero_journee || v.numero || v.id}` : `Cmd #${v.numero_journee || v.numero || v.id}`)
+      : `Bon #${v.numero_journee || v.id}`
+    const serveur    = v.serveur_nom || v.serveur?.nom || '—'
+    const dateStr    = new Date(v.created_at || v.date_vente).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })
+
+    const rows = lignes.map(l => `
+      <tr>
+        <td>${l.produit?.nom || ''}${l.variante_nom ? ` (${l.variante_nom})` : ''}</td>
+        <td style="text-align:center">${parseFloat(l.quantite)}</td>
+        <td style="text-align:right">${fmtNum(l.prix_unitaire)}</td>
+        <td style="text-align:right">${fmtNum(parseFloat(l.prix_unitaire) * parseFloat(l.quantite))}</td>
+      </tr>`).join('')
+
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <title>Bon — ${ref}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Courier New', monospace; font-size: 13px; color: #111; width: 300px; margin: 0 auto; padding: 16px 12px; }
+        .centre  { text-align: center; }
+        .bold    { font-weight: bold; }
+        .sep     { border: none; border-top: 1px dashed #999; margin: 8px 0; }
+        .titre   { font-size: 15px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+        .sous    { font-size: 11px; color: #555; margin-top: 2px; }
+        table    { width: 100%; border-collapse: collapse; margin: 8px 0; }
+        th       { font-size: 11px; text-transform: uppercase; letter-spacing:.3px; padding: 2px 0; border-bottom: 1px solid #ccc; }
+        td       { font-size: 12px; padding: 4px 2px; vertical-align: top; }
+        .total-ligne { font-weight: bold; font-size: 14px; }
+        .remise  { font-size: 11px; color: #7c3aed; }
+        .statut  { display:inline-block; font-weight:bold; font-size:12px; border:1.5px solid #f59e0b; color:#92400e; padding:3px 10px; border-radius:4px; margin-top:6px; letter-spacing:.5px; }
+        .footer  { font-size:10px; color:#999; margin-top:10px; }
+        @media print {
+          body { padding: 4px; }
+          button { display: none; }
+        }
+      </style></head><body>
+      <div class="centre">
+        <div class="titre">${nomMaquis}</div>
+        <div class="sous">BON DE COMMANDE</div>
+        <div class="sous">${dateStr}</div>
+      </div>
+      <hr class="sep">
+      <div><span class="bold">Réf :</span> ${ref}</div>
+      <div><span class="bold">Serveur :</span> ${serveur}</div>
+      <hr class="sep">
+      <table>
+        <thead><tr>
+          <th style="text-align:left">Article</th>
+          <th style="text-align:center">Qté</th>
+          <th style="text-align:right">P.U.</th>
+          <th style="text-align:right">S/Total</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <hr class="sep">
+      ${remise > 0 ? `<div style="display:flex;justify-content:space-between" class="remise"><span>Sous-total</span><span>${fmtNum(brut)} ${devise}</span></div><div style="display:flex;justify-content:space-between" class="remise"><span>Réduction</span><span>- ${fmtNum(remise)} ${devise}</span></div><hr class="sep">` : ''}
+      <div style="display:flex;justify-content:space-between" class="total-ligne">
+        <span>TOTAL</span>
+        <span>${fmtNum(total)} ${devise}</span>
+      </div>
+      <div class="centre"><span class="statut">⏳ EN ATTENTE</span></div>
+      <div class="centre footer">Réimpression · ${new Date().toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' })}</div>
+      <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script>
+    </body></html>`
+
+    const w = window.open('', '_blank', 'width=380,height=600')
+    w.document.write(html)
+    w.document.close()
+  }
+
   const imprimerVentes = () => {
     const MODES_LABEL = { especes:'Espèces', wave:'Wave', mtn_momo:'MTN MoMo', orange_money:'Orange Money', carte:'Carte', autre:'Autre' }
     const STATUTS_LABEL = { encaissee:'Encaissée', en_attente:'En attente', credit_en_cours:'Crédit', annulee:'Annulée' }
@@ -513,6 +592,12 @@ export default function Ventes() {
                         </div>
                       )}
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                        {estAdmin && (
+                          <button onClick={() => reimprimer(v)}
+                            style={{ background:'#f0f9ff', color:'#0369a1', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                            🖨 Réimprimer le bon
+                          </button>
+                        )}
                         <button onClick={() => { setModaleReduc(v); setMontantReduc(''); setMotifReduc('') }}
                           style={{ background:'#fdf4ff', color:'#7e22ce', border:'none', borderRadius:8, padding:'8px 16px', fontSize:13, fontWeight:700, cursor:'pointer' }}>
                           % Réduction
@@ -641,6 +726,12 @@ export default function Ventes() {
                     {/* Actions */}
                     {!annulee && (
                       <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginTop:4 }} className="vente-actions">
+                        {/* Réimprimer le bon — ventes en attente, admin uniquement */}
+                        {estAdmin && v.statut === 'en_attente' && (
+                          <button onClick={() => reimprimer(v)} style={{ background:'#f0f9ff', color:'#0369a1', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
+                            🖨 Réimprimer le bon
+                          </button>
+                        )}
                         {/* Remettre en attente — seulement si encaissée, admin uniquement */}
                         {estAdmin && v.statut === 'encaissee' && (
                           <button onClick={() => retourAttente(v)} style={{ background:'#fef9c3', color:'#713f12', border:'none', borderRadius:8, padding:'7px 14px', fontSize:12, fontWeight:700, cursor:'pointer' }}>
