@@ -893,6 +893,12 @@ function connecterSocket() {
       dejaPrints.push(commande.id)
       await window.electronAPI.storeSet('bons_imprimes', dejaPrints.slice(-500))
     })
+
+    // Réimpression manuelle depuis la page Ventes (gérant/patron) — même logique, pas de dédup
+    socket.on('commande:reimprimer', async (bon) => {
+      const result = await window.electronAPI.printBon(bon)
+      if (!result.success) console.log('Réimpression échouée:', result.error)
+    })
   }
   document.head.appendChild(script)
 }
@@ -1494,15 +1500,9 @@ async function validerVente() {
   viderPanier()
   await updatePendingBadge()
 
-  // Impression automatique : copie client puis copie caissier
-  const ticketClient   = buildTicketData(false)
-  const ticketCaissier = buildTicketData(true)
-  const r1 = await window.electronAPI.printTicket(ticketClient)
-  if (r1.success) {
-    await window.electronAPI.printTicket(ticketCaissier)
-  } else {
-    console.log('Impression auto échouée:', r1.error)
-  }
+  // Impression automatique : reçu client uniquement
+  const r1 = await window.electronAPI.printTicket(buildTicketData(false))
+  if (!r1.success) console.log('Impression auto échouée:', r1.error)
 }
 
 function buildTicketData(copie = false) {
@@ -1564,41 +1564,31 @@ function fermerModal() {
 async function imprimerTicket() {
   try {
     const r1 = await window.electronAPI.printTicket(buildTicketData(false))
-    if (r1.success) {
-      await window.electronAPI.printTicket(buildTicketData(true))
-      return
-    }
-    // Fallback impression navigateur (deux pages : client + caissier)
+    if (r1.success) return
+    // Fallback impression navigateur : reçu client uniquement
     const r = state.dernierRecu
-    const genRecu = (titre) => `
-      <div style="page-break-after:always">
-        ${r.logo_url ? `<div style="text-align:center;margin-bottom:6px"><img src="${API_URL}${r.logo_url}" style="max-width:72px;max-height:72px;border-radius:8px"></div>` : ''}
-        <h2 style="text-align:center;font-size:15px;margin:0 0 2px">${r.maquis}</h2>
-        <p style="text-align:center;font-weight:bold;margin:0 0 6px">${titre}</p>
-        ${r.offline ? '<p style="text-align:center;font-weight:bold">⚠️ VENTE HORS LIGNE</p>' : ''}
-        <div class="sep"></div>
-        <p style="text-align:center">${r.date.toLocaleString('fr-FR')}</p>
-        <p style="text-align:center">Caissier: ${r.caissier}</p>
-        <div class="sep"></div>
-        ${r.lignes.map(l => `
-          <div class="row"><span>${l.nom} x${l.quantite}</span><span>${(l.prix_applique * l.quantite).toLocaleString()} XOF</span></div>
-        `).join('')}
-        <div class="sep"></div>
-        <div class="row total"><span>TOTAL</span><span>${r.total.toLocaleString()} XOF</span></div>
-        ${r.monnaie ? `<div class="row total"><span>Monnaie</span><span>${r.monnaie.toLocaleString()} XOF</span></div>` : ''}
-        <div class="sep"></div>
-        <p style="text-align:center">${titre === 'COPIE CLIENT' ? 'Merci pour votre visite !' : ''}</p>
-      </div>`
-
     const contenu = `<html><head><style>
       body{font-family:monospace;max-width:280px;margin:0 auto;padding:10px;font-size:12px}
       h2{text-align:center;font-size:14px} .sep{border-top:1px dashed #000;margin:6px 0}
       .row{display:flex;justify-content:space-between;margin:3px 0}
       .total{font-weight:bold;font-size:13px}
-      @media print{div{page-break-after:always}}
     </style></head><body>
-      ${genRecu('COPIE CLIENT')}
-      ${genRecu('COPIE CAISSIER')}
+      ${r.logo_url ? `<div style="text-align:center;margin-bottom:6px"><img src="${API_URL}${r.logo_url}" style="max-width:72px;max-height:72px;border-radius:8px"></div>` : ''}
+      <h2>${r.maquis}</h2>
+      <p style="text-align:center;font-weight:bold;margin:0 0 6px">REÇU CLIENT</p>
+      ${r.offline ? '<p style="text-align:center;font-weight:bold">⚠️ VENTE HORS LIGNE</p>' : ''}
+      <div class="sep"></div>
+      <p style="text-align:center">${r.date.toLocaleString('fr-FR')}</p>
+      <p style="text-align:center">Caissier: ${r.caissier}</p>
+      <div class="sep"></div>
+      ${r.lignes.map(l => `
+        <div class="row"><span>${l.nom} x${l.quantite}</span><span>${(l.prix_applique * l.quantite).toLocaleString()} XOF</span></div>
+      `).join('')}
+      <div class="sep"></div>
+      <div class="row total"><span>TOTAL</span><span>${r.total.toLocaleString()} XOF</span></div>
+      ${r.monnaie ? `<div class="row total"><span>Monnaie</span><span>${r.monnaie.toLocaleString()} XOF</span></div>` : ''}
+      <div class="sep"></div>
+      <p style="text-align:center">Merci pour votre visite !</p>
     </body></html>`
     const w = window.open('', '_blank', 'width=320,height=600')
     if (!w) { showMessage('Impression échouée — vérifiez votre imprimante par défaut', 'erreur'); return }
@@ -1701,7 +1691,7 @@ async function chargerCommandesTablette() {
 
     // Filtrer la liste affichée selon la station sélectionnée
     state.commandesTablette = filtre
-      ? tout.filter(c => c._type !== 'commande' || c.caisse_id === state.stationFiltre)
+      ? tout.filter(c => c._type !== 'commande' || !c.caisse_id || c.caisse_id === state.stationFiltre)
       : tout
     updateCommandesBadge()
 
@@ -1846,7 +1836,7 @@ function afficherCommandesList() {
       return `
         <div class="cmd-card" onclick="selectionnerCommande(${item.id})">
           <div class="cmd-card-header">
-            <span class="cmd-card-table">${item.table ? `Table ${item.table.numero}` : 'Comptoir'} — Cmd #${item.numero || item.id}</span>
+            <span class="cmd-card-table">${item.table ? `Table ${item.table.numero}` : 'Comptoir'} — Cmd #${item.numero_journee || item.numero || item.id}</span>
             <span class="cmd-card-num">il y a ${tAgo}min</span>
           </div>
           <div class="cmd-card-serveur">👤 ${item.serveur?.nom || 'Serveur'}</div>

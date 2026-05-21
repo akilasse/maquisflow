@@ -34,6 +34,7 @@ router.put('/:id/temps',       staff, ctrl.definirTemps)
 router.put('/:id/reduction',   staff, ctrl.appliquerReductionCommande)
 router.put('/:id/annuler',     admin, ctrl.annulerCommande)
 router.post('/:id/encaisser',  staff, ctrl.encaisserCommande)
+router.post('/:id/reimprimer', admin, ctrl.reimprimer)
 
 router.put('/lignes/:id/statut', staff, ctrl.changerStatutLigne)
 

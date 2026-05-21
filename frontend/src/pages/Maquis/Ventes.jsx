@@ -301,89 +301,14 @@ export default function Ventes() {
   const nbCommandes = ventes.filter(v => v._type === 'commande').length
   const couleur     = utilisateur?.maquis?.couleur_primaire || '#FF6B35'
 
-  // ── Réimpression : même logique exacte que l'auto-print Electron ──
+  // ── Réimpression : déclenche l'impression via le socket → Electron caisse ──
   const reimprimer = async (v) => {
-    const maquis  = utilisateur?.maquis
-    const lignes  = v.lignes || []
-    const bon = {
-      numero:         v.numero_journee || v.numero || v.id,
-      numero_journee: v.numero_journee || null,
-      maquis:         maquis?.nom || 'Flowix',
-      logo_url:       maquis?.logo_url ? (maquis.logo_url.startsWith('http') ? maquis.logo_url : `${import.meta.env.VITE_API_URL}${maquis.logo_url}`) : null,
-      adresse:        maquis?.adresse || null,
-      telephone:      maquis?.telephone || null,
-      table:          v.table?.numero || null,
-      serveur:        v.serveur_nom || v.serveur?.nom || '',
-      date:           new Date(v.created_at || v.date_vente).toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' }),
-      lignes:         lignes.map(l => ({
-        nom:           l.produit?.nom || l.nom || '?',
-        variante_nom:  l.variante_nom || null,
-        quantite:      parseFloat(l.quantite),
-        prix_unitaire: parseFloat(l.prix_unitaire || 0),
-        total:         parseFloat(l.prix_unitaire || 0) * parseFloat(l.quantite || 1),
-        note:          l.note || ''
-      })),
-      note: v.note || null
+    try {
+      await api.post(`/api/commandes/${v.id}/reimprimer`)
+      msg('succes', 'Bon envoyé à l\'imprimante')
+    } catch (e) {
+      msg('erreur', e.response?.data?.message || 'Erreur envoi à l\'imprimante')
     }
-
-    // Si dans Electron → impression directe ESC/POS (même chemin que l'auto-print)
-    if (window.electronAPI?.printBon) {
-      const result = await window.electronAPI.printBon(bon)
-      if (!result?.success) msg('erreur', 'Impression échouée — vérifiez l\'imprimante')
-      return
-    }
-
-    // Sinon → même HTML que main.js, imprimé via le navigateur
-    const total = bon.lignes.reduce((s, l) => s + l.total, 0)
-    const lignesHtml = bon.lignes.map(l => `
-      <tr>
-        <td style="text-align:left">${l.quantite}× ${l.nom}${l.variante_nom ? ` (${l.variante_nom})` : ''}</td>
-        <td style="text-align:right">${l.total.toLocaleString('fr-FR')} F</td>
-      </tr>
-      ${l.note ? `<tr><td colspan="2" style="font-size:12px;color:#333;padding-left:8px">↳ ${l.note}</td></tr>` : ''}`
-    ).join('')
-    const logoHtml    = bon.logo_url ? `<img src="${bon.logo_url}" style="max-width:60mm;max-height:22mm;object-fit:contain;margin-bottom:4px;">` : ''
-    const contactHtml = (bon.adresse || bon.telephone) ? `<hr><div class="contact">${bon.adresse || ''}${bon.adresse && bon.telephone ? '<br>' : ''}${bon.telephone ? `Tél : ${bon.telephone}` : ''}</div>` : ''
-
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-    <title>Bon #${bon.numero}</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      @page { margin: 0; }
-      html { width: 76mm; }
-      body { width: 70mm; margin: 0 auto; padding: 15mm 0; text-align: center; font-family: monospace; font-size: 16px; color: #000; font-weight: bold; }
-      h2 { font-size: 20px; margin: 4px 0; }
-      .sub { font-size: 14px; margin-bottom: 2px; }
-      hr { border: none; border-top: 2px dashed #000; margin: 4px 0; }
-      table { width: 100%; border-collapse: collapse; }
-      td { padding: 2px 0; text-align: left; }
-      td:last-child { text-align: right; }
-      .total td { font-size: 18px; border-top: 1px solid #000; padding-top: 4px; }
-      .contact { font-size: 18px; font-weight: bold; margin-top: 10mm; line-height: 1.6; }
-    </style></head><body>
-      ${logoHtml}
-      <h2>${bon.maquis}</h2>
-      <div class="sub">BON DE COMMANDE</div>
-      <div class="sub">(En attente de paiement)</div>
-      <hr>
-      <div style="font-size:18px;font-weight:bold">N° ${bon.numero}</div>
-      ${bon.table ? `<div>Table ${bon.table}</div>` : ''}
-      <div>${bon.date}</div>
-      ${bon.serveur ? `<div>Serveur : ${bon.serveur}</div>` : ''}
-      <hr>
-      <table>${lignesHtml}</table>
-      <hr>
-      <table><tr class="total"><td>TOTAL DÛ</td><td>${total.toLocaleString('fr-FR')} F</td></tr></table>
-      ${bon.note ? `<hr><div>Note : ${bon.note}</div>` : ''}
-      <hr>
-      ${contactHtml}
-      <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script>
-    </body></html>`
-
-    const w = window.open('', '_blank', 'width=380,height=600')
-    if (!w) return msg('erreur', 'Popup bloquée — autorisez les popups pour ce site')
-    w.document.write(html)
-    w.document.close()
   }
 
   const imprimerVentes = () => {

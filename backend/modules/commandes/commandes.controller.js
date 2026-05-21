@@ -109,10 +109,52 @@ const encaisserCommande = async (req, res) => {
   catch (e) { err(res, e) }
 }
 
+const reimprimer = async (req, res) => {
+  try {
+    const maquis_id = req.utilisateur.maquis_id
+    const commandeId = parseInt(req.params.id)
+    // Récupère la commande complète
+    const commande = await req.prisma.commande.findFirst({
+      where: { id: commandeId, maquis_id },
+      include: {
+        lignes: { include: { produit: true } },
+        table:  true,
+        serveur: { select: { nom: true } }
+      }
+    })
+    if (!commande) return res.status(404).json({ success: false, message: 'Commande introuvable' })
+    // Récupère le maquis pour logo/adresse/téléphone
+    const maquis = await req.prisma.maquis.findUnique({ where: { id: maquis_id } })
+    // Émet commande:reimprimer → l'Electron caisse connecté imprime le bon
+    req.io.to(`maquis_${maquis_id}`).emit('commande:reimprimer', {
+      numero:         commande.numero,
+      numero_journee: commande.numero_journee || null,
+      maquis:         maquis?.nom || 'Flowix',
+      logo_url:       maquis?.logo_url || null,
+      adresse:        maquis?.adresse || null,
+      telephone:      maquis?.telephone || null,
+      table:          commande.table?.numero || null,
+      serveur:        commande.serveur?.nom || '',
+      date:           new Date(commande.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+      lignes:         commande.lignes.map(l => ({
+        nom:           l.produit?.nom || '?',
+        variante_nom:  l.variante_nom || null,
+        quantite:      parseFloat(l.quantite),
+        prix_unitaire: parseFloat(l.prix_unitaire || 0),
+        total:         parseFloat(l.prix_unitaire || 0) * parseFloat(l.quantite || 1),
+        note:          l.note || ''
+      })),
+      note: commande.note || null
+    })
+    res.json({ success: true, message: 'Bon envoyé à l\'imprimante' })
+  } catch (e) { err(res, e) }
+}
+
 module.exports = {
   getStations, creerStation, modifierStation, supprimerStation,
   getTables, creerTable, modifierTable, supprimerTable,
   getCommandes, getCommandesKDS, getCommande,
   creerCommande, ajouterLignes, definirTemps,
-  changerStatutLigne, changerStatutCommande, modifierLignesCommande, appliquerReductionCommande, annulerCommande, encaisserCommande
+  changerStatutLigne, changerStatutCommande, modifierLignesCommande,
+  appliquerReductionCommande, annulerCommande, encaisserCommande, reimprimer
 }
