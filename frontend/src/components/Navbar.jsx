@@ -110,7 +110,7 @@ const Navbar = ({ menuOuvert, setMenuOuvert }) => {
         </nav>
 
         {/* Footer utilisateur */}
-        <div style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.2)' }} ref={alerteRef}>
+        <div style={{ padding: '12px', borderTop: '1px solid rgba(255,255,255,0.2)' }} ref={alerteRef} className="sidebar-footer-alertes">
           {/* Cloche alertes — toujours visible pour gerant/patron/caissier */}
           {['caissier','gerant','patron'].includes(utilisateur?.role) && (
             <div style={{ position: 'relative', marginBottom: '8px' }}>
@@ -178,6 +178,35 @@ const Navbar = ({ menuOuvert, setMenuOuvert }) => {
           </button>
         </div>
       </aside>
+
+      {/* ── Panneau alertes mobile (au-dessus de la bottom-nav) ── */}
+      {panneauAlerte && ['caissier','gerant','patron'].includes(utilisateur?.role) && (
+        <div ref={alerteRef} style={{
+          position: 'fixed', bottom: 62, left: 0, right: 0, zIndex: 200,
+          backgroundColor: 'white', borderRadius: '16px 16px 0 0',
+          boxShadow: '0 -4px 24px rgba(0,0,0,0.18)', overflow: 'hidden',
+          maxHeight: '60vh', display: 'flex', flexDirection: 'column'
+        }} className="panneau-alerte-mobile">
+          <div style={{ padding: '12px 16px', backgroundColor: alertes.length > 0 ? '#fef2f2' : '#f0fdf4', borderBottom: `1px solid ${alertes.length > 0 ? '#fecaca' : '#bbf7d0'}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: '700', color: alertes.length > 0 ? '#991b1b' : '#15803d' }}>
+              {alertes.length > 0 ? `⚠️ ${alertes.length} produit(s) sous seuil` : '✅ Tous les stocks sont OK'}
+            </p>
+            <button onClick={() => setPanneauAlerte(false)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#9ca3af', lineHeight: 1 }}>×</button>
+          </div>
+          {alertes.length > 0 && (
+            <ul style={{ listStyle: 'none', padding: 0, margin: 0, overflowY: 'auto' }}>
+              {alertes.map(p => (
+                <li key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #f3f4f6' }}>
+                  <span style={{ fontSize: '14px', color: '#374151', fontWeight: '500' }}>{p.nom}</span>
+                  <span style={{ fontSize: '13px', fontWeight: '700', color: parseFloat(p.stock_actuel) <= 0 ? '#dc2626' : '#f59e0b', whiteSpace: 'nowrap', marginLeft: '8px' }}>
+                    {parseFloat(p.stock_actuel)} {p.unite}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
 
       {/* ── Bottom navigation mobile ── */}
       <nav className="bottom-nav" style={{ backgroundColor: 'white', borderTop: `3px solid ${couleur}22` }}>
