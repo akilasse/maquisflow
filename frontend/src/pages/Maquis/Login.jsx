@@ -127,7 +127,11 @@ const Login = () => {
       <div style={{ backgroundColor: 'white', borderRadius: '24px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', padding: '40px 36px', width: '100%', maxWidth: '400px' }}>
 
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ width: 80, height: 80, background: 'linear-gradient(135deg, #FF6B35, #ff8c5a)', borderRadius: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(255,107,53,0.35)', fontSize: 36 }}>⚡</div>
+          <div style={{ width: 80, height: 80, background: 'linear-gradient(135deg, #FF8C42 0%, #FF5500 100%)', borderRadius: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(255,107,53,0.4)' }}>
+              <svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M62 8 L36 52 L54 52 L38 92 L72 44 L54 44 Z" fill="white" fillOpacity="0.95"/>
+              </svg>
+            </div>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: '#111827', margin: 0 }}>Flowix</h1>
           <p style={{ fontSize: 14, color: '#9ca3af', marginTop: 6 }}>Gestion commerciale intelligente</p>
         </div>

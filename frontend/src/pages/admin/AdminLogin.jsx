@@ -46,12 +46,14 @@ const AdminLogin = () => {
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div style={{
-            width: 56, height: 56, borderRadius: 14,
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            width: 72, height: 72, borderRadius: '20px',
+            background: 'linear-gradient(135deg, #FF8C42 0%, #FF5500 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px', fontSize: 24
+            margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(255,107,53,0.45)'
           }}>
-            ⚡
+            <svg width="38" height="38" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M62 8 L36 52 L54 52 L38 92 L72 44 L54 44 Z" fill="white" fillOpacity="0.95"/>
+            </svg>
           </div>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', margin: 0 }}>
             Flowix Admin
