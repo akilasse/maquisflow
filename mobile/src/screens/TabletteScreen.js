@@ -187,7 +187,10 @@ export default function TabletteScreen({ onRetour }) {
       let debut = fmt(auj)
       if (periode === 'semaine') { const l = new Date(auj); l.setDate(auj.getDate() - auj.getDay() + 1); debut = fmt(l) }
       else if (periode === 'mois') debut = fmt(new Date(auj.getFullYear(), auj.getMonth(), 1))
-      const p = new URLSearchParams({ serveur_id: utilisateur.id, historique: 'true', date_debut: debut, date_fin: fmt(auj) })
+      const p = new URLSearchParams({ historique: 'true', date_debut: debut, date_fin: fmt(auj) })
+      // Serveur : voit uniquement ses propres commandes
+      // Gérant / patron : voit tout le monde
+      if (utilisateur.role === 'serveur') p.set('serveur_id', utilisateur.id)
       if (statut) p.set('statut', statut)
       const r = await api.get(`/api/commandes?${p}`)
       setHistorique(r.data.data || [])

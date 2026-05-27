@@ -286,14 +286,15 @@ enum StatutInventaire {
 }
 
 model InventaireLigne {
-  id            Int        @id @default(autoincrement())
-  inventaire_id Int
-  inventaire    Inventaire @relation(fields: [inventaire_id], references: [id])
-  produit_id    Int
-  produit       Produit    @relation(fields: [produit_id], references: [id])
-  qte_theorique Decimal    @db.Decimal(10,3)
-  qte_reelle    Decimal    @db.Decimal(10,3)
-  ecart         Decimal    @db.Decimal(10,3)
+  id                 Int        @id @default(autoincrement())
+  inventaire_id      Int
+  inventaire         Inventaire @relation(fields: [inventaire_id], references: [id])
+  produit_id         Int
+  produit            Produit    @relation(fields: [produit_id], references: [id])
+  qte_theorique      Decimal    @db.Decimal(10,3)
+  qte_reelle         Decimal    @db.Decimal(10,3)
+  ecart              Decimal    @db.Decimal(10,3)
+  variantes_comptees Json?      // { base: 2, variantes: [{nom, coefficient, quantite}] }
 }
 
 model LogAction {

@@ -12,7 +12,8 @@ const creerInventaire = async (prisma, utilisateur) => {
   }
 
   const produits = await prisma.produit.findMany({
-    where: { maquis_id: utilisateur.maquis_id, actif: true }
+    where: { maquis_id: utilisateur.maquis_id, actif: true },
+    include: { variantes: { where: { actif: true } } }
   })
 
   if (produits.length === 0) {
@@ -45,7 +46,13 @@ const creerInventaire = async (prisma, utilisateur) => {
   return inventaire
 }
 
-const mettreAJourLigne = async (prisma, inventaire_id, produit_id, qte_reelle, utilisateur) => {
+// ──────────────────────────────────────────────────────────────
+// mettreAJourLigne
+//   qte_base         : bouteilles entières comptées
+//   variantes_input  : [{ nom, coefficient, quantite }]
+//   qte_reelle_total = qte_base + Σ(variante.quantite × variante.coefficient)
+// ──────────────────────────────────────────────────────────────
+const mettreAJourLigne = async (prisma, inventaire_id, produit_id, qte_base, variantes_input, utilisateur) => {
   const inventaire = await prisma.inventaire.findFirst({
     where: { id: inventaire_id, maquis_id: utilisateur.maquis_id, statut: 'en_cours' }
   })
@@ -58,11 +65,25 @@ const mettreAJourLigne = async (prisma, inventaire_id, produit_id, qte_reelle, u
 
   if (!ligne) throw new Error('Ligne d\'inventaire introuvable')
 
+  // Calcul total en unité de base
+  const totalVariantes = (variantes_input || []).reduce(
+    (s, v) => s + parseFloat(v.quantite || 0) * parseFloat(v.coefficient || 0), 0
+  )
+  const qte_reelle = parseFloat(qte_base || 0) + totalVariantes
   const ecart = qte_reelle - parseFloat(ligne.qte_theorique)
+
+  // Stockage du détail variantes (null si aucune variante)
+  const vcData = (variantes_input && variantes_input.length > 0)
+    ? { base: parseFloat(qte_base || 0), variantes: variantes_input }
+    : null
 
   const ligneMisAJour = await prisma.inventaireLigne.update({
     where: { id: ligne.id },
-    data: { qte_reelle, ecart: parseFloat(ecart.toFixed(3)) },
+    data: {
+      qte_reelle:         parseFloat(qte_reelle.toFixed(3)),
+      ecart:              parseFloat(ecart.toFixed(3)),
+      variantes_comptees: vcData
+    },
     include: { produit: { select: { nom: true, unite: true } } }
   })
 
@@ -153,7 +174,14 @@ const getInventaire = async (prisma, inventaire_id, maquis_id) => {
     where: { id: inventaire_id, maquis_id },
     include: {
       lignes: {
-        include: { produit: { select: { nom: true, unite: true, categorie: true } } },
+        include: {
+          produit: {
+            select: {
+              nom: true, unite: true, categorie: true,
+              variantes: { where: { actif: true }, orderBy: { nom: 'asc' } }
+            }
+          }
+        },
         orderBy: { produit: { nom: 'asc' } }
       }
     }

@@ -12,11 +12,19 @@ const creerInventaire = async (req, res) => {
 const mettreAJourLigne = async (req, res) => {
   try {
     const { id } = req.params
-    const { produit_id, qte_reelle } = req.body
-    if (!produit_id || qte_reelle === undefined) {
-      return res.status(400).json({ success: false, message: 'produit_id et qte_reelle requis' })
+    const { produit_id, qte_base, variantes_comptees, qte_reelle } = req.body
+    if (!produit_id) {
+      return res.status(400).json({ success: false, message: 'produit_id requis' })
     }
-    const ligne = await inventaireService.mettreAJourLigne(req.prisma, parseInt(id), parseInt(produit_id), parseFloat(qte_reelle), req.utilisateur)
+    // Compatibilité : si qte_base absent, utiliser qte_reelle (ancienne API)
+    const base = qte_base !== undefined ? qte_base : qte_reelle
+    if (base === undefined) {
+      return res.status(400).json({ success: false, message: 'qte_base requis' })
+    }
+    const ligne = await inventaireService.mettreAJourLigne(
+      req.prisma, parseInt(id), parseInt(produit_id),
+      parseFloat(base), variantes_comptees || [], req.utilisateur
+    )
     return res.status(200).json({ success: true, message: 'Ligne mise à jour', data: ligne })
   } catch (error) {
     return res.status(400).json({ success: false, message: error.message })
