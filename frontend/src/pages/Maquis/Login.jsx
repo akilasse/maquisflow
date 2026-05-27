@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
+import api from '../../utils/api'
 
 const Login = () => {
   const [email, setEmail]           = useState('')
@@ -9,6 +10,28 @@ const Login = () => {
   const [chargement, setChargement] = useState(false)
   const { login, selectionRequise, etablissements, selectionnerEtablissement, utilisateurTemp, logout } = useAuth()
   const navigate = useNavigate()
+
+  // --- Mot de passe oublié ---
+  const [voirOubli, setVoirOubli]       = useState(false)
+  const [emailOubli, setEmailOubli]     = useState('')
+  const [oubliEnvoi, setOubliEnvoi]     = useState(false)
+  const [oubliMsg, setOubliMsg]         = useState('')
+  const [oubliErreur, setOubliErreur]   = useState('')
+
+  const handleForgot = async (e) => {
+    e.preventDefault()
+    setOubliErreur('')
+    setOubliMsg('')
+    setOubliEnvoi(true)
+    try {
+      await api.post('/api/auth/forgot-password', { email: emailOubli })
+      setOubliMsg('Si cet email est connu, un lien de réinitialisation vous a été envoyé. Vérifiez votre boîte mail.')
+    } catch {
+      setOubliErreur('Une erreur est survenue. Réessayez.')
+    } finally {
+      setOubliEnvoi(false)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -189,10 +212,57 @@ const Login = () => {
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12, marginTop: 24 }}>
+        <div style={{ textAlign: 'center', marginTop: 16 }}>
+          <button onClick={() => { setVoirOubli(true); setOubliMsg(''); setOubliErreur(''); setEmailOubli('') }}
+            style={{ background: 'none', border: 'none', color: '#FF6B35', fontSize: 13, cursor: 'pointer', fontWeight: 600, padding: 0 }}>
+            Mot de passe oublié ?
+          </button>
+        </div>
+
+        <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12, marginTop: 16 }}>
           Flowix — Gestion commerciale
         </p>
       </div>
+
+      {/* Modal mot de passe oublié */}
+      {voirOubli && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 32, width: '100%', maxWidth: 380, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <h2 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 800, color: '#111827' }}>🔑 Mot de passe oublié</h2>
+            <p style={{ margin: '0 0 20px', fontSize: 13, color: '#6b7280' }}>
+              Entrez l'adresse email utilisée lors de la création de votre compte. Vous recevrez un lien pour réinitialiser votre mot de passe.
+            </p>
+            {oubliMsg ? (
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#15803d', borderRadius: 10, padding: '12px 14px', fontSize: 13, marginBottom: 16 }}>
+                ✅ {oubliMsg}
+              </div>
+            ) : (
+              <form onSubmit={handleForgot}>
+                <input
+                  type="email" value={emailOubli} onChange={e => setEmailOubli(e.target.value)}
+                  placeholder="votre@email.com" required
+                  style={{ width: '100%', padding: '13px 16px', fontSize: 14, border: '2px solid #f3f4f6', borderRadius: 10, boxSizing: 'border-box', marginBottom: 12, outline: 'none', backgroundColor: '#f9fafb' }}
+                  onFocus={e => { e.target.style.borderColor = '#FF6B35'; e.target.style.backgroundColor = 'white' }}
+                  onBlur={e => { e.target.style.borderColor = '#f3f4f6'; e.target.style.backgroundColor = '#f9fafb' }}
+                />
+                {oubliErreur && (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#dc2626', borderRadius: 8, padding: '10px 12px', fontSize: 13, marginBottom: 12 }}>
+                    ⚠️ {oubliErreur}
+                  </div>
+                )}
+                <button type="submit" disabled={oubliEnvoi}
+                  style={{ width: '100%', padding: '13px', borderRadius: 10, border: 'none', background: oubliEnvoi ? '#9ca3af' : 'linear-gradient(135deg, #FF6B35, #ff8c5a)', color: 'white', fontSize: 14, fontWeight: 700, cursor: oubliEnvoi ? 'not-allowed' : 'pointer' }}>
+                  {oubliEnvoi ? 'Envoi...' : 'Envoyer le lien'}
+                </button>
+              </form>
+            )}
+            <button onClick={() => setVoirOubli(false)}
+              style={{ width: '100%', marginTop: 12, padding: '11px', borderRadius: 10, border: '2px solid #f3f4f6', background: 'white', color: '#6b7280', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+              ← Retour à la connexion
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

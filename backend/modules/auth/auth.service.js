@@ -3,8 +3,10 @@
 // Supporte multi-établissements — sélection après login
 // ============================================================
 
-const bcrypt = require('bcryptjs')
-const jwt    = require('jsonwebtoken')
+const bcrypt   = require('bcryptjs')
+const jwt      = require('jsonwebtoken')
+const crypto   = require('crypto')
+const { envoyerResetPassword } = require('../../utils/mailer')
 
 const genererAccessToken = (utilisateur) => {
   return jwt.sign(
@@ -156,4 +158,47 @@ const refreshToken = async (prisma, token) => {
   }
 }
 
-module.exports = { login, selectionnerEtablissement, refreshToken }
+// ============================================================
+// DEMANDER RESET MOT DE PASSE
+// ============================================================
+const demanderReset = async (prisma, email) => {
+  const utilisateur = await prisma.utilisateur.findUnique({ where: { email } })
+  // On répond toujours OK pour ne pas exposer si l'email existe
+  if (!utilisateur || !utilisateur.actif) return
+
+  const token = crypto.randomBytes(32).toString('hex')
+  const expires = new Date(Date.now() + 60 * 60 * 1000) // 1h
+
+  await prisma.utilisateur.update({
+    where: { id: utilisateur.id },
+    data: { reset_token: token, reset_token_expires: expires }
+  })
+
+  const baseUrl = process.env.APP_URL || 'https://maquisflow.com'
+  const reset_url = `${baseUrl}/reset-password?token=${token}`
+
+  await envoyerResetPassword({ nom: utilisateur.nom, email: utilisateur.email, reset_url })
+}
+
+// ============================================================
+// REINITIALISER MOT DE PASSE
+// ============================================================
+const reinitialiserMotDePasse = async (prisma, token, nouveau_mot_de_passe) => {
+  const utilisateur = await prisma.utilisateur.findFirst({
+    where: {
+      reset_token: token,
+      reset_token_expires: { gt: new Date() }
+    }
+  })
+
+  if (!utilisateur) throw new Error('Lien invalide ou expiré. Veuillez refaire une demande.')
+
+  const hash = await bcrypt.hash(nouveau_mot_de_passe, 10)
+
+  await prisma.utilisateur.update({
+    where: { id: utilisateur.id },
+    data: { mot_de_passe: hash, reset_token: null, reset_token_expires: null }
+  })
+}
+
+module.exports = { login, selectionnerEtablissement, refreshToken, demanderReset, reinitialiserMotDePasse }

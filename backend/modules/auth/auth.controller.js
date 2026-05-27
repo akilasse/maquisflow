@@ -76,4 +76,29 @@ const logout = async (req, res) => {
   return res.status(200).json({ success: true, message: 'Déconnexion réussie' })
 }
 
-module.exports = { login, selectionnerEtablissement, refresh, logout }
+// POST /api/auth/forgot-password
+const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) return res.status(400).json({ success: false, message: 'Email requis' })
+    await authService.demanderReset(req.prisma, email)
+    return res.status(200).json({ success: true, message: 'Si cet email existe, un lien de réinitialisation a été envoyé.' })
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message })
+  }
+}
+
+// POST /api/auth/reset-password
+const resetPassword = async (req, res) => {
+  try {
+    const { token, mot_de_passe } = req.body
+    if (!token || !mot_de_passe) return res.status(400).json({ success: false, message: 'Token et nouveau mot de passe requis' })
+    if (mot_de_passe.length < 6) return res.status(400).json({ success: false, message: 'Le mot de passe doit faire au moins 6 caractères' })
+    await authService.reinitialiserMotDePasse(req.prisma, token, mot_de_passe)
+    return res.status(200).json({ success: true, message: 'Mot de passe réinitialisé avec succès.' })
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message })
+  }
+}
+
+module.exports = { login, selectionnerEtablissement, refresh, logout, forgotPassword, resetPassword }

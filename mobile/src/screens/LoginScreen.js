@@ -7,15 +7,35 @@ import { useState } from 'react'
 import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ActivityIndicator, Alert,
-  KeyboardAvoidingView, Platform, ScrollView
+  KeyboardAvoidingView, Platform, ScrollView, Modal
 } from 'react-native'
 import { useAuth } from '../context/AuthContext'
+import api from '../utils/api'
 
 export default function LoginScreen() {
   const [email, setEmail]             = useState('')
   const [motDePasse, setMotDePasse]   = useState('')
   const [chargement, setChargement]   = useState(false)
   const { login, selectionRequise, etablissements, selectionnerEtablissement, utilisateurTemp, logout } = useAuth()
+
+  // Mot de passe oublié
+  const [voirOubli, setVoirOubli]     = useState(false)
+  const [emailOubli, setEmailOubli]   = useState('')
+  const [oubliLoad, setOubliLoad]     = useState(false)
+  const [oubliOk, setOubliOk]         = useState(false)
+
+  const handleForgot = async () => {
+    if (!emailOubli) return Alert.alert('', 'Veuillez entrer votre email')
+    setOubliLoad(true)
+    try {
+      await api.post('/api/auth/forgot-password', { email: emailOubli })
+      setOubliOk(true)
+    } catch {
+      Alert.alert('Erreur', 'Une erreur est survenue. Réessayez.')
+    } finally {
+      setOubliLoad(false)
+    }
+  }
 
   const handleLogin = async () => {
     if (!email || !motDePasse) {
@@ -135,8 +155,50 @@ export default function LoginScreen() {
           }
         </TouchableOpacity>
 
+        <TouchableOpacity onPress={() => { setVoirOubli(true); setOubliOk(false); setEmailOubli('') }} style={{ marginTop: 14 }}>
+          <Text style={{ color: '#FF6B35', fontSize: 13, fontWeight: '600' }}>Mot de passe oublié ?</Text>
+        </TouchableOpacity>
+
         <Text style={styles.footer}>Flowix — Gestion commerciale</Text>
       </View>
+
+      {/* Modal mot de passe oublié */}
+      <Modal visible={voirOubli} transparent animationType="fade" onRequestClose={() => setVoirOubli(false)}>
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitre}>🔑 Mot de passe oublié</Text>
+            {oubliOk ? (
+              <Text style={styles.modalSucces}>
+                ✅ Si cet email est connu, un lien de réinitialisation vous a été envoyé. Vérifiez votre boîte mail.
+              </Text>
+            ) : (
+              <>
+                <Text style={styles.modalDesc}>
+                  Entrez l'email utilisé lors de la création de votre compte pour recevoir un lien de réinitialisation.
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="votre@email.com"
+                  value={emailOubli}
+                  onChangeText={setEmailOubli}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  placeholderTextColor="#9ca3af"
+                />
+                <TouchableOpacity style={styles.bouton} onPress={handleForgot} disabled={oubliLoad}>
+                  {oubliLoad
+                    ? <ActivityIndicator color="white" />
+                    : <Text style={styles.boutonTexte}>Envoyer le lien</Text>
+                  }
+                </TouchableOpacity>
+              </>
+            )}
+            <TouchableOpacity style={styles.retourBtn} onPress={() => setVoirOubli(false)}>
+              <Text style={styles.retourTexte}>← Retour à la connexion</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   )
 }
@@ -212,5 +274,20 @@ const styles = StyleSheet.create({
   },
   retourTexte: { fontSize: 14, fontWeight: '600', color: '#6b7280' },
 
-  footer: { fontSize: 12, color: '#9ca3af', marginTop: 16 }
+  footer: { fontSize: 12, color: '#9ca3af', marginTop: 16 },
+
+  // Modal
+  modalOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center', alignItems: 'center', padding: 20
+  },
+  modalCard: {
+    backgroundColor: 'white', borderRadius: 20, padding: 28,
+    width: '100%', maxWidth: 380,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2, shadowRadius: 20, elevation: 10
+  },
+  modalTitre:  { fontSize: 18, fontWeight: '800', color: '#111827', marginBottom: 10 },
+  modalDesc:   { fontSize: 13, color: '#6b7280', marginBottom: 16, lineHeight: 20 },
+  modalSucces: { fontSize: 13, color: '#15803d', backgroundColor: '#f0fdf4', borderRadius: 10, padding: 14, marginBottom: 16, lineHeight: 20 }
 })

@@ -128,14 +128,16 @@ model ProduitVariante {
 }
 
 model Utilisateur {
-  id           Int       @id @default(autoincrement())
-  nom          String    @db.VarChar(100)
-  email        String    @unique @db.VarChar(150)
-  login        String?   @unique @db.VarChar(50)
-  mot_de_passe String    @db.VarChar(255)
-  photo_url    String?   @db.VarChar(255)
-  actif        Boolean   @default(true)
-  created_at   DateTime  @default(now())
+  id                   Int       @id @default(autoincrement())
+  nom                  String    @db.VarChar(100)
+  email                String    @unique @db.VarChar(150)
+  login                String?   @unique @db.VarChar(50)
+  mot_de_passe         String    @db.VarChar(255)
+  photo_url            String?   @db.VarChar(255)
+  actif                Boolean   @default(true)
+  created_at           DateTime  @default(now())
+  reset_token          String?   @db.VarChar(255)
+  reset_token_expires  DateTime?
 
   etablissements UtilisateurMaquis[]
   ventes         Vente[]

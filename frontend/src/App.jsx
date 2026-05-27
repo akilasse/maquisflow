@@ -12,9 +12,10 @@ import Stock       from './pages/Maquis/Stock'
 import Inventaire  from './pages/Maquis/Inventaire'
 import Parametrage from './pages/Maquis/Parametrage'
 import Ventes      from './pages/Maquis/Ventes'
-import Commandes   from './pages/Maquis/Commandes'
-import Tablette    from './pages/Maquis/Tablette'
-import KDS         from './pages/Maquis/KDS'
+import Commandes      from './pages/Maquis/Commandes'
+import Tablette       from './pages/Maquis/Tablette'
+import KDS            from './pages/Maquis/KDS'
+import ResetPassword  from './pages/Maquis/ResetPassword'
 
 // Admin
 import AdminLogin     from './pages/admin/AdminLogin'
@@ -27,9 +28,10 @@ const App = () => {
         <SocketProvider>
           <Routes>
 
-            {/* Login */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Navigate to="/login" replace />} />
+            {/* Login + reset password */}
+            <Route path="/login"          element={<Login />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/"               element={<Navigate to="/login" replace />} />
 
             {/* App principale */}
             <Route path="/dashboard" element={
