@@ -461,51 +461,72 @@ ${parts.filter(p => p.trim()).length > 0 ? `
                               {/* Saisie qté réelle — simple OU multi-variantes */}
                               <td style={{ padding: '8px 10px' }}>
                                 {aVariantes ? (
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
 
-                                    {/* Bouteilles entières */}
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    {/* Bouteilles entières (entier obligatoire) */}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                       <input
                                         type="number" min="0" step="1"
                                         value={loc.base ?? ''}
                                         placeholder="0"
-                                        onChange={e => setVariantesLocales(prev => ({
-                                          ...prev,
-                                          [ligne.produit_id]: { ...prev[ligne.produit_id], base: e.target.value }
-                                        }))}
+                                        onKeyDown={e => { if (['.', ','].includes(e.key)) e.preventDefault() }}
+                                        onChange={e => {
+                                          const val = e.target.value.replace(/[^0-9]/g, '')
+                                          setVariantesLocales(prev => ({
+                                            ...prev,
+                                            [ligne.produit_id]: { ...prev[ligne.produit_id], base: val }
+                                          }))
+                                        }}
                                         onBlur={() => mettreAJourLigne(ligne.produit_id, variantes)}
-                                        style={{ width: '70px', padding: '6px 8px', border: '1px solid #e5e7eb', borderRadius: '7px', fontSize: '13px', textAlign: 'right' }}
+                                        style={{ width: '64px', padding: '6px 8px', border: '1.5px solid #e5e7eb', borderRadius: '7px', fontSize: '14px', fontWeight: '600', textAlign: 'center' }}
                                       />
-                                      <span style={{ fontSize: '12px', color: '#6b7280' }}>btle entière{parseFloat(loc.base || 0) > 1 ? 's' : ''}</span>
+                                      <span style={{ fontSize: '12px', color: '#374151', fontWeight: '500' }}>
+                                        {ligne.produit.unite} entière{parseFloat(loc.base || 0) > 1 ? 's' : ''}
+                                      </span>
+                                      <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                                        = {parseFloat(loc.base || 0)} {ligne.produit.unite}
+                                      </span>
                                     </div>
 
-                                    {/* Chaque variante */}
-                                    {variantes.map(v => (
-                                      <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <input
-                                          type="number" min="0" step="1"
-                                          value={loc.variantes?.[v.nom] ?? ''}
-                                          placeholder="0"
-                                          onChange={e => setVariantesLocales(prev => ({
-                                            ...prev,
-                                            [ligne.produit_id]: {
-                                              ...prev[ligne.produit_id],
-                                              variantes: { ...prev[ligne.produit_id]?.variantes, [v.nom]: e.target.value }
-                                            }
-                                          }))}
-                                          onBlur={() => mettreAJourLigne(ligne.produit_id, variantes)}
-                                          style={{ width: '70px', padding: '6px 8px', border: '1px solid #ddd6fe', borderRadius: '7px', fontSize: '13px', textAlign: 'right' }}
-                                        />
-                                        <span style={{ fontSize: '12px', color: '#7c3aed' }}>
-                                          {v.nom}
-                                          <span style={{ color: '#9ca3af', marginLeft: '4px' }}>×{parseFloat(v.coefficient)}</span>
-                                        </span>
-                                      </div>
-                                    ))}
+                                    {/* Chaque variante — entier + calcul affiché */}
+                                    {variantes.map(v => {
+                                      const qtyV    = parseInt(loc.variantes?.[v.nom] || 0, 10)
+                                      const coeff   = parseFloat(v.coefficient)
+                                      const partiel = parseFloat((qtyV * coeff).toFixed(3))
+                                      return (
+                                        <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                          <input
+                                            type="number" min="0" step="1"
+                                            value={loc.variantes?.[v.nom] ?? ''}
+                                            placeholder="0"
+                                            onKeyDown={e => { if (['.', ','].includes(e.key)) e.preventDefault() }}
+                                            onChange={e => {
+                                              const val = e.target.value.replace(/[^0-9]/g, '')
+                                              setVariantesLocales(prev => ({
+                                                ...prev,
+                                                [ligne.produit_id]: {
+                                                  ...prev[ligne.produit_id],
+                                                  variantes: { ...prev[ligne.produit_id]?.variantes, [v.nom]: val }
+                                                }
+                                              }))
+                                            }}
+                                            onBlur={() => mettreAJourLigne(ligne.produit_id, variantes)}
+                                            style={{ width: '64px', padding: '6px 8px', border: '1.5px solid #ddd6fe', borderRadius: '7px', fontSize: '14px', fontWeight: '600', textAlign: 'center', color: '#7c3aed' }}
+                                          />
+                                          <span style={{ fontSize: '12px', color: '#7c3aed', fontWeight: '600' }}>{v.nom}</span>
+                                          <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+                                            {qtyV} × {coeff} = <strong style={{ color: '#374151' }}>{partiel} {ligne.produit.unite}</strong>
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
 
-                                    {/* Total calculé */}
-                                    <div style={{ marginTop: '4px', paddingTop: '5px', borderTop: '1px dashed #e5e7eb', fontSize: '13px', fontWeight: '700', color: '#111827' }}>
-                                      = {totalLive} {ligne.produit.unite}
+                                    {/* Total final */}
+                                    <div style={{ marginTop: '2px', paddingTop: '6px', borderTop: '2px dashed #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                      <span style={{ fontSize: '12px', color: '#6b7280', fontWeight: '600' }}>TOTAL</span>
+                                      <span style={{ fontSize: '15px', fontWeight: '800', color: '#111827' }}>
+                                        {totalLive} {ligne.produit.unite}
+                                      </span>
                                     </div>
                                   </div>
                                 ) : (
