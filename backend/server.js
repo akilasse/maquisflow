@@ -15,6 +15,8 @@ const app    = express()
 const prisma = new PrismaClient()
 const server = http.createServer(app)
 
+const { lancerCronAbonnements } = require('./cron/abonnementCron')
+
 const originesAutorisees = [
   'http://localhost:5173',
   'http://localhost:5174',
@@ -95,6 +97,7 @@ server.listen(PORT, async () => {
   } catch (error) {
     console.error('Erreur connexion base de données :', error)
   }
+  lancerCronAbonnements(prisma)
 })
 
 process.on('SIGINT', async () => {

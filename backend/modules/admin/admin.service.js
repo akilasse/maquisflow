@@ -1,6 +1,19 @@
 const bcrypt = require('bcryptjs')
 const jwt    = require('jsonwebtoken')
-const { envoyerCredentialsUtilisateur } = require('../../utils/mailer')
+const {
+  envoyerCredentialsUtilisateur,
+  envoyerAbonnementActif,
+  envoyerAlerteSuperAdmin
+} = require('../../utils/mailer')
+
+// Helper : récupérer gérants/patrons d'un maquis
+const getContactsMaquis = async (prisma, maquis_id) => {
+  const liaisons = await prisma.utilisateurMaquis.findMany({
+    where: { maquis_id, actif: true, role: { in: ['gerant', 'patron'] } },
+    include: { utilisateur: { select: { nom: true, email: true } } }
+  })
+  return liaisons.map(l => ({ nom: l.utilisateur.nom, email: l.utilisateur.email, role: l.role }))
+}
 
 const login = async (prisma, email, mot_de_passe) => {
   const admin = await prisma.superAdmin.findUnique({ where: { email } })
@@ -55,7 +68,7 @@ const creerMaquis = async (prisma, data) => {
     }
   }
 
-  return await prisma.maquis.create({
+  const maquis = await prisma.maquis.create({
     data: {
       nom, type,
       activite:         activite || null,
@@ -72,6 +85,16 @@ const creerMaquis = async (prisma, data) => {
     },
     include: { abonnement: true }
   })
+
+  // Alerte super admin à la création
+  envoyerAlerteSuperAdmin({
+    nom_maquis: nom, maquis_id: maquis.id,
+    type_alerte: 'active',
+    date_echeance: echeance,
+    users: []
+  }).catch(() => {})
+
+  return maquis
 }
 
 const modifierMaquis = async (prisma, maquis_id, data) => {
@@ -98,11 +121,37 @@ const modifierAbonnement = async (prisma, maquis_id, data) => {
       nouvelleEcheance.setMonth(nouvelleEcheance.getMonth() + 1)
     }
   }
-  return await prisma.abonnement.upsert({
+  const abo = await prisma.abonnement.upsert({
     where: { maquis_id },
     update: { statut, montant: montant ? parseFloat(montant) : undefined, date_echeance: nouvelleEcheance, date_paiement: statut === 'actif' ? new Date() : undefined, bloque: statut === 'suspendu' ? true : statut === 'actif' ? false : undefined, mode_paiement, reference, note, updated_at: new Date() },
-    create: { maquis_id, statut: statut || 'actif', montant: montant ? parseFloat(montant) : 35000, date_echeance: nouvelleEcheance || new Date(), mode_paiement, reference, note }
+    create: { maquis_id, statut: statut || 'actif', montant: montant ? parseFloat(montant) : 35000, date_echeance: nouvelleEcheance || new Date(), mode_paiement, reference, note },
+    include: { maquis: { select: { nom: true } } }
   })
+
+  // Envoyer emails si activation ou renouvellement
+  if (statut === 'actif') {
+    const nom_maquis = abo.maquis?.nom || `Établissement #${maquis_id}`
+    const users = await getContactsMaquis(prisma, maquis_id)
+
+    // Email à chaque gérant/patron
+    for (const u of users) {
+      envoyerAbonnementActif({
+        nom: u.nom, email: u.email, nom_maquis,
+        date_echeance: nouvelleEcheance,
+        type_acces: abo.type_acces
+      }).catch(() => {})
+    }
+
+    // Alerte super admin
+    envoyerAlerteSuperAdmin({
+      nom_maquis, maquis_id,
+      type_alerte: 'active',
+      date_echeance: nouvelleEcheance,
+      users
+    }).catch(() => {})
+  }
+
+  return abo
 }
 
 const genererLoginAdmin = async (prisma, base) => {
