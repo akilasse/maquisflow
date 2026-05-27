@@ -23,14 +23,14 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
   const debut = date_debut ? new Date(date_debut) : new Date(debutJour)
   const fin   = date_fin   ? new Date(date_fin)   : new Date(finJour)
 
-  // ── Période semaine : lundi de la semaine en cours ──
+  // ── Période semaine : lundi de la semaine en cours à 00h00 (pas hDebut) ──
   const debutSemaine = new Date(now)
   const jourSemaine  = debutSemaine.getUTCDay() === 0 ? 6 : debutSemaine.getUTCDay() - 1
   debutSemaine.setUTCDate(debutSemaine.getUTCDate() - jourSemaine)
-  debutSemaine.setUTCHours(hDebut, 0, 0, 0)
+  debutSemaine.setUTCHours(0, 0, 0, 0)
 
-  // ── Période mois : 1er du mois en cours ──
-  const debutMois = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, hDebut, 0, 0, 0))
+  // ── Période mois : 1er du mois en cours à 00h00 (pas hDebut) ──
+  const debutMois = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0))
 
   // ── Requêtes en parallèle ──
   const [
