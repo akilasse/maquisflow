@@ -62,11 +62,20 @@ const Login = () => {
         <div style={{ backgroundColor: 'white', borderRadius: '24px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', padding: '40px 36px', width: '100%', maxWidth: '480px' }}>
 
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div style={{ width: 80, height: 80, background: 'linear-gradient(135deg, #FF8C42 0%, #FF5500 100%)', borderRadius: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(255,107,53,0.4)' }}>
-              <svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M62 8 L36 52 L54 52 L38 92 L72 44 L54 44 Z" fill="white" fillOpacity="0.95"/>
-              </svg>
-            </div>
+            <svg width="80" height="80" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto 16px', display: 'block', filter: 'drop-shadow(0 8px 20px rgba(255,107,53,0.45))' }}>
+              <defs>
+                <linearGradient id="bgF" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FF6B35"/>
+                  <stop offset="100%" stopColor="#e8501a"/>
+                </linearGradient>
+              </defs>
+              <rect width="256" height="256" rx="56" ry="56" fill="url(#bgF)"/>
+              <circle cx="192" cy="71" r="56" fill="rgba(255,255,255,0.08)"/>
+              <circle cx="51" cy="205" r="46" fill="rgba(255,255,255,0.06)"/>
+              <text x="128" y="174" fontFamily="Arial Black, Arial, sans-serif" fontWeight="900" fontSize="148" fill="white" textAnchor="middle" letterSpacing="-2">F</text>
+              <rect x="71" y="194" width="112" height="11" rx="5" fill="rgba(255,255,255,0.5)"/>
+              <circle cx="184" cy="87" r="11" fill="rgba(255,255,255,0.7)"/>
+            </svg>
             <h1 style={{ fontSize: 24, fontWeight: 800, color: '#111827', margin: 0 }}>Choisir un établissement</h1>
             <p style={{ fontSize: 14, color: '#9ca3af', marginTop: 6 }}>Bonjour {utilisateurTemp?.nom}, sélectionnez votre espace</p>
           </div>
@@ -127,11 +136,20 @@ const Login = () => {
       <div style={{ backgroundColor: 'white', borderRadius: '24px', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', padding: '40px 36px', width: '100%', maxWidth: '400px' }}>
 
         <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <div style={{ width: 80, height: 80, background: 'linear-gradient(135deg, #FF8C42 0%, #FF5500 100%)', borderRadius: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(255,107,53,0.4)' }}>
-              <svg width="42" height="42" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M62 8 L36 52 L54 52 L38 92 L72 44 L54 44 Z" fill="white" fillOpacity="0.95"/>
-              </svg>
-            </div>
+          <svg width="80" height="80" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto 16px', display: 'block', filter: 'drop-shadow(0 8px 20px rgba(255,107,53,0.45))' }}>
+              <defs>
+                <linearGradient id="bgF" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#FF6B35"/>
+                  <stop offset="100%" stopColor="#e8501a"/>
+                </linearGradient>
+              </defs>
+              <rect width="256" height="256" rx="56" ry="56" fill="url(#bgF)"/>
+              <circle cx="192" cy="71" r="56" fill="rgba(255,255,255,0.08)"/>
+              <circle cx="51" cy="205" r="46" fill="rgba(255,255,255,0.06)"/>
+              <text x="128" y="174" fontFamily="Arial Black, Arial, sans-serif" fontWeight="900" fontSize="148" fill="white" textAnchor="middle" letterSpacing="-2">F</text>
+              <rect x="71" y="194" width="112" height="11" rx="5" fill="rgba(255,255,255,0.5)"/>
+              <circle cx="184" cy="87" r="11" fill="rgba(255,255,255,0.7)"/>
+            </svg>
           <h1 style={{ fontSize: 28, fontWeight: 800, color: '#111827', margin: 0 }}>Flowix</h1>
           <p style={{ fontSize: 14, color: '#9ca3af', marginTop: 6 }}>Gestion commerciale intelligente</p>
         </div>

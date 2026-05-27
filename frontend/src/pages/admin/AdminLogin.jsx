@@ -45,16 +45,20 @@ const AdminLogin = () => {
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 32 }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: '20px',
-            background: 'linear-gradient(135deg, #FF8C42 0%, #FF5500 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 16px', boxShadow: '0 8px 24px rgba(255,107,53,0.45)'
-          }}>
-            <svg width="38" height="38" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M62 8 L36 52 L54 52 L38 92 L72 44 L54 44 Z" fill="white" fillOpacity="0.95"/>
-            </svg>
-          </div>
+          <svg width="72" height="72" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg" style={{ margin: '0 auto 16px', display: 'block', filter: 'drop-shadow(0 8px 20px rgba(255,107,53,0.45))' }}>
+            <defs>
+              <linearGradient id="bgFa" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#FF6B35"/>
+                <stop offset="100%" stopColor="#e8501a"/>
+              </linearGradient>
+            </defs>
+            <rect width="256" height="256" rx="56" ry="56" fill="url(#bgFa)"/>
+            <circle cx="192" cy="71" r="56" fill="rgba(255,255,255,0.08)"/>
+            <circle cx="51" cy="205" r="46" fill="rgba(255,255,255,0.06)"/>
+            <text x="128" y="174" fontFamily="Arial Black, Arial, sans-serif" fontWeight="900" fontSize="148" fill="white" textAnchor="middle" letterSpacing="-2">F</text>
+            <rect x="71" y="194" width="112" height="11" rx="5" fill="rgba(255,255,255,0.5)"/>
+            <circle cx="184" cy="87" r="11" fill="rgba(255,255,255,0.7)"/>
+          </svg>
           <h1 style={{ fontSize: 22, fontWeight: 700, color: 'white', margin: 0 }}>
             Flowix Admin
           </h1>
