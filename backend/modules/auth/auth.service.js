@@ -177,7 +177,8 @@ const demanderReset = async (prisma, email) => {
   const baseUrl = process.env.APP_URL || 'https://maquisflow.com'
   const reset_url = `${baseUrl}/reset-password?token=${token}`
 
-  await envoyerResetPassword({ nom: utilisateur.nom, email: utilisateur.email, reset_url })
+  envoyerResetPassword({ nom: utilisateur.nom, email: utilisateur.email, reset_url })
+    .catch(err => console.error('[MAILER] Reset password échec:', err.message))
 }
 
 // ============================================================
