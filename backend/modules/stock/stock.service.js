@@ -133,46 +133,43 @@ const sortieManuellStock = async (prisma, io, data, utilisateur) => {
 
 // Historique des mouvements avec filtres
 const getHistorique = async (prisma, maquis_id, filtres = {}) => {
-  const { produit_id, type_mouvement, date_debut, date_fin, page = 1, limite = 20 } = filtres
+  const { produit_id, produit_nom, categorie, unite, variante, type_mouvement, date_debut, date_fin, limite = 200 } = filtres
 
-  const debut = date_debut
-    ? new Date(date_debut)
-    : (() => { const d = new Date(); d.setUTCHours(0, 0, 0, 0); return d })()
-  const fin = date_fin
-    ? new Date(date_fin)
-    : (() => { const d = new Date(); d.setUTCHours(23, 59, 59, 999); return d })()
+  const where = { maquis_id }
 
-  const where = {
-    maquis_id,
-    date_mouvement: { gte: debut, lte: fin }
+  if (date_debut || date_fin) {
+    const debut = date_debut ? new Date(date_debut) : new Date(0)
+    const fin   = date_fin   ? (() => { const d = new Date(date_fin); d.setUTCHours(23, 59, 59, 999); return d })() : new Date()
+    where.date_mouvement = { gte: debut, lte: fin }
   }
 
-  if (produit_id) where.produit_id = parseInt(produit_id)
+  if (produit_id)    where.produit_id      = parseInt(produit_id)
   if (type_mouvement) where.type_mouvement = type_mouvement
+
+  if (produit_nom || categorie || unite || variante) {
+    const prodWhere = {}
+    if (produit_nom) prodWhere.nom       = { contains: produit_nom }
+    if (categorie)   prodWhere.categorie = { contains: categorie }
+    if (unite)       prodWhere.unite     = unite
+    if (variante)    prodWhere.variantes = { some: { nom: { contains: variante }, actif: true } }
+    where.produit = prodWhere
+  }
 
   const [mouvements, total] = await prisma.$transaction([
     prisma.stockMouvement.findMany({
       where,
       include: {
-        produit: { select: { nom: true, unite: true } },
-        utilisateur: { select: { nom: true } }
+        produit:      { select: { nom: true, categorie: true, unite: true } },
+        utilisateur:  { select: { nom: true } },
+        fournisseur:  { select: { nom: true } }
       },
       orderBy: { date_mouvement: 'desc' },
-      skip: (page - 1) * limite,
       take: parseInt(limite)
     }),
     prisma.stockMouvement.count({ where })
   ])
 
-  return {
-    mouvements,
-    pagination: {
-      total,
-      page: parseInt(page),
-      limite: parseInt(limite),
-      pages: Math.ceil(total / limite)
-    }
-  }
+  return { mouvements, total }
 }
 
 // Liste des produits avec leurs stocks

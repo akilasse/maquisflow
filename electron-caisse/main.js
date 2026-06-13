@@ -3,8 +3,15 @@
 // ============================================================
 
 const { app, BrowserWindow, ipcMain } = require('electron')
-const path = require('path')
-const Store = require('electron-store')
+const path    = require('path')
+const os      = require('os')
+const http    = require('http')
+const express = require('express')
+const cors    = require('cors')
+const bcrypt  = require('bcryptjs')
+const mdns    = require('multicast-dns')
+const { Server: SocketIO } = require('socket.io')
+const Store   = require('electron-store')
 
 // Empêcher les crashs silencieux sur erreurs non gérées
 process.on('uncaughtException', (err) => {
@@ -22,6 +29,202 @@ app.on('certificate-error', (event, webContents, url, error, certificate, callba
 })
 
 const store = new Store()
+
+// ============================================================
+// SERVEUR LOCAL — Port 3737, accessible depuis tout le WiFi
+// Fonctionne avec ET sans internet
+// ============================================================
+const LOCAL_PORT     = 3737
+const LOCAL_SECRET   = 'flowix-local-secret-2026'
+const jwt            = require('jsonwebtoken')
+
+function getLocalIP() {
+  const interfaces = os.networkInterfaces()
+  for (const iface of Object.values(interfaces)) {
+    for (const addr of iface) {
+      if (addr.family === 'IPv4' && !addr.internal) return addr.address
+    }
+  }
+  return '127.0.0.1'
+}
+
+// Génère un token local valable 24h
+function genererTokenLocal(user) {
+  return jwt.sign(
+    { id: user.id, role: user.role, maquis_id: user.maquis_id || user.maquis?.id, local: true },
+    LOCAL_SECRET,
+    { expiresIn: '24h' }
+  )
+}
+
+const localApp = express()
+const localHttpServer = http.createServer(localApp)
+const localIO = new SocketIO(localHttpServer, { cors: { origin: '*' } })
+
+localApp.use(express.json())
+localApp.use(cors({ origin: '*' }))
+
+// -- Frontend : sert les fichiers React compilés --
+// Les navigateurs et mobiles chargeront l'app depuis http://IP:3737
+const frontendDist = path.join(__dirname, '..', 'frontend', 'dist')
+localApp.use(express.static(frontendDist))
+
+// -- Santé --
+localApp.get('/api/health', (_, res) => {
+  res.json({ ok: true, local: true, version: '2.0.0', ip: getLocalIP() })
+})
+
+// -- Auth local : login sans vérification VPS (réseau LAN de confiance) --
+localApp.post('/api/auth/login', async (req, res) => {
+  const { email, login: loginId, mot_de_passe } = req.body
+  const usersCache = store.get('users_cache') || []
+  const user = usersCache.find(u => u.email === email || u.login === loginId)
+  if (!user) {
+    return res.status(401).json({ success: false, message: 'Identifiant non reconnu sur ce réseau' })
+  }
+  // Vérifier le mot de passe si le hash est connu, sinon accepter (LAN de confiance)
+  if (user.mot_de_passe_hash && mot_de_passe) {
+    const ok = await bcrypt.compare(mot_de_passe, user.mot_de_passe_hash)
+    if (!ok) return res.status(401).json({ success: false, message: 'Mot de passe incorrect' })
+  }
+  const accessToken = genererTokenLocal(user)
+  res.json({
+    success: true,
+    data: {
+      accessToken,
+      refreshToken: accessToken, // local mode : même token
+      utilisateur:  user.utilisateur_data,
+      local_mode:   true
+    }
+  })
+})
+
+// -- Refresh local --
+localApp.post('/api/auth/refresh', (req, res) => {
+  const token = req.body.refreshToken || req.body.token
+  try {
+    const payload     = jwt.verify(token, LOCAL_SECRET)
+    const usersCache  = store.get('users_cache') || []
+    const user        = usersCache.find(u => u.id === payload.id)
+    if (!user) throw new Error('Utilisateur introuvable')
+    const accessToken = genererTokenLocal(user)
+    res.json({ success: true, data: { accessToken } })
+  } catch {
+    res.status(401).json({ success: false, message: 'Token local invalide' })
+  }
+})
+
+// -- Produits (depuis le cache electron-store) --
+localApp.get('/api/stock/produits', (_, res) => {
+  const produits = store.get('produits_cache') || []
+  res.json({ success: true, data: produits })
+})
+
+// -- Paramètres maquis (depuis le cache) --
+localApp.get('/api/parametrage/maquis', (_, res) => {
+  const maquis = store.get('maquis_cache') || null
+  if (!maquis) return res.status(503).json({ success: false, message: 'Cache non disponible' })
+  res.json({ success: true, data: maquis })
+})
+
+// -- Stations (depuis le cache) --
+localApp.get('/api/commandes/stations', (_, res) => {
+  const stations = store.get('stations_cache') || []
+  res.json({ success: true, data: stations })
+})
+
+// -- Ventes : enregistre localement + diffuse --
+localApp.post('/api/ventes', (req, res) => {
+  const vente = {
+    ...req.body,
+    id:         `local_${Date.now()}`,
+    created_at: new Date().toISOString(),
+    local_mode: true
+  }
+  const queue = store.get('ventes_local') || []
+  queue.push(vente)
+  store.set('ventes_local', queue)
+  localIO.emit('vente:created', vente)
+  res.json({ success: true, data: vente })
+})
+
+// -- Commandes serveur : liste --
+localApp.get('/api/commandes', (_, res) => {
+  const commandes = (store.get('commandes_local') || []).filter(c => c.statut !== 'encaisse')
+  res.json({ success: true, data: commandes })
+})
+
+// -- Commandes serveur : nouvelle commande --
+localApp.post('/api/commandes', (req, res) => {
+  const commande = {
+    ...req.body,
+    id:         `local_${Date.now()}`,
+    created_at: new Date().toISOString(),
+    statut:     'en_attente',
+    local_mode: true
+  }
+  const commandes = store.get('commandes_local') || []
+  commandes.push(commande)
+  store.set('commandes_local', commandes)
+  localIO.emit('commande:nouvelle', commande)
+  res.json({ success: true, data: commande })
+})
+
+// -- Commandes serveur : encaisser --
+localApp.post('/api/commandes/:id/encaisser', (req, res) => {
+  const commandes = store.get('commandes_local') || []
+  const idx = commandes.findIndex(c => c.id === req.params.id)
+  if (idx === -1) return res.status(404).json({ success: false, message: 'Commande introuvable' })
+  commandes[idx].statut       = 'encaisse'
+  commandes[idx].mode_paiement = req.body.mode_paiement
+  store.set('commandes_local', commandes)
+  localIO.emit('commande:encaissee', commandes[idx])
+  res.json({ success: true, data: commandes[idx] })
+})
+
+// -- Fallback SPA : toutes les routes non-API → index.html (React Router) --
+localApp.get('*', (req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' })
+  const indexPath = path.join(frontendDist, 'index.html')
+  res.sendFile(indexPath, err => {
+    if (err) res.status(200).send('Flowix — en attente du frontend compilé')
+  })
+})
+
+localIO.on('connection', socket => {
+  console.log('[Local] Client connecté:', socket.id)
+  socket.on('disconnect', () => console.log('[Local] Client déconnecté:', socket.id))
+})
+
+localHttpServer.listen(LOCAL_PORT, '0.0.0.0', () => {
+  console.log(`[Local] Serveur démarré — http://${getLocalIP()}:${LOCAL_PORT}`)
+  lancerMDNS()
+})
+
+// ── mDNS : annonce "flowix.local" sur le WiFi ──────────────
+// Permet aux mobiles et navigateurs de trouver ce PC sans connaître son IP
+function lancerMDNS() {
+  try {
+    const mdnsInstance = mdns()
+    const localIP = getLocalIP()
+    mdnsInstance.on('query', (query) => {
+      const cherche = query.questions.some(q =>
+        q.name === 'flowix.local' || q.name === '_flowix._tcp.local'
+      )
+      if (!cherche) return
+      mdnsInstance.respond({
+        answers: [
+          { name: 'flowix.local',        type: 'A',   ttl: 300, data: localIP },
+          { name: '_flowix._tcp.local',   type: 'PTR', ttl: 300, data: `Flowix._flowix._tcp.local` },
+          { name: `Flowix._flowix._tcp.local`, type: 'SRV', ttl: 300, data: { priority: 0, weight: 0, port: LOCAL_PORT, target: 'flowix.local' } }
+        ]
+      })
+    })
+    console.log(`[mDNS] Annonce flowix.local → ${localIP}:${LOCAL_PORT}`)
+  } catch (e) {
+    console.log('[mDNS] Non disponible (normal en dev):', e.message)
+  }
+}
 
 let mainWindow
 
@@ -69,6 +272,39 @@ app.on('window-all-closed', () => {
 ipcMain.handle('store:get', (_, key) => store.get(key))
 ipcMain.handle('store:set', (_, key, value) => store.set(key, value))
 ipcMain.handle('store:delete', (_, key) => store.delete(key))
+
+// ── IPC — Serveur local ────────────────────────────────────
+ipcMain.handle('local:getIP',   () => getLocalIP())
+ipcMain.handle('local:getPort', () => LOCAL_PORT)
+
+// Le renderer met à jour les caches utilisés par le serveur local
+ipcMain.handle('local:cacheMaquis',   (_, data) => { store.set('maquis_cache', data) })
+ipcMain.handle('local:cacheStations', (_, data) => { store.set('stations_cache', data) })
+
+// Cache les credentials d'un utilisateur pour le login offline
+// Le renderer envoie le mot de passe en clair, main.js le hash avant stockage
+ipcMain.handle('local:cacheUser', async (_, { loginId, email, motDePasse, utilisateurData }) => {
+  const hash = await bcrypt.hash(motDePasse, 8)
+  const users = store.get('users_cache') || []
+  const idx   = users.findIndex(u => u.email === email || u.login === loginId)
+  const entry = {
+    id:                  utilisateurData.id,
+    email:               email || utilisateurData.email,
+    login:               loginId || utilisateurData.login || null,
+    role:                utilisateurData.role,
+    maquis_id:           utilisateurData.maquis?.id,
+    mot_de_passe_hash:   hash,
+    utilisateur_data:    utilisateurData,
+    cached_at:           Date.now()
+  }
+  if (idx >= 0) users[idx] = entry
+  else users.push(entry)
+  store.set('users_cache', users)
+})
+
+// Sync des ventes collectées localement (de mobiles) vers VPS
+ipcMain.handle('local:getVentesLocales', () => store.get('ventes_local') || [])
+ipcMain.handle('local:clearVentesLocales', () => { store.set('ventes_local', []) })
 
 // ── Utilitaire : ouvre une fenêtre cachée et imprime le HTML ──
 function imprimerHTML(html) {

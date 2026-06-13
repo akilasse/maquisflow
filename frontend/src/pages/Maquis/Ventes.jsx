@@ -68,6 +68,11 @@ export default function Ventes() {
   const [heureFin,       setHeureFin]       = useState('')
   const [rechercheNum,   setRechercheNum]   = useState('')
   const [rechercheServ,  setRechercheServ]  = useState('')
+  const [rechercheProd,  setRechercheProd]  = useState('')
+  const [rechercheCateg, setRechercheCateg] = useState('')
+  const [rechercheVariante, setRechercheVariante] = useState('')
+  const [lignesProduit,  setLignesProduit]  = useState(null) // null = mode ventes, [] = mode lignes
+  const [catalogueProduits, setCatalogueProduits] = useState([])
   const [periode,        setPeriode]        = useState('aujourd_hui')
   const [ouverte,        setOuverte]        = useState(null)
   const { showToast: msg } = useToast()
@@ -126,39 +131,54 @@ export default function Ventes() {
 
   const charger = useCallback(async () => {
     setChargement(true)
+    const modeLignes = rechercheProd.trim() || rechercheCateg.trim() || rechercheVariante.trim()
     try {
       const p = new URLSearchParams({ date_debut: dateDebut, date_fin: dateFin })
-      if (heureDebut)             p.set('heure_debut',     heureDebut)
-      if (heureFin)               p.set('heure_fin',       heureFin)
-      if (filtreStatut)           p.set('statut',          filtreStatut)
-      if (rechercheServ.trim())   p.set('serveur',         rechercheServ.trim())
-      if (rechercheNum.trim())    p.set('numero_facture',  rechercheNum.trim())
+      if (heureDebut)             p.set('heure_debut',    heureDebut)
+      if (heureFin)               p.set('heure_fin',      heureFin)
+      if (rechercheProd.trim())     p.set('produit',    rechercheProd.trim())
+      if (rechercheCateg.trim())    p.set('categorie',  rechercheCateg.trim())
+      if (rechercheVariante.trim()) p.set('variante',   rechercheVariante.trim())
 
-      const promises = [api.get(`/api/ventes?${p}`).then(r => (r.data.data || []).map(v => ({ ...v, _type: 'vente' })))]
+      if (modeLignes) {
+        // Mode lignes : historique par produit uniquement
+        const r = await api.get(`/api/ventes/lignes?${p}`)
+        setLignesProduit(r.data.data || [])
+        setVentes([])
+      } else {
+        // Mode ventes complet
+        setLignesProduit(null)
+        if (filtreStatut)           p.set('statut',         filtreStatut)
+        if (rechercheServ.trim())   p.set('serveur',        rechercheServ.trim())
+        if (rechercheNum.trim())    p.set('numero_facture', rechercheNum.trim())
 
-      // Commandes tablette en attente : visibles quand filtre "En attente" ou "Toutes"
-      if (!filtreStatut || filtreStatut === 'en_attente') {
-        promises.push(
-          api.get('/api/commandes?statut=en_attente')
-            .then(r => (r.data.data || []).map(c => ({
-              ...c,
-              _type:      'commande',
-              date_vente: c.created_at,
-              total_net:  (c.lignes || []).reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0),
-              statut:     'en_attente',
-              serveur_nom: c.serveur?.nom || null,
-            })))
-            .catch(() => [])
-        )
+        const promises = [api.get(`/api/ventes?${p}`).then(r => (r.data.data || []).map(v => ({ ...v, _type: 'vente' })))]
+        if (!filtreStatut || filtreStatut === 'en_attente') {
+          promises.push(
+            api.get('/api/commandes?statut=en_attente')
+              .then(r => (r.data.data || []).map(c => ({
+                ...c,
+                _type:      'commande',
+                date_vente: c.created_at,
+                total_net:  (c.lignes || []).reduce((s, l) => s + parseFloat(l.prix_unitaire) * parseFloat(l.quantite), 0),
+                statut:     'en_attente',
+                serveur_nom: c.serveur?.nom || null,
+              })))
+              .catch(() => [])
+          )
+        }
+        const results = await Promise.all(promises)
+        setVentes(results.flat().sort((a, b) => new Date(b.date_vente) - new Date(a.date_vente)))
       }
-
-      const results = await Promise.all(promises)
-      setVentes(results.flat().sort((a, b) => new Date(b.date_vente) - new Date(a.date_vente)))
     } catch { msg('erreur', 'Erreur chargement') }
     finally  { setChargement(false) }
-  }, [dateDebut, dateFin, heureDebut, heureFin, filtreStatut, rechercheServ, rechercheNum])
+  }, [dateDebut, dateFin, heureDebut, heureFin, filtreStatut, rechercheServ, rechercheNum, rechercheProd, rechercheCateg, rechercheVariante])
 
   useEffect(() => { charger() }, [charger])
+
+  useEffect(() => {
+    api.get('/api/stock/produits').then(r => setCatalogueProduits(r.data.data || [])).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!socket) return
@@ -352,6 +372,50 @@ export default function Ventes() {
     w.document.close()
   }
 
+  const imprimerLignes = () => {
+    if (!lignesProduit || lignesProduit.length === 0) return
+    const titre = [rechercheProd, rechercheCateg, rechercheVariante].filter(Boolean).join(' · ') || 'Produits filtrés'
+    const totalQte = lignesProduit.reduce((s, l) => s + Number(l.quantite), 0)
+    const totalMnt = lignesProduit.reduce((s, l) => s + parseFloat(l.total_ligne || 0), 0)
+    const rows = lignesProduit.map(l => `
+      <tr>
+        <td>${new Date(l.vente?.date_vente).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })}</td>
+        <td>${l.produit?.nom || '—'}</td>
+        <td>${l.produit?.categorie || '—'}</td>
+        <td>${l.variante_nom || '—'}</td>
+        <td style="text-align:center">${Number(l.quantite)}</td>
+        <td style="text-align:right">${fmtNum(l.prix_unitaire)}</td>
+        <td style="text-align:right;font-weight:700">${fmtNum(l.total_ligne)}</td>
+        <td>${MODES[l.vente?.mode_paiement]?.label || '—'}</td>
+        <td>${l.vente?.caissier?.nom || '—'}</td>
+      </tr>`).join('')
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+      <title>${titre} — ${utilisateur?.maquis?.nom || ''}</title>
+      <style>
+        body { font-family: Arial, sans-serif; font-size: 12px; color: #111; margin: 20px; }
+        h2 { margin: 0 0 4px; font-size: 16px; }
+        p { margin: 0 0 12px; color: #555; font-size: 11px; }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: #6366f1; color: white; padding: 6px 8px; text-align: left; font-size: 11px; }
+        td { padding: 5px 8px; font-size: 11px; border-bottom: 1px solid #f3f4f6; }
+        tr:nth-child(even) { background: #f9fafb; }
+        tfoot td { font-weight: bold; background: #f0fdf4; border-top: 2px solid #d1fae5; }
+        @media print { body { margin: 10px; } }
+      </style></head><body>
+      <h2>${titre} — ${utilisateur?.maquis?.nom || ''}</h2>
+      <p>Période : ${dateDebut} → ${dateFin} · ${lignesProduit.length} ligne(s)</p>
+      <table>
+        <thead><tr><th>Date</th><th>Produit</th><th>Famille</th><th>Variante</th><th style="text-align:center">Qté</th><th style="text-align:right">P.U.</th><th style="text-align:right">Total</th><th>Paiement</th><th>Caissier</th></tr></thead>
+        <tbody>${rows}</tbody>
+        <tfoot><tr><td colspan="4">Total — ${totalQte} unité(s)</td><td style="text-align:center">${totalQte}</td><td></td><td style="text-align:right">${fmtNum(totalMnt)} FCFA</td><td colspan="2"></td></tr></tfoot>
+      </table>
+      <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); }<\/script>
+      </body></html>`
+    const w = window.open('', '_blank', 'width=1000,height=700')
+    w.document.write(html)
+    w.document.close()
+  }
+
   return (
     <div style={{ padding: '20px 24px', maxWidth: 1100, margin: '0 auto', minHeight: '100vh', background: '#f8fafc' }} className="ventes-page">
 
@@ -411,6 +475,38 @@ export default function Ventes() {
           </div>
         </div>
 
+        {/* Filtres produit / famille / variante */}
+        {(() => {
+          const categories = [...new Set(catalogueProduits.map(p => p.categorie).filter(Boolean))].sort()
+          const variantes  = [...new Set(catalogueProduits.flatMap(p => (p.variantes || []).map(v => v.nom)).filter(Boolean))].sort()
+          const selStyle   = { width:'100%', border:'1.5px solid #e5e7eb', borderRadius:8, padding:'7px 10px', fontSize:14, background:'white', boxSizing:'border-box', cursor:'pointer' }
+          return (
+            <div style={{ display:'flex', gap:12, marginTop:12, flexWrap:'wrap' }}>
+              <div style={{ flex:3, minWidth:180 }}>
+                <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Produit</div>
+                <input placeholder="Rechercher un produit…" value={rechercheProd} onChange={e => setRechercheProd(e.target.value)}
+                  style={{ ...selStyle }} />
+              </div>
+              <div style={{ flex:2, minWidth:150 }}>
+                <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Famille</div>
+                <select value={rechercheCateg} onChange={e => setRechercheCateg(e.target.value)} style={selStyle}>
+                  <option value="">Toutes</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              {variantes.length > 0 && (
+                <div style={{ flex:2, minWidth:140 }}>
+                  <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Variante</div>
+                  <select value={rechercheVariante} onChange={e => setRechercheVariante(e.target.value)} style={selStyle}>
+                    <option value="">Toutes</option>
+                    {variantes.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
+              )}
+            </div>
+          )
+        })()}
+
         {/* Statuts */}
         <div style={{ display:'flex', gap:8, marginTop:14, flexWrap:'wrap' }}>
           {STATUTS.map(s => (
@@ -424,6 +520,89 @@ export default function Ventes() {
         </div>
       </div>
 
+      {/* ── Mode lignes (filtre produit/catégorie actif) ── */}
+      {lignesProduit !== null ? (
+        <>
+          <div style={{ background:'#fff', borderRadius:14, padding:'14px 20px', marginBottom:16, boxShadow:'0 1px 6px rgba(0,0,0,0.07)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div style={{ fontSize:14, color:'#6b7280' }}>
+              {chargement ? '...' : <><strong style={{ color:'#111827' }}>{lignesProduit.length}</strong> ligne{lignesProduit.length > 1 ? 's' : ''} vendues · <strong style={{ color:'#111827' }}>{lignesProduit.reduce((s, l) => s + Number(l.quantite), 0)}</strong> unités</>}
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+              {lignesProduit.length > 0 && (
+                <button onClick={imprimerLignes} style={{ padding:'7px 16px', border:`1.5px solid ${couleur}`, borderRadius:8, background:'white', color:couleur, fontSize:13, fontWeight:700, cursor:'pointer' }}>
+                  🖨 Imprimer
+                </button>
+              )}
+              <div style={{ fontSize:20, fontWeight:800, color:couleur }}>
+                {fmtNum(lignesProduit.reduce((s, l) => s + parseFloat(l.total_ligne || 0), 0))} <span style={{ fontSize:14, fontWeight:600, color:'#9ca3af' }}>FCFA</span>
+              </div>
+            </div>
+          </div>
+          {chargement ? (
+            <div style={{ textAlign:'center', padding:60, color:'#9ca3af', fontSize:15 }}>Chargement...</div>
+          ) : lignesProduit.length === 0 ? (
+            <div style={{ background:'#fff', borderRadius:14, padding:60, textAlign:'center', boxShadow:'0 1px 6px rgba(0,0,0,0.07)' }}>
+              <div style={{ fontSize:40, marginBottom:12 }}>📦</div>
+              <div style={{ fontSize:16, fontWeight:600, color:'#374151', marginBottom:6 }}>Aucune vente pour ce produit</div>
+              <div style={{ fontSize:13, color:'#9ca3af' }}>Essayez un autre nom ou une autre période</div>
+            </div>
+          ) : (
+            <div style={{ background:'#fff', borderRadius:14, overflow:'hidden', boxShadow:'0 1px 6px rgba(0,0,0,0.07)' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                <thead>
+                  <tr style={{ background:'#f9fafb', borderBottom:'1.5px solid #e5e7eb' }}>
+                    <th style={{ padding:'10px 14px', textAlign:'left', fontWeight:700, color:'#6b7280', fontSize:11, textTransform:'uppercase', letterSpacing:.5 }}>Date</th>
+                    <th style={{ padding:'10px 14px', textAlign:'left', fontWeight:700, color:'#6b7280', fontSize:11, textTransform:'uppercase', letterSpacing:.5 }}>Produit</th>
+                    <th style={{ padding:'10px 14px', textAlign:'left', fontWeight:700, color:'#6b7280', fontSize:11, textTransform:'uppercase', letterSpacing:.5 }}>Variante</th>
+                    <th style={{ padding:'10px 14px', textAlign:'center', fontWeight:700, color:'#6b7280', fontSize:11, textTransform:'uppercase', letterSpacing:.5 }}>Qté</th>
+                    <th style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, color:'#6b7280', fontSize:11, textTransform:'uppercase', letterSpacing:.5 }}>P.U.</th>
+                    <th style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, color:'#6b7280', fontSize:11, textTransform:'uppercase', letterSpacing:.5 }}>Total</th>
+                    <th style={{ padding:'10px 14px', textAlign:'center', fontWeight:700, color:'#6b7280', fontSize:11, textTransform:'uppercase', letterSpacing:.5 }}>Paiement</th>
+                    <th style={{ padding:'10px 14px', textAlign:'left', fontWeight:700, color:'#6b7280', fontSize:11, textTransform:'uppercase', letterSpacing:.5 }}>Caissier</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {lignesProduit.map((l, i) => (
+                    <tr key={l.id} style={{ borderBottom:'1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                      <td style={{ padding:'10px 14px', color:'#374151', whiteSpace:'nowrap' }}>{fmtDate(l.vente?.date_vente)}</td>
+                      <td style={{ padding:'10px 14px', fontWeight:600, color:'#111827' }}>
+                        {l.produit?.nom}
+                        {l.produit?.categorie && <span style={{ display:'block', fontSize:11, color:'#9ca3af', fontWeight:400 }}>{l.produit.categorie}</span>}
+                      </td>
+                      <td style={{ padding:'10px 14px', color:'#6b7280' }}>{l.variante_nom || '—'}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'center', fontWeight:700, color:'#111827' }}>{Number(l.quantite)}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', color:'#374151' }}>{fmtNum(l.prix_unitaire)}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:700, color: couleur }}>{fmtNum(l.total_ligne)}</td>
+                      <td style={{ padding:'10px 14px', textAlign:'center' }}>
+                        {MODES[l.vente?.mode_paiement] ? (
+                          <span style={{ fontSize:11, fontWeight:700, color: MODES[l.vente.mode_paiement].color }}>{MODES[l.vente.mode_paiement].label}</span>
+                        ) : '—'}
+                      </td>
+                      <td style={{ padding:'10px 14px', color:'#6b7280' }}>{l.vente?.caissier?.nom || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background:'#f0fdf4', borderTop:'2px solid #d1fae5' }}>
+                    <td colSpan={3} style={{ padding:'10px 14px', fontWeight:700, color:'#374151', fontSize:13 }}>
+                      Total — {lignesProduit.reduce((s, l) => s + Number(l.quantite), 0)} unité(s) vendue(s)
+                    </td>
+                    <td style={{ padding:'10px 14px', textAlign:'center', fontWeight:800, color:'#111827' }}>
+                      {lignesProduit.reduce((s, l) => s + Number(l.quantite), 0)}
+                    </td>
+                    <td />
+                    <td style={{ padding:'10px 14px', textAlign:'right', fontWeight:800, color: couleur, fontSize:15 }}>
+                      {fmtNum(lignesProduit.reduce((s, l) => s + parseFloat(l.total_ligne || 0), 0))}
+                    </td>
+                    <td colSpan={2} />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </>
+      ) : (
+      <>
       {/* Résumé */}
       <div style={{ background: '#fff', borderRadius: 14, padding: '14px 20px', marginBottom: 16, boxShadow: '0 1px 6px rgba(0,0,0,0.07)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
         <div style={{ fontSize:14, color:'#6b7280' }}>
@@ -701,6 +880,8 @@ export default function Ventes() {
             )
           })}
         </div>
+      )}
+      </>
       )}
 
       {/* Modale réduction */}

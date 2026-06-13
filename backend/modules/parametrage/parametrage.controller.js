@@ -177,9 +177,20 @@ const importProduits = async (req, res) => {
   }
 }
 
+const enregistrerServeurLocal = async (req, res) => {
+  try {
+    const { ip, port } = req.body
+    if (!ip) return res.status(400).json({ success: false, message: 'IP requise' })
+    await service.enregistrerServeurLocal(req.prisma, req.utilisateur.maquis_id, ip, port)
+    res.json({ success: true })
+  } catch (error) {
+    res.status(400).json({ success: false, message: error.message })
+  }
+}
+
 module.exports = {
   getProduits, creerProduit, modifierProduit, uploadPhotoProduit, importProduits,
   getFournisseurs, creerFournisseur, modifierFournisseur,
   getUtilisateurs, creerUtilisateur, modifierUtilisateur, uploadPhotoUtilisateur,
-  getMaquis, modifierMaquis, uploadLogoMaquis
+  getMaquis, modifierMaquis, uploadLogoMaquis, enregistrerServeurLocal
 }

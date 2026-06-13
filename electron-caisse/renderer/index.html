@@ -622,7 +622,7 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Surveiller connexion
-  window.addEventListener('online',  () => { state.isOnline = true;  updateStatus(); syncVentes() })
+  window.addEventListener('online',  () => { state.isOnline = true;  updateStatus(); syncVentes(); syncVentesLocales() })
   window.addEventListener('offline', () => { state.isOnline = false; updateStatus() })
 
   // Initialiser les modes de paiement
@@ -675,6 +675,17 @@ async function login() {
     await window.electronAPI.storeSet('token', state.token)
     await window.electronAPI.storeSet('refreshToken', state.refreshToken)
     await window.electronAPI.storeSet('utilisateur', state.utilisateur)
+
+    // Cacher les credentials pour le login offline (le main process hash le mot de passe)
+    window.electronAPI.cacheUser({
+      loginId:        email,
+      email:          state.utilisateur.email,
+      motDePasse:     mdp,
+      utilisateurData: state.utilisateur
+    }).catch(() => {})
+
+    // Enregistrer l'IP locale sur le VPS pour que les mobiles puissent nous trouver
+    enregistrerServeurLocal()
 
     afficherCaisse()
   } catch (err) {
@@ -791,6 +802,14 @@ async function afficherCaisse() {
   }
 
   await chargerProduits()
+
+  // Mettre à jour le cache maquis pour le serveur local
+  if (state.utilisateur?.maquis) {
+    await window.electronAPI.cacheMaquis(state.utilisateur.maquis)
+  }
+
+
+
 
   // Toujours charger stations + file d'attente (settings maquis peuvent être mis à jour sans reconnexion)
   await chargerStations()
@@ -1653,6 +1672,59 @@ async function updatePendingBadge() {
   }
 }
 
+// Enregistre l'IP locale sur le VPS pour que les mobiles puissent la découvrir
+async function enregistrerServeurLocal() {
+  try {
+    const ip   = await window.electronAPI.getLocalIP()
+    const port = await window.electronAPI.getLocalPort()
+    await fetchAPI(`${API_URL}/api/parametrage/local-server`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ip, port })
+    })
+    console.log(`[Local] IP enregistrée sur VPS : ${ip}:${port}`)
+  } catch (e) {
+    console.log('[Local] Impossible d\'enregistrer l\'IP (normal si hors ligne) :', e.message)
+  }
+}
+
+// Synchronise les ventes collectées localement (depuis les mobiles) vers le VPS
+async function syncVentesLocales() {
+  const ventesLocales = await window.electronAPI.getVentesLocales()
+  if (!ventesLocales.length) return
+
+  showMessage(`🔄 Sync des ventes locales (${ventesLocales.length})...`, 'info')
+  let synced = 0
+  const restantes = []
+
+  for (const vente of ventesLocales) {
+    try {
+      const res = await fetchAPI(`${API_URL}/api/ventes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode_paiement: vente.mode_paiement, note: vente.note, lignes: vente.lignes })
+      })
+      if ((await res.json()).success) synced++
+      else restantes.push(vente)
+    } catch { restantes.push(vente) }
+  }
+
+  if (restantes.length < ventesLocales.length) {
+    await window.electronAPI.clearVentesLocales()
+    // Conserver les restantes
+    for (const v of restantes) {
+      const q = await window.electronAPI.getVentesLocales()
+      q.push(v)
+      await window.electronAPI.storeSet('ventes_local', q)
+    }
+  }
+
+  if (synced > 0) {
+    showMessage(`✅ ${synced} vente(s) mobile(s) synchronisée(s) !`, 'succes')
+    chargerProduits()
+  }
+}
+
 // ═══════════════════════════════════════════════════════════
 // COMMANDES TABLETTE
 // ═══════════════════════════════════════════════════════════
@@ -1664,6 +1736,8 @@ async function chargerStations() {
     // Afficher seulement les stations de type caisse (ou toutes si aucune caisse définie)
     const caisses = toutes.filter(s => s.type === 'caisse')
     state.stations = caisses.length > 0 ? caisses : toutes
+    // Mettre à jour le cache du serveur local
+    await window.electronAPI.cacheStations(toutes)
     const saved = await window.electronAPI.storeGet('caisse_station')
     if (saved && state.stations.find(s => s.id === saved)) {
       state.stationFiltre = saved

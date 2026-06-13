@@ -6,8 +6,9 @@ const { verifierToken, autoriserRoles, requireMaquis } = require('../../middlewa
 const staff = [verifierToken, requireMaquis, autoriserRoles('caissier', 'gerant', 'patron')]
 const admin = [verifierToken, requireMaquis, autoriserRoles('gerant', 'patron')]
 
-router.post('/', staff, ventesController.creerVente)
-router.get('/',  staff, ventesController.getVentes)
+router.post('/',       staff, ventesController.creerVente)
+router.get('/',        staff, ventesController.getVentes)
+router.get('/lignes',  staff, ventesController.getVentesLignes)
 
 router.put('/:id/retour-attente', admin, ventesController.retourEnAttente)
 router.put('/:id/lignes',         admin, ventesController.modifierLignes)

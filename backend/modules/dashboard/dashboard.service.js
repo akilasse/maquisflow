@@ -57,14 +57,14 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
 
     // 2 — Agrégat semaine (lundi → maintenant)
     prisma.vente.aggregate({
-      where: { maquis_id, date_vente: { gte: debutSemaine, lte: now }, statut: { in: ['encaissee', 'credit_en_cours'] } },
+      where: { maquis_id, date_vente: { gte: debutSemaine, lte: finJour }, statut: { in: ['encaissee', 'credit_en_cours'] } },
       _sum: { total_net: true },
       _count: { id: true }
     }),
 
     // 3 — Agrégat mois (1er → maintenant)
     prisma.vente.aggregate({
-      where: { maquis_id, date_vente: { gte: debutMois, lte: now }, statut: { in: ['encaissee', 'credit_en_cours'] } },
+      where: { maquis_id, date_vente: { gte: debutMois, lte: finJour }, statut: { in: ['encaissee', 'credit_en_cours'] } },
       _sum: { total_net: true },
       _count: { id: true }
     }),
@@ -89,7 +89,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
       JOIN Vente v   ON v.id = vl.vente_id
       WHERE v.maquis_id = ${maquis_id}
         AND v.date_vente >= ${debutSemaine}
-        AND v.date_vente <= ${now}
+        AND v.date_vente <= ${finJour}
         AND v.statut IN ('encaissee', 'credit_en_cours')
     `,
 
@@ -101,7 +101,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
       JOIN Vente v   ON v.id = vl.vente_id
       WHERE v.maquis_id = ${maquis_id}
         AND v.date_vente >= ${debutMois}
-        AND v.date_vente <= ${now}
+        AND v.date_vente <= ${finJour}
         AND v.statut IN ('encaissee', 'credit_en_cours')
     `,
 
@@ -116,7 +116,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
           FROM Vente
           WHERE maquis_id = ${maquis_id}
             AND date_vente >= ${new Date(Date.UTC(now.getUTCFullYear(), 0, 1))}
-            AND date_vente <= ${now}
+            AND date_vente <= ${finJour}
             AND statut IN ('encaissee', 'credit_en_cours')
           GROUP BY YEAR(date_vente), MONTH(date_vente)
           ORDER BY annee ASC, periode ASC
@@ -129,7 +129,7 @@ const getDashboard = async (prisma, utilisateur, filtres = {}) => {
           FROM Vente
           WHERE maquis_id = ${maquis_id}
             AND date_vente >= ${debutSemaine}
-            AND date_vente <= ${now}
+            AND date_vente <= ${finJour}
             AND statut IN ('encaissee', 'credit_en_cours')
           GROUP BY DATE(date_vente)
           ORDER BY periode ASC

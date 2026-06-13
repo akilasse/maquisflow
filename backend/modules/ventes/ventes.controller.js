@@ -85,9 +85,19 @@ const modifierLignes = async (req, res) => {
   }
 }
 
+const getVentesLignes = async (req, res) => {
+  try {
+    const lignes = await ventesService.getVentesLignes(req.prisma, req.utilisateur.maquis_id, req.query)
+    return res.status(200).json({ success: true, data: lignes })
+  } catch (error) {
+    return res.status(400).json({ success: false, message: error.message })
+  }
+}
+
 module.exports = {
   creerVente,
   getVentes,
+  getVentesLignes,
   retourEnAttente,
   appliquerReduction,
   annulerVente,

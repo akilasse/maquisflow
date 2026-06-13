@@ -179,7 +179,7 @@ const creerVente = async (prisma, io, data, utilisateur) => {
 
 // Récupère les ventes avec filtres
 const getVentes = async (prisma, maquis_id, filtres = {}) => {
-  const { date_debut, date_fin, heure_debut, heure_fin, mode_paiement, statut, serveur, numero_facture, caissier_nom } = filtres
+  const { date_debut, date_fin, heure_debut, heure_fin, mode_paiement, statut, serveur, numero_facture, caissier_nom, produit, categorie, variante } = filtres
 
   const [hD, mD] = heure_debut ? heure_debut.split(':').map(Number) : [0, 0]
   const [hF, mF] = heure_fin   ? heure_fin.split(':').map(Number)   : [23, 59]
@@ -198,13 +198,24 @@ const getVentes = async (prisma, maquis_id, filtres = {}) => {
   if (numero_facture) where.id = parseInt(numero_facture) || undefined
   if (caissier_nom) where.caissier = { nom: { contains: caissier_nom } }
 
+  if (produit || categorie || variante) {
+    const lignesWhere = {}
+    if (produit || categorie) {
+      lignesWhere.produit = {}
+      if (produit)   lignesWhere.produit.nom       = { contains: produit }
+      if (categorie) lignesWhere.produit.categorie = { contains: categorie }
+    }
+    if (variante) lignesWhere.variante_nom = { contains: variante }
+    where.lignes = { some: lignesWhere }
+  }
+
   const ventes = await prisma.vente.findMany({
     where,
     include: {
       caissier: { select: { nom: true } },
       lignes: {
         include: {
-          produit: { select: { nom: true, unite: true } }
+          produit: { select: { nom: true, unite: true, categorie: true } }
         }
       }
     },
@@ -411,9 +422,44 @@ const modifierLignes = async (prisma, io, venteId, lignes, utilisateur) => {
   return venteMaj
 }
 
+// Historique par produit/variante/catégorie — retourne les VenteLigne filtrées
+const getVentesLignes = async (prisma, maquis_id, filtres = {}) => {
+  const { date_debut, date_fin, heure_debut, heure_fin, produit, categorie, variante } = filtres
+
+  const [hD, mD] = heure_debut ? heure_debut.split(':').map(Number) : [0, 0]
+  const [hF, mF] = heure_fin   ? heure_fin.split(':').map(Number)   : [23, 59]
+
+  const debut = (() => { const d = new Date(date_debut || new Date().toISOString().slice(0,10)); d.setUTCHours(hD, mD, 0, 0); return d })()
+  const fin   = (() => { const d = new Date(date_fin   || new Date().toISOString().slice(0,10)); d.setUTCHours(hF, mF, 59, 999); return d })()
+
+  const produitWhere = {}
+  if (produit)   produitWhere.nom       = { contains: produit }
+  if (categorie) produitWhere.categorie = { contains: categorie }
+
+  const lignes = await prisma.venteLigne.findMany({
+    where: {
+      vente: {
+        maquis_id,
+        date_vente: { gte: debut, lte: fin },
+        statut: { in: ['encaissee', 'credit_en_cours'] }
+      },
+      ...(Object.keys(produitWhere).length > 0 ? { produit: produitWhere } : {}),
+      ...(variante ? { variante_nom: { contains: variante } } : {})
+    },
+    include: {
+      produit: { select: { nom: true, categorie: true, unite: true } },
+      vente:   { select: { id: true, date_vente: true, mode_paiement: true, caissier: { select: { nom: true } } } }
+    },
+    orderBy: { vente: { date_vente: 'desc' } }
+  })
+
+  return lignes
+}
+
 module.exports = {
   creerVente,
   getVentes,
+  getVentesLignes,
   retourEnAttente,
   appliquerReduction,
   annulerVente,

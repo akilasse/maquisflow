@@ -27,4 +27,7 @@ router.get('/maquis', verifierToken, requireMaquis, autoriserRoles('gerant', 'pa
 router.put('/maquis', verifierToken, requireMaquis, autoriserRoles('gerant', 'patron'), ctrl.modifierMaquis)
 router.post('/maquis/logo', verifierToken, autoriserRoles('gerant', 'patron'), uploadLogo, ctrl.uploadLogoMaquis)
 
+// SERVEUR LOCAL (Electron caisse PC → enregistre son IP WiFi sur le VPS)
+router.put('/local-server', verifierToken, requireMaquis, ctrl.enregistrerServeurLocal)
+
 module.exports = router

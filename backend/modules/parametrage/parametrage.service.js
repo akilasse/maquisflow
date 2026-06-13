@@ -29,6 +29,9 @@ const creerProduit = async (prisma, maquis_id, data) => {
     throw new Error('Nom, prix de vente et prix d\'achat sont obligatoires')
   }
 
+  const doublon = await prisma.produit.findFirst({ where: { maquis_id, nom: { equals: nom }, actif: true } })
+  if (doublon) throw new Error(`Un produit nommé "${nom}" existe déjà`)
+
   const produit = await prisma.produit.create({
     data: {
       maquis_id,
@@ -339,9 +342,16 @@ const importProduits = async (prisma, maquis_id, lignes) => {
   return { importes: data.length }
 }
 
+const enregistrerServeurLocal = async (prisma, maquis_id, ip, port) => {
+  await prisma.maquis.update({
+    where: { id: maquis_id },
+    data: { local_server_ip: ip, local_server_port: port || 3737 }
+  })
+}
+
 module.exports = {
   getProduits,     creerProduit,     modifierProduit,  importProduits,
   getFournisseurs, creerFournisseur, modifierFournisseur,
   getUtilisateurs, creerUtilisateur, modifierUtilisateur,
-  getMaquis,       modifierMaquis
+  getMaquis,       modifierMaquis,   enregistrerServeurLocal
 }

@@ -207,7 +207,7 @@ const Inventaire = () => {
 
   const genererPDF = (inv, parts) => {
     const lignesTableau = (inv.lignes || []).map((l, i) => {
-      const ecart = parseFloat(l.ecart)
+      const ecart = parseFloat(l.qte_reelle) - parseFloat(l.qte_theorique)
       const couleurEcart = ecart > 0 ? '#16a34a' : ecart < 0 ? '#dc2626' : '#374151'
       const bgRow = i % 2 === 0 ? '#ffffff' : '#f8fafc'
       const vc = l.variantes_comptees
@@ -230,7 +230,7 @@ const Inventaire = () => {
       </tr>`
     }).join('')
 
-    const avecEcart = (inv.lignes || []).filter(l => parseFloat(l.ecart) !== 0).length
+    const avecEcart = (inv.lignes || []).filter(l => parseFloat(l.qte_reelle) !== parseFloat(l.qte_theorique)).length
     const signaturesHTML = parts.filter(p => p.trim()).map(p => `
       <div style="flex:1;min-width:180px;border:1.5px solid #e2e8f0;border-radius:8px;padding:16px">
         <p style="margin:0 0 4px;font-size:12px;font-weight:700;color:#374151">${p}</p>
@@ -792,7 +792,7 @@ ${parts.filter(p => p.trim()).length > 0 ? `
             </div>
             <div style={{ overflowY: 'auto', padding: '16px 28px', flex: 1 }}>
               {(() => {
-                const avecEcart = (detailModal.lignes || []).filter(l => parseFloat(l.ecart) !== 0).length
+                const avecEcart = (detailModal.lignes || []).filter(l => parseFloat(l.qte_reelle) !== parseFloat(l.qte_theorique)).length
                 return (
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
@@ -819,7 +819,7 @@ ${parts.filter(p => p.trim()).length > 0 ? `
                       </thead>
                       <tbody>
                         {(detailModal.lignes || []).map((l, i) => {
-                          const ecart = parseFloat(l.ecart)
+                          const ecart = parseFloat(l.qte_reelle) - parseFloat(l.qte_theorique)
                           return (
                             <tr key={l.id} style={{ borderBottom: '1px solid #f3f4f6', background: i % 2 === 0 ? 'white' : '#fafafa' }}>
                               <td style={{ padding: '9px 10px', fontSize: '13px', fontWeight: '500' }}>{l.produit?.nom}</td>

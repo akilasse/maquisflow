@@ -14,7 +14,7 @@
 - Nginx : proxy /api → localhost:3000, static → frontend/dist
 
 ## Comptes production
-- SuperAdmin : admin@maquisflow.com / nimdA123 → /admin/login
+- SuperAdmin : akilassetia21@gmail.com / nimdA123 → /admin/login
 - JWT_SECRET : maquisflow_jwt_secret_2026
 
 ## Structure projet

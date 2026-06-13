@@ -6,8 +6,18 @@
 
 import axios from 'axios'
 
+// Si la page est chargée depuis le serveur local de la caisse (http://IP:3737)
+// on utilise cette même origine comme URL d'API — sinon on utilise le VPS
+const VPS_ORIGINS = ['https://maquisflow.com', 'https://www.maquisflow.com']
+const getBaseURL = () => {
+  if (typeof window !== 'undefined' && !VPS_ORIGINS.includes(window.location.origin)) {
+    return window.location.origin
+  }
+  return import.meta.env.VITE_API_URL
+}
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL,
+  baseURL: getBaseURL(),
   withCredentials: true // Pour les cookies (refresh token)
 })
 
@@ -44,7 +54,7 @@ api.interceptors.response.use(
       try {
         if (!_refreshPromise) {
           _refreshPromise = axios.post(
-            `${import.meta.env.VITE_API_URL}/api/auth/refresh`,
+            `${getBaseURL()}/api/auth/refresh`,
             {},
             { withCredentials: true }
           ).then(res => {

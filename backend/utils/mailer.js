@@ -16,10 +16,16 @@ const getResend = () => {
 const FROM = () => process.env.RESEND_FROM || 'Flowix <noreply@maquisflow.com>'
 const FROM_ALERTES = () => process.env.RESEND_FROM || 'Flowix Alertes <noreply@maquisflow.com>'
 
+const htmlWrap = (body) => `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:16px;background:#f3f4f6">${body}</body>
+</html>`
+
 const envoyer = async ({ to, subject, html }) => {
   const resend = getResend()
   if (!resend) return
-  await resend.emails.send({ from: FROM(), to, subject, html })
+  await resend.emails.send({ from: FROM(), to, subject, html: htmlWrap(html) })
 }
 
 // ============================================================
@@ -28,9 +34,10 @@ const envoyer = async ({ to, subject, html }) => {
 const envoyerCredentialsUtilisateur = async ({ nom, email, login, mot_de_passe, nom_maquis }) => {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-      <div style="background:#6366f1;padding:24px 28px">
-        <h1 style="color:white;margin:0;font-size:22px;font-weight:800;letter-spacing:-0.5px">FLOWIX</h1>
-        <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px">Gestion commerciale</p>
+      <div style="background:#6366f1;padding:32px 28px;text-align:center">
+        <div style="display:inline-block;background:#FF6B35;border-radius:14px;width:52px;height:52px;line-height:52px;text-align:center;margin-bottom:12px;font-size:26px;font-weight:900;color:white">F</div>
+        <h1 style="color:white;margin:0;font-size:22px;font-weight:900;letter-spacing:2px">FLOWIX</h1>
+        <p style="color:rgba(255,255,255,0.75);margin:4px 0 0;font-size:11px;letter-spacing:1px;text-transform:uppercase">Gestion commerciale</p>
       </div>
       <div style="padding:28px">
         <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Bienvenue, ${nom} 👋</h2>
@@ -58,9 +65,10 @@ const envoyerCredentialsUtilisateur = async ({ nom, email, login, mot_de_passe, 
 const envoyerResetPassword = async ({ nom, email, reset_url }) => {
   const html = `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden">
-      <div style="background:#6366f1;padding:24px 28px">
-        <h1 style="color:white;margin:0;font-size:22px;font-weight:800;letter-spacing:-0.5px">FLOWIX</h1>
-        <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px">Gestion commerciale</p>
+      <div style="background:#6366f1;padding:32px 28px;text-align:center">
+        <div style="display:inline-block;background:#FF6B35;border-radius:14px;width:52px;height:52px;line-height:52px;text-align:center;margin-bottom:12px;font-size:26px;font-weight:900;color:white">F</div>
+        <h1 style="color:white;margin:0;font-size:22px;font-weight:900;letter-spacing:2px">FLOWIX</h1>
+        <p style="color:rgba(255,255,255,0.75);margin:4px 0 0;font-size:11px;letter-spacing:1px;text-transform:uppercase">Gestion commerciale</p>
       </div>
       <div style="padding:28px">
         <h2 style="margin:0 0 8px;font-size:18px;color:#111827">Réinitialisation de mot de passe</h2>
@@ -87,9 +95,10 @@ const envoyerResetPassword = async ({ nom, email, reset_url }) => {
 // ABONNEMENT — Helpers HTML
 // ============================================================
 const _header = `
-  <div style="background:#6366f1;padding:24px 28px">
-    <h1 style="color:white;margin:0;font-size:22px;font-weight:800;letter-spacing:-0.5px">FLOWIX</h1>
-    <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px">Gestion commerciale</p>
+  <div style="background:#6366f1;padding:32px 28px;text-align:center">
+    <div style="display:inline-block;background:#FF6B35;border-radius:14px;width:52px;height:52px;line-height:52px;text-align:center;margin-bottom:12px;font-size:26px;font-weight:900;color:white">F</div>
+    <h1 style="color:white;margin:0;font-size:22px;font-weight:900;letter-spacing:2px">FLOWIX</h1>
+    <p style="color:rgba(255,255,255,0.75);margin:4px 0 0;font-size:11px;letter-spacing:1px;text-transform:uppercase">Gestion commerciale</p>
   </div>`
 
 const _footer = `

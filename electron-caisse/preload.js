@@ -16,6 +16,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPrinters:    ()           => ipcRenderer.invoke('print:get-printers'),
   setPrinter:     (name)       => ipcRenderer.invoke('print:set-printer', name),
 
+  // Serveur local WiFi
+  getLocalIP:            ()     => ipcRenderer.invoke('local:getIP'),
+  getLocalPort:          ()     => ipcRenderer.invoke('local:getPort'),
+  cacheMaquis:           (data) => ipcRenderer.invoke('local:cacheMaquis', data),
+  cacheStations:         (data) => ipcRenderer.invoke('local:cacheStations', data),
+  cacheUser:             (data) => ipcRenderer.invoke('local:cacheUser', data),
+  getVentesLocales:      ()     => ipcRenderer.invoke('local:getVentesLocales'),
+  clearVentesLocales:    ()     => ipcRenderer.invoke('local:clearVentesLocales'),
+
   // Infos
   isElectron: true
 })

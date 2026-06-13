@@ -29,19 +29,28 @@ const Stock = () => {
   const [ligneSortie, setLigneSortie] = useState({ produit_id: '', quantite: '', raison: '' })
   const [lignesSortieConfirmees, setLignesSortieConfirmees] = useState([])
 
+  // Filtres historique
+  const fmt = (d) => d.toISOString().slice(0, 10)
+  const [histDateDebut, setHistDateDebut] = useState('')
+  const [histDateFin,   setHistDateFin]   = useState('')
+  const [histType,      setHistType]      = useState('')
+  const [histProduit,   setHistProduit]   = useState('')
+  const [histCateg,     setHistCateg]     = useState('')
+  const [histUnite,     setHistUnite]     = useState('')
+  const [histVariante,  setHistVariante]  = useState('')
+  const [histChargement, setHistChargement] = useState(false)
+
   useEffect(() => { chargerDonnees() }, [])
 
   const chargerDonnees = async () => {
     try {
-      const [p, f, h, b] = await Promise.all([
+      const [p, f, b] = await Promise.all([
         api.get('/api/stock/produits'),
         api.get('/api/parametrage/fournisseurs'),
-        api.get('/api/stock/historique'),
         api.get('/api/stock/bons')
       ])
       setProduits(p.data.data)
       setFournisseurs(f.data.data)
-      setHistorique(h.data.data.mouvements)
       setBons(b.data.data)
     } catch (error) {
       afficherMessage('erreur', 'Erreur chargement données')
@@ -49,6 +58,30 @@ const Stock = () => {
       setChargement(false)
     }
   }
+
+  const chargerHistorique = async (debut, fin, type, produit, categ, unite, variante) => {
+    setHistChargement(true)
+    try {
+      const p = new URLSearchParams()
+      if (debut)    p.set('date_debut',    debut)
+      if (fin)      p.set('date_fin',      fin)
+      if (type)     p.set('type_mouvement', type)
+      if (produit)  p.set('produit_nom',   produit)
+      if (categ)    p.set('categorie',     categ)
+      if (unite)    p.set('unite',         unite)
+      if (variante) p.set('variante',      variante)
+      const h = await api.get(`/api/stock/historique?${p}`)
+      setHistorique(h.data.data.mouvements)
+    } catch {
+      afficherMessage('erreur', 'Erreur chargement historique')
+    } finally {
+      setHistChargement(false)
+    }
+  }
+
+  useEffect(() => {
+    chargerHistorique(histDateDebut, histDateFin, histType, histProduit, histCateg, histUnite, histVariante)
+  }, [histDateDebut, histDateFin, histType, histProduit, histCateg, histUnite, histVariante])
 
   const modifierLigne = (index, champ, valeur) => {
     const nouvelles = [...lignesBon]
@@ -546,39 +579,136 @@ const Stock = () => {
       )}
 
       {/* HISTORIQUE */}
-      {onglet === 'historique' && (
-        <div style={{ backgroundColor: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
-                {['Date', 'Produit', 'Type', 'Quantité', 'Raison', 'Par'].map(h => (
-                  <th key={h} style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {historique.map(m => (
-                <tr key={m.id} style={{ borderBottom: '1px solid #f9fafb' }}>
-                  <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{new Date(m.date_mouvement).toLocaleString('fr-FR')}</td>
-                  <td style={{ padding: '10px', fontSize: '13px', fontWeight: '500' }}>{m.produit?.nom}</td>
-                  <td style={{ padding: '10px' }}>
-                    <span style={{
-                      padding: '3px 8px', borderRadius: '20px', fontSize: '12px', fontWeight: '500',
-                      backgroundColor: m.type_mouvement === 'entree' ? '#f0fdf4' : '#fef2f2',
-                      color: m.type_mouvement === 'entree' ? '#16a34a' : '#dc2626'
-                    }}>
-                      {m.type_mouvement.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td style={{ padding: '10px', fontSize: '13px' }}>{m.quantite} {m.produit?.unite}</td>
-                  <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{m.raison || '-'}</td>
-                  <td style={{ padding: '10px', fontSize: '13px', color: '#6b7280' }}>{m.utilisateur?.nom}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {onglet === 'historique' && (() => {
+        const categories = [...new Set(produits.map(p => p.categorie).filter(Boolean))].sort()
+        const unites     = [...new Set(produits.map(p => p.unite).filter(Boolean))].sort()
+        const variantes  = [...new Set(produits.flatMap(p => (p.variantes || []).map(v => v.nom)).filter(Boolean))].sort()
+        const lblType = { entree:'Entrée', sortie_vente:'Vente', sortie_manuelle:'Sortie manuelle', ajustement:'Ajustement' }
+        const bgType  = { entree:'#f0fdf4', sortie_vente:'#eff6ff', sortie_manuelle:'#fef2f2', ajustement:'#fffbeb' }
+        const clType  = { entree:'#16a34a', sortie_vente:'#1d4ed8', sortie_manuelle:'#dc2626',  ajustement:'#b45309' }
+        const sel = { border:'1.5px solid #e5e7eb', borderRadius:8, padding:'7px 10px', fontSize:13, background:'white', cursor:'pointer' }
+        return (
+          <div>
+            {/* Filtres */}
+            <div style={{ backgroundColor:'white', borderRadius:12, padding:'14px 16px', marginBottom:12, boxShadow:'0 1px 3px rgba(0,0,0,0.1)' }}>
+              <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'flex-end' }}>
+                {/* Produit text */}
+                <div style={{ flex:'2 1 160px' }}>
+                  <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Produit</div>
+                  <input placeholder="Rechercher un produit…" value={histProduit} onChange={e => setHistProduit(e.target.value)}
+                    style={{ ...sel, width:'100%', boxSizing:'border-box' }} />
+                </div>
+                {/* Famille dropdown */}
+                <div style={{ flex:'1 1 130px' }}>
+                  <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Famille</div>
+                  <select value={histCateg} onChange={e => setHistCateg(e.target.value)} style={{ ...sel, width:'100%' }}>
+                    <option value="">Toutes</option>
+                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                </div>
+                {/* Unité dropdown */}
+                <div style={{ flex:'1 1 110px' }}>
+                  <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Unité</div>
+                  <select value={histUnite} onChange={e => setHistUnite(e.target.value)} style={{ ...sel, width:'100%' }}>
+                    <option value="">Toutes</option>
+                    {unites.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+                {/* Variante dropdown */}
+                {variantes.length > 0 && (
+                  <div style={{ flex:'1 1 110px' }}>
+                    <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Variante</div>
+                    <select value={histVariante} onChange={e => setHistVariante(e.target.value)} style={{ ...sel, width:'100%' }}>
+                      <option value="">Toutes</option>
+                      {variantes.map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
+                  </div>
+                )}
+                {/* Type dropdown */}
+                <div style={{ flex:'1 1 130px' }}>
+                  <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Type</div>
+                  <select value={histType} onChange={e => setHistType(e.target.value)} style={{ ...sel, width:'100%' }}>
+                    <option value="">Tous</option>
+                    <option value="entree">Entrée</option>
+                    <option value="sortie_vente">Sortie vente</option>
+                    <option value="sortie_manuelle">Sortie manuelle</option>
+                    <option value="ajustement">Ajustement</option>
+                  </select>
+                </div>
+              </div>
+              {/* Dates */}
+              <div style={{ display:'flex', gap:10, flexWrap:'wrap', alignItems:'flex-end', marginTop:10 }}>
+                <div>
+                  <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Du</div>
+                  <input type="date" value={histDateDebut} onChange={e => setHistDateDebut(e.target.value)} style={sel} />
+                </div>
+                <div>
+                  <div style={{ fontSize:11, color:'#9ca3af', fontWeight:600, marginBottom:4, textTransform:'uppercase', letterSpacing:.5 }}>Au</div>
+                  <input type="date" value={histDateFin} onChange={e => setHistDateFin(e.target.value)} style={sel} />
+                </div>
+                {(histDateDebut || histDateFin || histType || histProduit || histCateg || histUnite || histVariante) && (
+                  <button onClick={() => { setHistDateDebut(''); setHistDateFin(''); setHistType(''); setHistProduit(''); setHistCateg(''); setHistUnite(''); setHistVariante('') }}
+                    style={{ border:'1.5px solid #e5e7eb', borderRadius:8, padding:'7px 14px', fontSize:13, background:'white', cursor:'pointer', color:'#6b7280' }}>
+                    ✕ Réinitialiser
+                  </button>
+                )}
+                <div style={{ fontSize:13, color:'#6b7280', paddingBottom:2, marginLeft:'auto' }}>
+                  {histChargement ? 'Chargement…' : <><strong style={{ color:'#111827' }}>{historique.length}</strong> mouvement{historique.length !== 1 ? 's' : ''}</>}
+                </div>
+              </div>
+            </div>
+
+            {/* Tableau */}
+            <div style={{ backgroundColor:'white', borderRadius:12, boxShadow:'0 1px 3px rgba(0,0,0,0.1)', overflow:'hidden' }}>
+              {histChargement ? (
+                <div style={{ textAlign:'center', padding:40, color:'#9ca3af' }}>Chargement…</div>
+              ) : historique.length === 0 ? (
+                <div style={{ textAlign:'center', padding:40, color:'#9ca3af' }}>
+                  <div style={{ fontSize:32, marginBottom:8 }}>📋</div>
+                  <div style={{ fontWeight:600, color:'#374151', marginBottom:4 }}>Aucun mouvement</div>
+                  <div style={{ fontSize:13 }}>Modifiez les filtres</div>
+                </div>
+              ) : (
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
+                    <thead>
+                      <tr style={{ background:'#f9fafb', borderBottom:'2px solid #e5e7eb' }}>
+                        {['Date', 'Produit', 'Famille', 'Unité', 'Type', 'Quantité', 'Fournisseur / Raison', 'Fait par'].map(h => (
+                          <th key={h} style={{ padding:'10px 12px', textAlign:'left', fontSize:11, color:'#6b7280', fontWeight:700, textTransform:'uppercase', letterSpacing:.5, whiteSpace:'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historique.map((m, i) => (
+                        <tr key={m.id} style={{ borderBottom:'1px solid #f3f4f6', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                          <td style={{ padding:'10px 12px', color:'#6b7280', whiteSpace:'nowrap' }}>{new Date(m.date_mouvement).toLocaleString('fr-FR', { day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit' })}</td>
+                          <td style={{ padding:'10px 12px', fontWeight:600, color:'#111827' }}>{m.produit?.nom}</td>
+                          <td style={{ padding:'10px 12px', color:'#6b7280' }}>{m.produit?.categorie || '—'}</td>
+                          <td style={{ padding:'10px 12px', color:'#6b7280' }}>{m.produit?.unite || '—'}</td>
+                          <td style={{ padding:'10px 12px' }}>
+                            <span style={{ padding:'3px 8px', borderRadius:20, fontSize:11, fontWeight:700, background: bgType[m.type_mouvement] || '#f3f4f6', color: clType[m.type_mouvement] || '#374151', whiteSpace:'nowrap' }}>
+                              {lblType[m.type_mouvement] || m.type_mouvement}
+                            </span>
+                          </td>
+                          <td style={{ padding:'10px 12px', fontWeight:700, color: m.type_mouvement === 'entree' ? '#16a34a' : '#dc2626' }}>
+                            {m.type_mouvement === 'entree' ? '+' : '−'}{Number(m.quantite)}
+                          </td>
+                          <td style={{ padding:'10px 12px', color:'#6b7280', maxWidth:200 }}>
+                            {m.fournisseur?.nom ? <span style={{ fontWeight:600, color:'#374151' }}>{m.fournisseur.nom}</span> : null}
+                            {m.raison ? <span style={{ display: m.fournisseur?.nom ? 'block' : 'inline', fontSize:12 }}>{m.raison}</span> : null}
+                            {!m.fournisseur?.nom && !m.raison ? '—' : null}
+                          </td>
+                          <td style={{ padding:'10px 12px', color:'#374151', fontWeight:500 }}>{m.utilisateur?.nom || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
     </div>
   )
 }
