@@ -12,6 +12,7 @@ const fmtDate = (d) => new Date(d).toLocaleDateString('fr-FR', { day: '2-digit',
 const Inventaire = () => {
   const { utilisateur } = useAuth()
   const { showToast: afficherMessage } = useToast()
+  const estPatron = utilisateur?.role === 'patron'
   const [inventaires, setInventaires] = useState([])
   const [inventaireActif, setInventaireActif] = useState(null)
   const [onglet, setOnglet] = useState('actif')
@@ -314,9 +315,9 @@ ${parts.filter(p => p.trim()).length > 0 ? `
 
   const stats = inventaireActif ? {
     total: inventaireActif.lignes.length,
-    saisis: inventaireActif.lignes.filter(l => parseFloat(l.qte_reelle) > 0 || l.qte_reelle === 0).length,
-    ecarts_positifs: inventaireActif.lignes.filter(l => parseFloat(l.ecart) > 0).length,
-    ecarts_negatifs: inventaireActif.lignes.filter(l => parseFloat(l.ecart) < 0).length,
+    saisis: inventaireActif.lignes.filter(l => parseFloat(l.qte_reelle) > 0).length,
+    ecarts_positifs: inventaireActif.lignes.filter(l => (parseFloat(l.qte_reelle) - parseFloat(l.qte_theorique)) > 0).length,
+    ecarts_negatifs: inventaireActif.lignes.filter(l => (parseFloat(l.qte_reelle) - parseFloat(l.qte_theorique)) < 0).length,
   } : null
 
   if (chargement) return (
@@ -349,12 +350,14 @@ ${parts.filter(p => p.trim()).length > 0 ? `
             </div>
           ) : (
             <div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${estPatron ? 4 : 2}, 1fr)`, gap: '12px', marginBottom: '20px' }}>
                 {[
                   { label: 'Total produits', valeur: stats.total, couleur: '#374151' },
                   { label: 'Saisis', valeur: stats.saisis, couleur: '#2563eb' },
-                  { label: 'Surplus', valeur: stats.ecarts_positifs, couleur: '#16a34a' },
-                  { label: 'Manques', valeur: stats.ecarts_negatifs, couleur: '#dc2626' },
+                  ...(estPatron ? [
+                    { label: 'Surplus', valeur: stats.ecarts_positifs, couleur: '#16a34a' },
+                    { label: 'Manques', valeur: stats.ecarts_negatifs, couleur: '#dc2626' },
+                  ] : [])
                 ].map(s => (
                   <div key={s.label} style={{ backgroundColor: 'white', borderRadius: '10px', padding: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', textAlign: 'center' }}>
                     <p style={{ margin: 0, fontSize: '28px', fontWeight: '700', color: s.couleur }}>{s.valeur}</p>
@@ -366,14 +369,16 @@ ${parts.filter(p => p.trim()).length > 0 ? `
               {(() => {
                 const cats = [...new Set(inventaireActif.lignes.filter(l => l.produit?.categorie).map(l => l.produit.categorie))].sort()
                 const lignesFiltrees = inventaireActif.lignes.filter(l => {
-                  const ecart = parseFloat(l.ecart)
-                  const nonSaisi = ecart === 0 && parseFloat(l.qte_reelle) === 0
                   if (rechercheInv && !l.produit.nom.toLowerCase().includes(rechercheInv.toLowerCase())) return false
                   if (filtreCatInv && l.produit?.categorie !== filtreCatInv) return false
-                  if (filtreEcartInv === 'non_saisi' && !nonSaisi) return false
-                  if (filtreEcartInv === 'ok' && (nonSaisi || ecart !== 0)) return false
-                  if (filtreEcartInv === 'surplus' && ecart <= 0) return false
-                  if (filtreEcartInv === 'manque' && ecart >= 0) return false
+                  if (estPatron && filtreEcartInv) {
+                    const ecart = parseFloat(l.qte_reelle) - parseFloat(l.qte_theorique)
+                    const nonSaisi = parseFloat(l.qte_reelle) === 0 && parseFloat(l.qte_theorique) > 0
+                    if (filtreEcartInv === 'non_saisi' && !nonSaisi) return false
+                    if (filtreEcartInv === 'ok' && (nonSaisi || ecart !== 0)) return false
+                    if (filtreEcartInv === 'surplus' && ecart <= 0) return false
+                    if (filtreEcartInv === 'manque' && ecart >= 0) return false
+                  }
                   return true
                 })
                 return (
@@ -403,16 +408,20 @@ ${parts.filter(p => p.trim()).length > 0 ? `
                           </button>
                         ))}
                       </div>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <span style={{ fontSize: '12px', color: '#6b7280', flexShrink: 0 }}>Écart :</span>
-                        {[['', 'Tous'], ['non_saisi', 'Non saisi'], ['ok', '✅ OK'], ['surplus', '📈 Surplus'], ['manque', '📉 Manque']].map(([val, label]) => (
-                          <button key={val} onClick={() => setFiltreEcartInv(val)}
-                            style={{ padding: '4px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500',
-                              backgroundColor: filtreEcartInv === val ? 'var(--couleur-principale)' : '#f3f4f6',
-                              color: filtreEcartInv === val ? 'white' : '#374151' }}>
-                            {label}
-                          </button>
-                        ))}
+                      {estPatron && (
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                          <span style={{ fontSize: '12px', color: '#6b7280', flexShrink: 0 }}>Écart :</span>
+                          {[['', 'Tous'], ['non_saisi', 'Non saisi'], ['ok', '✅ OK'], ['surplus', '📈 Surplus'], ['manque', '📉 Manque']].map(([val, label]) => (
+                            <button key={val} onClick={() => setFiltreEcartInv(val)}
+                              style={{ padding: '4px 12px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', fontWeight: '500',
+                                backgroundColor: filtreEcartInv === val ? 'var(--couleur-principale)' : '#f3f4f6',
+                                color: filtreEcartInv === val ? 'white' : '#374151' }}>
+                              {label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         {(rechercheInv || filtreCatInv || filtreEcartInv) && (
                           <button onClick={() => { setRechercheInv(''); setFiltreCatInv(''); setFiltreEcartInv('') }}
                             style={{ padding: '4px 10px', borderRadius: '20px', border: 'none', cursor: 'pointer', fontSize: '12px', backgroundColor: '#f3f4f6', color: '#6b7280' }}>
@@ -425,16 +434,16 @@ ${parts.filter(p => p.trim()).length > 0 ? `
                     <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                       <thead>
                         <tr style={{ borderBottom: '2px solid #f3f4f6' }}>
-                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '30%' }}>Produit</th>
-                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '18%' }}>Qté théorique</th>
-                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '22%' }}>Qté réelle</th>
-                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '15%' }}>Écart</th>
-                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '15%' }}>Statut</th>
+                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: estPatron ? '30%' : '35%' }}>Produit</th>
+                          {estPatron && <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '18%' }}>Qté théorique</th>}
+                          <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: estPatron ? '22%' : '65%' }}>Qté réelle</th>
+                          {estPatron && <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '15%' }}>Écart</th>}
+                          {estPatron && <th style={{ padding: '10px', textAlign: 'left', fontSize: '13px', color: '#6b7280', fontWeight: '500', width: '15%' }}>Statut</th>}
                         </tr>
                       </thead>
                       <tbody>
                         {lignesFiltrees.map(ligne => {
-                          const ecart         = parseFloat(ligne.ecart)
+                          const ecart         = parseFloat(ligne.qte_reelle) - parseFloat(ligne.qte_theorique)
                           const variantes     = ligne.produit?.variantes || []
                           const aVariantes    = variantes.length > 0
                           const loc           = variantesLocales[ligne.produit_id] || {}
@@ -453,10 +462,12 @@ ${parts.filter(p => p.trim()).length > 0 ? `
                                 )}
                               </td>
 
-                              {/* Qté théorique */}
-                              <td style={{ padding: '12px 10px', fontSize: '14px', color: '#6b7280' }}>
-                                {parseFloat(ligne.qte_theorique)} {ligne.produit.unite}
-                              </td>
+                              {/* Qté théorique — patron uniquement */}
+                              {estPatron && (
+                                <td style={{ padding: '12px 10px', fontSize: '14px', color: '#6b7280' }}>
+                                  {parseFloat(ligne.qte_theorique)} {ligne.produit.unite}
+                                </td>
+                              )}
 
                               {/* Saisie qté réelle — simple OU multi-variantes */}
                               <td style={{ padding: '8px 10px' }}>
@@ -544,23 +555,27 @@ ${parts.filter(p => p.trim()).length > 0 ? `
                                 )}
                               </td>
 
-                              {/* Écart */}
-                              <td style={{ padding: '12px 10px', fontSize: '14px', fontWeight: '600', color: ecart > 0 ? '#16a34a' : ecart < 0 ? '#dc2626' : '#9ca3af' }}>
-                                {ecart > 0 ? `+${ecart}` : ecart === 0 ? '0' : ecart} {ligne.produit.unite}
-                              </td>
+                              {/* Écart — patron uniquement */}
+                              {estPatron && (
+                                <td style={{ padding: '12px 10px', fontSize: '14px', fontWeight: '600', color: ecart > 0 ? '#16a34a' : ecart < 0 ? '#dc2626' : '#9ca3af' }}>
+                                  {ecart > 0 ? `+${ecart}` : ecart === 0 ? '0' : ecart} {ligne.produit.unite}
+                                </td>
+                              )}
 
-                              {/* Statut */}
-                              <td style={{ padding: '12px 10px' }}>
-                                {ecart === 0 && parseFloat(ligne.qte_reelle) === 0 ? (
-                                  <span style={{ fontSize: '12px', color: '#9ca3af' }}>Non saisi</span>
-                                ) : ecart === 0 ? (
-                                  <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#f0fdf4', color: '#16a34a' }}>✅ OK</span>
-                                ) : ecart > 0 ? (
-                                  <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#f0fdf4', color: '#16a34a' }}>📈 Surplus</span>
-                                ) : (
-                                  <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#fef2f2', color: '#dc2626' }}>📉 Manque</span>
-                                )}
-                              </td>
+                              {/* Statut — patron uniquement */}
+                              {estPatron && (
+                                <td style={{ padding: '12px 10px' }}>
+                                  {ecart === 0 && parseFloat(ligne.qte_reelle) === 0 ? (
+                                    <span style={{ fontSize: '12px', color: '#9ca3af' }}>Non saisi</span>
+                                  ) : ecart === 0 ? (
+                                    <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#f0fdf4', color: '#16a34a' }}>✅ OK</span>
+                                  ) : ecart > 0 ? (
+                                    <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#f0fdf4', color: '#16a34a' }}>📈 Surplus</span>
+                                  ) : (
+                                    <span style={{ padding: '3px 8px', borderRadius: '20px', fontSize: '12px', backgroundColor: '#fef2f2', color: '#dc2626' }}>📉 Manque</span>
+                                  )}
+                                </td>
+                              )}
                             </tr>
                           )
                         })}
