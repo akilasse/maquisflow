@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import api from '../../utils/api'
 import { useToast } from '../../context/ToastContext'
+import { useAuth } from '../../context/AuthContext'
 
 const Stock = () => {
   const { showToast: afficherMessage } = useToast()
+  const { utilisateur } = useAuth()
+  const estPatron = utilisateur?.role === 'patron'
   const [produits, setProduits] = useState([])
   const [fournisseurs, setFournisseurs] = useState([])
   const [historique, setHistorique] = useState([])
@@ -188,7 +191,7 @@ const Stock = () => {
         {[
           { key: 'produits', label: '📦 Produits' },
           { key: 'approvisionnement', label: '🚚 Approvisionnement' },
-          { key: 'sortie', label: '⬇️ Sortie manuelle' },
+          ...(estPatron ? [{ key: 'sortie', label: '⬇️ Sortie manuelle' }] : []),
           { key: 'bons', label: '📋 Bons' },
           { key: 'historique', label: '🕐 Historique' }
         ].map(o => (

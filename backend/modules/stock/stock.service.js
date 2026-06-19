@@ -1,7 +1,7 @@
 // ============================================================
 // STOCK SERVICE - Logique métier des mouvements de stock
 // Gère : entrées, sorties manuelles, historique
-// Sorties manuelles nécessitent validation gérant
+// Sorties manuelles réservées au patron uniquement
 // ============================================================
 
 // Entrée de stock (réception marchandise)
@@ -67,8 +67,8 @@ const sortieManuellStock = async (prisma, io, data, utilisateur) => {
     throw new Error('Ajoutez au moins un produit')
   }
 
-  if (utilisateur.role === 'caissier') {
-    throw new Error('Accès refusé - Gérant ou patron requis')
+  if (utilisateur.role !== 'patron') {
+    throw new Error('Accès refusé - Patron requis')
   }
 
   const resultat = await prisma.$transaction(async (tx) => {
