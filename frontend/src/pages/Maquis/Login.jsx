@@ -48,7 +48,11 @@ const Login = () => {
         navigate('/caisse')
       }
     } catch (error) {
-      setErreur(error.response?.data?.message || 'Email ou mot de passe incorrect')
+      if (!error.response) {
+        setErreur('Serveur inaccessible — vérifiez votre connexion internet')
+      } else {
+        setErreur(error.response.data?.message || 'Email ou mot de passe incorrect')
+      }
     } finally {
       setChargement(false)
     }

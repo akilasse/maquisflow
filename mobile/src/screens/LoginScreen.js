@@ -47,7 +47,11 @@ export default function LoginScreen() {
       const resultat = await login(email, motDePasse)
       // Si selection_requise, le contexte affichera l'écran de sélection
     } catch (error) {
-      Alert.alert('Erreur', error.response?.data?.message || 'Email ou mot de passe incorrect')
+      if (!error.response) {
+        Alert.alert('Hors ligne', 'Serveur inaccessible — vérifiez votre connexion internet')
+      } else {
+        Alert.alert('Erreur', error.response.data?.message || 'Email ou mot de passe incorrect')
+      }
     } finally {
       setChargement(false)
     }
