@@ -61,15 +61,23 @@ const AdminDashboard = () => {
   const admin = JSON.parse(localStorage.getItem('adminInfo') || '{}')
 
   const geocoderNominatim = async (adresse) => {
-    try {
-      const q = encodeURIComponent(`${adresse}, Abidjan, Côte d'Ivoire`)
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`, {
-        headers: { 'Accept-Language': 'fr' }
-      })
-      const data = await res.json()
-      if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
-      return null
-    } catch { return null }
+    // Essais progressifs : adresse complète → commune → "Abidjan" seul
+    const tentatives = [
+      `${adresse}, Abidjan, Côte d'Ivoire`,
+      `${adresse.split(',')[0].trim()}, Abidjan, Côte d'Ivoire`,
+      `Abidjan, Côte d'Ivoire`,
+    ]
+    for (const q of tentatives) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=ci`,
+          { headers: { 'Accept-Language': 'fr' } }
+        )
+        const data = await res.json()
+        if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), approximatif: q.includes('Abidjan, Côte') && !q.startsWith(adresse) }
+      } catch { continue }
+    }
+    return null
   }
 
   useEffect(() => {
@@ -91,8 +99,9 @@ const AdminDashboard = () => {
       const coords = await geocoderNominatim(m.adresse)
       if (coords && mapInstanceRef.current) {
         const couleur = m.couleur_primaire || '#FF6B35'
+        const border  = coords.approximatif ? '3px dashed #f59e0b' : '3px solid white'
         const icon = window.L.divIcon({
-          html: `<div style="width:36px;height:36px;border-radius:50%;background:${couleur};display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:15px;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.25)">${m.nom.charAt(0)}</div>`,
+          html: `<div style="width:36px;height:36px;border-radius:50%;background:${couleur};display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:15px;border:${border};box-shadow:0 2px 10px rgba(0,0,0,0.25)">${m.nom.charAt(0)}</div>`,
           className: '',
           iconSize: [36, 36],
           iconAnchor: [18, 18]
@@ -105,6 +114,7 @@ const AdminDashboard = () => {
               <div style="font-size:12px;color:#6366f1;font-weight:600;margin-bottom:4px">${m.activite || m.type}</div>
               <div style="font-size:11px;color:#64748b">${m.adresse}</div>
               ${m.telephone ? `<div style="font-size:11px;color:#16a34a;margin-top:4px">📞 ${m.telephone}</div>` : ''}
+              ${coords.approximatif ? `<div style="font-size:10px;color:#f59e0b;margin-top:4px">⚠️ Position approximative</div>` : ''}
             </div>
           `)
       }
