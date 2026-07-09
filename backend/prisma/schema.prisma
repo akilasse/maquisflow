@@ -44,6 +44,8 @@ model Maquis {
   conditionnements_custom Json?
   local_server_ip         String?    @db.VarChar(45)
   local_server_port       Int?
+  latitude                Decimal?   @db.Decimal(10,7)
+  longitude               Decimal?   @db.Decimal(10,7)
   created_at              DateTime   @default(now())
 
   utilisateurs    UtilisateurMaquis[]

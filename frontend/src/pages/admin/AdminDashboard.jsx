@@ -60,26 +60,6 @@ const AdminDashboard = () => {
 
   const admin = JSON.parse(localStorage.getItem('adminInfo') || '{}')
 
-  const geocoderNominatim = async (adresse) => {
-    // Essais progressifs : adresse complète → commune → "Abidjan" seul
-    const tentatives = [
-      `${adresse}, Abidjan, Côte d'Ivoire`,
-      `${adresse.split(',')[0].trim()}, Abidjan, Côte d'Ivoire`,
-      `Abidjan, Côte d'Ivoire`,
-    ]
-    for (const q of tentatives) {
-      try {
-        const res = await fetch(
-          `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}&limit=1&countrycodes=ci`,
-          { headers: { 'Accept-Language': 'fr' } }
-        )
-        const data = await res.json()
-        if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon), approximatif: q.includes('Abidjan, Côte') && !q.startsWith(adresse) }
-      } catch { continue }
-    }
-    return null
-  }
-
   useEffect(() => {
     if (onglet !== 'carte') return
     if (!window.L) return
@@ -95,29 +75,24 @@ const AdminDashboard = () => {
     }).addTo(map)
     mapInstanceRef.current = map
 
-    maquis.filter(m => m.adresse).forEach(async (m) => {
-      const coords = await geocoderNominatim(m.adresse)
-      if (coords && mapInstanceRef.current) {
-        const couleur = m.couleur_primaire || '#FF6B35'
-        const border  = coords.approximatif ? '3px dashed #f59e0b' : '3px solid white'
-        const icon = window.L.divIcon({
-          html: `<div style="width:36px;height:36px;border-radius:50%;background:${couleur};display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:15px;border:${border};box-shadow:0 2px 10px rgba(0,0,0,0.25)">${m.nom.charAt(0)}</div>`,
-          className: '',
-          iconSize: [36, 36],
-          iconAnchor: [18, 18]
-        })
-        window.L.marker([coords.lat, coords.lng], { icon })
-          .addTo(mapInstanceRef.current)
-          .bindPopup(`
-            <div style="font-family:sans-serif;min-width:190px;padding:4px">
-              <div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:3px">${m.nom}</div>
-              <div style="font-size:12px;color:#6366f1;font-weight:600;margin-bottom:4px">${m.activite || m.type}</div>
-              <div style="font-size:11px;color:#64748b">${m.adresse}</div>
-              ${m.telephone ? `<div style="font-size:11px;color:#16a34a;margin-top:4px">📞 ${m.telephone}</div>` : ''}
-              ${coords.approximatif ? `<div style="font-size:10px;color:#f59e0b;margin-top:4px">⚠️ Position approximative</div>` : ''}
-            </div>
-          `)
-      }
+    maquis.filter(m => m.latitude && m.longitude).forEach(m => {
+      const couleur = m.couleur_primaire || '#FF6B35'
+      const icon = window.L.divIcon({
+        html: `<div style="width:36px;height:36px;border-radius:50%;background:${couleur};display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:15px;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.25)">${m.nom.charAt(0)}</div>`,
+        className: '',
+        iconSize: [36, 36],
+        iconAnchor: [18, 18]
+      })
+      window.L.marker([m.latitude, m.longitude], { icon })
+        .addTo(map)
+        .bindPopup(`
+          <div style="font-family:sans-serif;min-width:190px;padding:4px">
+            <div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:3px">${m.nom}</div>
+            <div style="font-size:12px;color:#6366f1;font-weight:600;margin-bottom:4px">${m.activite || m.type}</div>
+            ${m.adresse ? `<div style="font-size:11px;color:#64748b">${m.adresse}</div>` : ''}
+            ${m.telephone ? `<div style="font-size:11px;color:#16a34a;margin-top:4px">📞 ${m.telephone}</div>` : ''}
+          </div>
+        `)
     })
 
     return () => {
@@ -126,7 +101,7 @@ const AdminDashboard = () => {
         mapInstanceRef.current = null
       }
     }
-  }, [onglet])
+  }, [onglet, maquis])
 
   const afficherMessage = (type, texte) => {
     setMessage({ type, texte })
@@ -922,15 +897,15 @@ const AdminDashboard = () => {
           <div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Carte clients</h1>
             <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-              {maquis.filter(m => m.adresse).length} établissement(s) localisé(s) sur {maquis.length} au total
+              {maquis.filter(m => m.latitude && m.longitude).length} établissement(s) localisé(s) sur {maquis.length} au total
             </p>
             <div style={{ ...S.card, padding: 0, overflow: 'hidden', marginBottom: 16 }}>
               <div id="carte-clients-map" style={{ height: 520, width: '100%' }} />
             </div>
-            {maquis.filter(m => !m.adresse).length > 0 && (
+            {maquis.filter(m => !m.latitude || !m.longitude).length > 0 && (
               <div style={{ padding: '12px 16px', background: '#fefce8', borderRadius: 10, border: '1px solid #fde68a', fontSize: 13, color: '#92400e' }}>
-                ⚠️ Pas d'adresse renseignée pour : {maquis.filter(m => !m.adresse).map(m => <strong key={m.id}>{m.nom}</strong>).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ', ', el], [])}
-                {' '}— à compléter dans le paramétrage de l'établissement.
+                ⚠️ Non localisés : {maquis.filter(m => !m.latitude || !m.longitude).map(m => <strong key={m.id}>{m.nom}</strong>).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ', ', el], [])}
+                {' '}— ils apparaîtront dès que leur adresse sera renseignée dans leur Paramétrage.
               </div>
             )}
           </div>

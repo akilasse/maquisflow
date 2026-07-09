@@ -282,6 +282,19 @@ const modifierUtilisateur = async (prisma, utilisateur_id, maquis_id, data) => {
 // MAQUIS - Paramètres + abonnement
 // ============================================================
 
+const geocoderAdresse = async (adresse) => {
+  try {
+    const q = encodeURIComponent(`${adresse}, Abidjan, Côte d'Ivoire`)
+    const res = await fetch(`https://photon.komoot.io/api/?q=${q}&limit=1&bbox=-5.1,4.9,-3.5,5.8`)
+    const data = await res.json()
+    if (data.features?.length > 0) {
+      const [lng, lat] = data.features[0].geometry.coordinates
+      return { latitude: lat, longitude: lng }
+    }
+    return null
+  } catch { return null }
+}
+
 const getMaquis = async (prisma, maquis_id) => {
   return await prisma.maquis.findUnique({
     where: { id: maquis_id },
@@ -292,29 +305,42 @@ const getMaquis = async (prisma, maquis_id) => {
 }
 
 const modifierMaquis = async (prisma, maquis_id, data) => {
-  return await prisma.maquis.update({
-    where: { id: maquis_id },
-    data: {
-      nom:                    data.nom,
-      adresse:                data.adresse !== undefined ? data.adresse : undefined,
-      telephone:              data.telephone !== undefined ? data.telephone : undefined,
-      logo_url:               data.logo_url,
-      couleur_primaire:       data.couleur_primaire,
-      devise:                 data.devise,
-      fuseau_horaire:         data.fuseau_horaire,
-      activite:               data.activite,
-      module_commandes_actif:  data.module_commandes_actif,
-      module_kds_actif:        data.module_kds_actif,
-      module_commandes_direct: data.module_commandes_direct,
-      paiement_avant:          data.paiement_avant,
-      heure_debut_journee:     data.heure_debut_journee !== undefined ? parseInt(data.heure_debut_journee) : undefined,
-      type:                    data.type,
-      categories_custom:       data.categories_custom       !== undefined ? data.categories_custom       : undefined,
-      unites_custom:           data.unites_custom           !== undefined ? data.unites_custom           : undefined,
-      variantes_gabarits:      data.variantes_gabarits      !== undefined ? data.variantes_gabarits      : undefined,
-      conditionnements_custom: data.conditionnements_custom !== undefined ? data.conditionnements_custom : undefined,
+  const updateData = {
+    nom:                     data.nom,
+    telephone:               data.telephone               !== undefined ? data.telephone               : undefined,
+    logo_url:                data.logo_url,
+    couleur_primaire:        data.couleur_primaire,
+    devise:                  data.devise,
+    fuseau_horaire:          data.fuseau_horaire,
+    activite:                data.activite,
+    module_commandes_actif:  data.module_commandes_actif,
+    module_kds_actif:        data.module_kds_actif,
+    module_commandes_direct: data.module_commandes_direct,
+    paiement_avant:          data.paiement_avant,
+    heure_debut_journee:     data.heure_debut_journee     !== undefined ? parseInt(data.heure_debut_journee) : undefined,
+    type:                    data.type,
+    categories_custom:       data.categories_custom       !== undefined ? data.categories_custom       : undefined,
+    unites_custom:           data.unites_custom           !== undefined ? data.unites_custom           : undefined,
+    variantes_gabarits:      data.variantes_gabarits      !== undefined ? data.variantes_gabarits      : undefined,
+    conditionnements_custom: data.conditionnements_custom !== undefined ? data.conditionnements_custom : undefined,
+  }
+
+  // Géocodage automatique en arrière-plan si l'adresse est fournie
+  if (data.adresse !== undefined) {
+    updateData.adresse = data.adresse || null
+    if (data.adresse) {
+      const coords = await geocoderAdresse(data.adresse)
+      if (coords) {
+        updateData.latitude  = coords.latitude
+        updateData.longitude = coords.longitude
+      }
+    } else {
+      updateData.latitude  = null
+      updateData.longitude = null
     }
-  })
+  }
+
+  return await prisma.maquis.update({ where: { id: maquis_id }, data: updateData })
 }
 
 const importProduits = async (prisma, maquis_id, lignes) => {

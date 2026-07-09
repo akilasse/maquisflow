@@ -50,6 +50,8 @@ const getMaquis = async (prisma) => {
     id: m.id, nom: m.nom, type: m.type, activite: m.activite, logo_url: m.logo_url,
     actif: m.actif, couleur_primaire: m.couleur_primaire, devise: m.devise, created_at: m.created_at,
     adresse: m.adresse, telephone: m.telephone,
+    latitude: m.latitude ? parseFloat(m.latitude) : null,
+    longitude: m.longitude ? parseFloat(m.longitude) : null,
     abonnement: m.abonnement, nb_utilisateurs: m.utilisateurs.length,
     nb_ventes: m._count.ventes, nb_produits: m._count.produits,
     utilisateurs: m.utilisateurs.map(u => ({ id: u.utilisateur.id, nom: u.utilisateur.nom, email: u.utilisateur.email, role: u.role, actif: u.actif }))
