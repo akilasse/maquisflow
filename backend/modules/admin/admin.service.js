@@ -49,6 +49,7 @@ const getMaquis = async (prisma) => {
   return maquis.map(m => ({
     id: m.id, nom: m.nom, type: m.type, activite: m.activite, logo_url: m.logo_url,
     actif: m.actif, couleur_primaire: m.couleur_primaire, devise: m.devise, created_at: m.created_at,
+    adresse: m.adresse, telephone: m.telephone,
     abonnement: m.abonnement, nb_utilisateurs: m.utilisateurs.length,
     nb_ventes: m._count.ventes, nb_produits: m._count.produits,
     utilisateurs: m.utilisateurs.map(u => ({ id: u.utilisateur.id, nom: u.utilisateur.nom, email: u.utilisateur.email, role: u.role, actif: u.actif }))
@@ -105,6 +106,8 @@ const modifierMaquis = async (prisma, maquis_id, data) => {
   if (data.logo_url !== undefined)         updateData.logo_url         = data.logo_url
   if (data.devise !== undefined)           updateData.devise           = data.devise
   if (data.actif !== undefined)            updateData.actif            = data.actif
+  if (data.adresse !== undefined)          updateData.adresse          = data.adresse || null
+  if (data.telephone !== undefined)        updateData.telephone        = data.telephone || null
   return await prisma.maquis.update({ where: { id: maquis_id }, data: updateData })
 }
 

@@ -2,7 +2,7 @@
 // ADMIN DASHBOARD - Panneau super admin Flowix
 // ============================================================
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
 
@@ -50,7 +50,8 @@ const AdminDashboard = () => {
   const [logoFichier, setLogoFichier]             = useState(null)
   const [logoPreview, setLogoPreview]             = useState(null)
   const [editMaquis, setEditMaquis]               = useState(null)
-  const [modalFacture, setModalFacture]           = useState(null) // maquis cible
+  const [modalFacture, setModalFacture]           = useState(null)
+  const mapInstanceRef                            = useRef(null)
   const [optFacture, setOptFacture]               = useState({ devLignes: [], noteAbo: '' })
 
   const [formMaquis, setFormMaquis] = useState({
@@ -58,6 +59,64 @@ const AdminDashboard = () => {
   })
 
   const admin = JSON.parse(localStorage.getItem('adminInfo') || '{}')
+
+  const geocoderNominatim = async (adresse) => {
+    try {
+      const q = encodeURIComponent(`${adresse}, Abidjan, Côte d'Ivoire`)
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${q}&limit=1`, {
+        headers: { 'Accept-Language': 'fr' }
+      })
+      const data = await res.json()
+      if (data.length > 0) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
+      return null
+    } catch { return null }
+  }
+
+  useEffect(() => {
+    if (onglet !== 'carte') return
+    if (!window.L) return
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove()
+      mapInstanceRef.current = null
+    }
+
+    const map = window.L.map('carte-clients-map').setView([5.3599517, -4.0082563], 12)
+    window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
+    }).addTo(map)
+    mapInstanceRef.current = map
+
+    maquis.filter(m => m.adresse).forEach(async (m) => {
+      const coords = await geocoderNominatim(m.adresse)
+      if (coords && mapInstanceRef.current) {
+        const couleur = m.couleur_primaire || '#FF6B35'
+        const icon = window.L.divIcon({
+          html: `<div style="width:36px;height:36px;border-radius:50%;background:${couleur};display:flex;align-items:center;justify-content:center;color:white;font-weight:800;font-size:15px;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.25)">${m.nom.charAt(0)}</div>`,
+          className: '',
+          iconSize: [36, 36],
+          iconAnchor: [18, 18]
+        })
+        window.L.marker([coords.lat, coords.lng], { icon })
+          .addTo(mapInstanceRef.current)
+          .bindPopup(`
+            <div style="font-family:sans-serif;min-width:190px;padding:4px">
+              <div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:3px">${m.nom}</div>
+              <div style="font-size:12px;color:#6366f1;font-weight:600;margin-bottom:4px">${m.activite || m.type}</div>
+              <div style="font-size:11px;color:#64748b">${m.adresse}</div>
+              ${m.telephone ? `<div style="font-size:11px;color:#16a34a;margin-top:4px">📞 ${m.telephone}</div>` : ''}
+            </div>
+          `)
+      }
+    })
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove()
+        mapInstanceRef.current = null
+      }
+    }
+  }, [onglet])
 
   const afficherMessage = (type, texte) => {
     setMessage({ type, texte })
@@ -364,6 +423,8 @@ const AdminDashboard = () => {
         couleur_primaire: editMaquis.couleur_primaire,
         activite:         editMaquis.activite,
         devise:           editMaquis.devise,
+        adresse:          editMaquis.adresse,
+        telephone:        editMaquis.telephone,
       })
       afficherMessage('succes', 'Établissement mis à jour !')
       setEditMaquis(null)
@@ -412,6 +473,7 @@ const AdminDashboard = () => {
             { key: 'dashboard',   label: 'Dashboard',      icone: '📊' },
             { key: 'maquis',      label: 'Établissements', icone: '🏪' },
             { key: 'abonnements', label: 'Abonnements',    icone: '💳' },
+            { key: 'carte',       label: 'Carte clients',  icone: '🗺️' },
           ].map(item => (
             <button key={item.key} onClick={() => { setOnglet(item.key); setMaquisSelectionne(null) }}
               style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: 'none', cursor: 'pointer', backgroundColor: onglet === item.key ? '#1e293b' : 'transparent', color: onglet === item.key ? 'white' : '#64748b', fontSize: 14, fontWeight: 500, marginBottom: 4, textAlign: 'left' }}>
@@ -721,7 +783,7 @@ const AdminDashboard = () => {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                 <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>Paramètres</h2>
                 {!editMaquis && (
-                  <button onClick={() => setEditMaquis({ id: maquisSelectionne.id, nom: maquisSelectionne.nom, couleur_primaire: maquisSelectionne.couleur_primaire || '#FF6B35', activite: maquisSelectionne.activite || '', devise: maquisSelectionne.devise || 'XOF' })} style={S.btn()}>
+                  <button onClick={() => setEditMaquis({ id: maquisSelectionne.id, nom: maquisSelectionne.nom, couleur_primaire: maquisSelectionne.couleur_primaire || '#FF6B35', activite: maquisSelectionne.activite || '', devise: maquisSelectionne.devise || 'XOF', adresse: maquisSelectionne.adresse || '', telephone: maquisSelectionne.telephone || '' })} style={S.btn()}>
                     ✏️ Modifier
                   </button>
                 )}
@@ -758,6 +820,14 @@ const AdminDashboard = () => {
                         <option value="USD">USD ($)</option>
                       </select>
                     </div>
+                    <div style={{ gridColumn: '1 / -1' }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Adresse (pour la carte)</label>
+                      <input value={editMaquis.adresse} onChange={e => setEditMaquis({ ...editMaquis, adresse: e.target.value })} placeholder="Ex: Bietry, Rue Canal G69, Abidjan" style={{ ...S.input, marginBottom: 0 }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: '#64748b', display: 'block', marginBottom: 4 }}>Téléphone</label>
+                      <input value={editMaquis.telephone} onChange={e => setEditMaquis({ ...editMaquis, telephone: e.target.value })} placeholder="Ex: +225 07 00 00 00 00" style={{ ...S.input, marginBottom: 0 }} />
+                    </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={sauvegarderMaquis} style={S.btn('#16a34a')}>✅ Sauvegarder</button>
@@ -770,6 +840,8 @@ const AdminDashboard = () => {
                     { label: 'Nom', val: maquisSelectionne.nom },
                     { label: 'Activité', val: maquisSelectionne.activite || maquisSelectionne.type || '—' },
                     { label: 'Devise', val: maquisSelectionne.devise || 'XOF' },
+                    { label: 'Adresse', val: maquisSelectionne.adresse || '—' },
+                    { label: 'Téléphone', val: maquisSelectionne.telephone || '—' },
                     { label: 'Couleur', val: (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ width: 16, height: 16, borderRadius: 4, backgroundColor: maquisSelectionne.couleur_primaire, display: 'inline-block' }} />
@@ -832,6 +904,25 @@ const AdminDashboard = () => {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* CARTE CLIENTS */}
+        {onglet === 'carte' && (
+          <div>
+            <h1 style={{ fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>Carte clients</h1>
+            <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
+              {maquis.filter(m => m.adresse).length} établissement(s) localisé(s) sur {maquis.length} au total
+            </p>
+            <div style={{ ...S.card, padding: 0, overflow: 'hidden', marginBottom: 16 }}>
+              <div id="carte-clients-map" style={{ height: 520, width: '100%' }} />
+            </div>
+            {maquis.filter(m => !m.adresse).length > 0 && (
+              <div style={{ padding: '12px 16px', background: '#fefce8', borderRadius: 10, border: '1px solid #fde68a', fontSize: 13, color: '#92400e' }}>
+                ⚠️ Pas d'adresse renseignée pour : {maquis.filter(m => !m.adresse).map(m => <strong key={m.id}>{m.nom}</strong>).reduce((acc, el, i) => i === 0 ? [el] : [...acc, ', ', el], [])}
+                {' '}— à compléter dans le paramétrage de l'établissement.
+              </div>
+            )}
           </div>
         )}
 
