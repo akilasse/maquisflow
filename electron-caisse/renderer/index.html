@@ -913,10 +913,14 @@ function connecterSocket() {
       await window.electronAPI.storeSet('bons_imprimes', dejaPrints.slice(-500))
     })
 
-    // Réimpression manuelle depuis la page Ventes (gérant/patron) — même logique, pas de dédup
+    // Réimpression manuelle depuis la page Ventes — même logique que commande:nouvelle, pas de dédup
     socket.on('commande:reimprimer', async (bon) => {
+      showMessage(`🖨️ Réimpression Cmd #${bon.numero}...`, 'info')
       const result = await window.electronAPI.printBon(bon)
-      if (!result.success) console.log('Réimpression échouée:', result.error)
+      if (!result.success) {
+        showMessage(`❌ Impression échouée: ${result.error || 'erreur inconnue'}`, 'erreur')
+        console.log('Réimpression échouée:', result.error)
+      }
     })
   }
   document.head.appendChild(script)
