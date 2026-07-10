@@ -321,7 +321,7 @@ export default function Ventes() {
   const nbCommandes = ventes.filter(v => v._type === 'commande').length
   const couleur     = utilisateur?.maquis?.couleur_primaire || '#FF6B35'
 
-  // ── Réimpression : déclenche l'impression via le socket → Electron caisse ──
+  // ── Réimpression : socket → Electron caisse (même mécanisme que commande:nouvelle) ──
   const reimprimer = async (v) => {
     try {
       await api.post(`/api/commandes/${v.id}/reimprimer`)

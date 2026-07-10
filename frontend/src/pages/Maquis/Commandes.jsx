@@ -205,6 +205,16 @@ const Commandes = () => {
     }
   }
 
+  // ── Réimprimer le bon ────────────────────────────────────
+  const reimprimerBon = async (commandeId) => {
+    try {
+      await api.post(`/api/commandes/${commandeId}/reimprimer`)
+      flash('succes', '🖨️ Bon envoyé à l\'imprimante')
+    } catch (e) {
+      flash('erreur', e.response?.data?.message || 'Erreur impression')
+    }
+  }
+
   // ── Marquer servi ─────────────────────────────────────────
   const marquerServi = async (commandeId) => {
     try {
@@ -418,18 +428,26 @@ const Commandes = () => {
                       ))}
                     </div>
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                       <span style={{ fontSize: 12, color: '#9ca3af' }}>
                         {new Date(c.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
-                      {estPrete && (
-                        <button onClick={() => marquerServi(c.id)} style={{
-                          backgroundColor: '#16a34a', color: 'white', border: 'none',
-                          borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer'
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => reimprimerBon(c.id)} style={{
+                          backgroundColor: '#f0f9ff', color: '#0369a1', border: 'none',
+                          borderRadius: 8, padding: '7px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer'
                         }}>
-                          🍽️ Marquer servi
+                          🖨️
                         </button>
-                      )}
+                        {estPrete && (
+                          <button onClick={() => marquerServi(c.id)} style={{
+                            backgroundColor: '#16a34a', color: 'white', border: 'none',
+                            borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer'
+                          }}>
+                            🍽️ Marquer servi
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )

@@ -452,6 +452,30 @@ const modifierLignesCommande = async (prisma, io, commandeId, lignes, utilisateu
 
   const commandeMaj = await verifierAppartenance(prisma, utilisateur.maquis_id, commandeId)
   io.to(`maquis_${utilisateur.maquis_id}`).emit('commande:mise_a_jour', commandeMaj)
+
+  // Réimpression automatique du bon après modification
+  const maquis = await prisma.maquis.findUnique({ where: { id: utilisateur.maquis_id } })
+  io.to(`maquis_${utilisateur.maquis_id}`).emit('commande:reimprimer', {
+    numero:         commandeMaj.numero,
+    numero_journee: commandeMaj.numero_journee || null,
+    maquis:         maquis?.nom || 'Flowix',
+    logo_url:       maquis?.logo_url || null,
+    adresse:        maquis?.adresse || null,
+    telephone:      maquis?.telephone || null,
+    table:          commandeMaj.table?.numero || null,
+    serveur:        commandeMaj.serveur?.nom || '',
+    date:           new Date(commandeMaj.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+    lignes:         commandeMaj.lignes.map(l => ({
+      nom:           l.produit?.nom || '?',
+      variante_nom:  l.variante_nom || null,
+      quantite:      parseFloat(l.quantite),
+      prix_unitaire: parseFloat(l.prix_unitaire || 0),
+      total:         parseFloat(l.prix_unitaire || 0) * parseFloat(l.quantite || 1),
+      note:          l.note || ''
+    })),
+    note: commandeMaj.note || null
+  })
+
   return commandeMaj
 }
 
