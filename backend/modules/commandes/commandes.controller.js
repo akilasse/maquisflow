@@ -126,6 +126,8 @@ const reimprimer = async (req, res) => {
     // Récupère le maquis pour logo/adresse/téléphone
     const maquis = await req.prisma.maquis.findUnique({ where: { id: maquis_id } })
     // Émet commande:reimprimer → l'Electron caisse connecté imprime le bon
+    const room = req.io.sockets.adapter.rooms.get(`maquis_${maquis_id}`)
+    console.log(`[REIMPRIMER] maquis_${maquis_id} — ${room ? room.size : 0} socket(s) dans la room`)
     req.io.to(`maquis_${maquis_id}`).emit('commande:reimprimer', {
       numero:         commande.numero,
       numero_journee: commande.numero_journee || null,
