@@ -866,8 +866,7 @@ function connecterSocket() {
   script.src = `${API_URL}/socket.io/socket.io.js`
   script.onload = () => {
     const socket = io(API_URL, {
-      auth: { token: state.token },
-      transports: ['websocket']
+      auth: { token: state.token }
     })
     window._socket = socket
 
