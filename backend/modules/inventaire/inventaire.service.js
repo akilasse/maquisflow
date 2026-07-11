@@ -82,7 +82,8 @@ const mettreAJourLigne = async (prisma, inventaire_id, produit_id, qte_base, var
     data: {
       qte_reelle:         parseFloat(qte_reelle.toFixed(3)),
       ecart:              parseFloat(ecart.toFixed(3)),
-      variantes_comptees: vcData
+      variantes_comptees: vcData,
+      est_saisie:         true
     },
     include: { produit: { select: { nom: true, unite: true } } }
   })
@@ -104,7 +105,10 @@ const cloturerInventaire = async (prisma, io, inventaire_id, utilisateur) => {
 
   const resultat = await prisma.$transaction(async (tx) => {
     for (const ligne of inventaire.lignes) {
-      if (parseFloat(ligne.ecart) !== 0) {
+      // Recalcul fiable de l'écart à partir des valeurs stockées
+      const ecartReel = parseFloat(ligne.qte_reelle) - parseFloat(ligne.qte_theorique)
+      // Seulement les lignes explicitement saisies (evite d'écraser le stock des lignes non touchées)
+      if (ligne.est_saisie && ecartReel !== 0) {
         await tx.produit.update({
           where: { id: ligne.produit_id },
           data: { stock_actuel: ligne.qte_reelle }
@@ -115,8 +119,8 @@ const cloturerInventaire = async (prisma, io, inventaire_id, utilisateur) => {
             maquis_id: utilisateur.maquis_id,
             produit_id: ligne.produit_id,
             type_mouvement: 'ajustement',
-            quantite: Math.abs(parseFloat(ligne.ecart)),
-            raison: `Ajustement inventaire #${inventaire_id} - Écart : ${ligne.ecart}`,
+            quantite: Math.abs(ecartReel),
+            raison: `Ajustement inventaire #${inventaire_id} - Écart : ${ecartReel > 0 ? '+' : ''}${ecartReel}`,
             utilisateur_id: utilisateur.id,
             valide_par: utilisateur.id,
             valide_at: new Date()

@@ -301,6 +301,7 @@ model InventaireLigne {
   qte_reelle         Decimal    @db.Decimal(10,3)
   ecart              Decimal    @db.Decimal(10,3)
   variantes_comptees Json?      // { base: 2, variantes: [{nom, coefficient, quantite}] }
+  est_saisie         Boolean   @default(false)
 }
 
 model LogAction {
