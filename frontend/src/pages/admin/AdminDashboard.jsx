@@ -403,6 +403,18 @@ const AdminDashboard = () => {
 
   const sauvegarderMaquis = async () => {
     try {
+      let latitude = null
+      let longitude = null
+      if (editMaquis.adresse) {
+        try {
+          const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(editMaquis.adresse + ', Abidjan, Côte d\'Ivoire')}&format=json&limit=1&countrycodes=ci`)
+          const results = await geo.json()
+          if (results.length > 0) {
+            latitude = parseFloat(results[0].lat)
+            longitude = parseFloat(results[0].lon)
+          }
+        } catch { /* géocodage échoué, on continue sans coords */ }
+      }
       await api().put(`/maquis/${editMaquis.id}`, {
         nom:              editMaquis.nom,
         couleur_primaire: editMaquis.couleur_primaire,
@@ -410,6 +422,8 @@ const AdminDashboard = () => {
         devise:           editMaquis.devise,
         adresse:          editMaquis.adresse,
         telephone:        editMaquis.telephone,
+        latitude,
+        longitude,
       })
       afficherMessage('succes', 'Établissement mis à jour !')
       setEditMaquis(null)

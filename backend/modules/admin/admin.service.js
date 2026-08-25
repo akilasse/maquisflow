@@ -110,6 +110,8 @@ const modifierMaquis = async (prisma, maquis_id, data) => {
   if (data.actif !== undefined)            updateData.actif            = data.actif
   if (data.adresse !== undefined)          updateData.adresse          = data.adresse || null
   if (data.telephone !== undefined)        updateData.telephone        = data.telephone || null
+  if (data.latitude !== undefined)         updateData.latitude         = data.latitude
+  if (data.longitude !== undefined)        updateData.longitude        = data.longitude
   return await prisma.maquis.update({ where: { id: maquis_id }, data: updateData })
 }
 
