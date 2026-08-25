@@ -407,8 +407,15 @@ const AdminDashboard = () => {
       let longitude = null
       if (editMaquis.adresse) {
         try {
-          const geo = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(editMaquis.adresse + ', Abidjan, Côte d\'Ivoire')}&format=json&limit=1&countrycodes=ci`)
-          const results = await geo.json()
+          const geocode = async (q) => {
+            const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=1&countrycodes=ci`)
+            return await r.json()
+          }
+          let results = await geocode(editMaquis.adresse + ', Abidjan, Côte d\'Ivoire')
+          if (!results.length) {
+            const commune = editMaquis.adresse.split(',')[0].trim()
+            results = await geocode(commune + ', Abidjan, Côte d\'Ivoire')
+          }
           if (results.length > 0) {
             latitude = parseFloat(results[0].lat)
             longitude = parseFloat(results[0].lon)
