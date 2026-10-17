@@ -605,7 +605,7 @@ const Landing = () => {
             avec une gestion <span style={S.heroSpan}>intelligente</span>
           </h1>
           <p style={S.heroSub}>
-            Flowix digitalise la gestion de votre bar, maquis ou restaurant — caisse, stock, commandes, dashboard patron — en une seule solution simple et fiable.
+            Fini les cahiers, les erreurs de caisse et les stocks qui manquent. Flowix gère tout votre établissement, simplement.
           </p>
           <div>
             <a
