@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../../context/AuthContext'
 import api from '../../utils/api'
 
@@ -225,6 +225,9 @@ const Login = () => {
 
         <p style={{ textAlign: 'center', color: '#9ca3af', fontSize: 12, marginTop: 16 }}>
           Flowix — Gestion commerciale
+        </p>
+        <p style={{ textAlign: 'center', marginTop: 8 }}>
+          <Link to="/" style={{ color: '#9ca3af', fontSize: 12, textDecoration: 'none' }}>← Retour à l'accueil</Link>
         </p>
       </div>
 

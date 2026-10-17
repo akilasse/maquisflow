@@ -17,6 +17,9 @@ import Tablette       from './pages/Maquis/Tablette'
 import KDS            from './pages/Maquis/KDS'
 import ResetPassword  from './pages/Maquis/ResetPassword'
 
+// Landing
+import Landing from './pages/Landing'
+
 // Admin
 import AdminLogin     from './pages/admin/AdminLogin'
 import AdminDashboard from './pages/admin/AdminDashboard'
@@ -31,7 +34,7 @@ const App = () => {
             {/* Login + reset password */}
             <Route path="/login"          element={<Login />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/"               element={<Navigate to="/login" replace />} />
+            <Route path="/"               element={<Landing />} />
 
             {/* App principale */}
             <Route path="/dashboard" element={
